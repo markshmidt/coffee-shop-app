@@ -27,6 +27,7 @@ class Customer(models.Model):
 class Category(models.Model):
     name = models.CharField(max_length=100, unique=True)
     position = models.PositiveIntegerField(default=0)
+    image = models.ImageField(upload_to='images/category/', blank=True)
 
     def __str__(self):
         return self.name
