@@ -27,10 +27,22 @@ class Customer(models.Model):
 class Category(models.Model):
     name = models.CharField(max_length=100, unique=True)
     position = models.PositiveIntegerField(default=0)
-    image = models.ImageField(upload_to='images/category/', blank=True)
+    image = models.ImageField(upload_to='images/category/', blank=True, null=True)
+
+    # self-referencing FK
+    parent = models.ForeignKey(
+        "self",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="subcategories"
+    )
+
+    class Meta:
+        ordering = ["position", "name"]
 
     def __str__(self):
-        return self.name
+        return f"{self.parent} → {self.name}" if self.parent else self.name
     def rename(self, new_name):
         self.name = new_name
     def reorder(self):
