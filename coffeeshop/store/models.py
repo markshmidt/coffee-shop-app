@@ -8,7 +8,7 @@ class Customer(models.Model):
     id = models.AutoField(primary_key=True)
     fname = models.CharField(max_length=100, blank=True)
     lname = models.CharField(max_length=100, blank=True)
-    phone = models.CharField(max_length=100, unique=True) # E.164 like "+1416..."
+    phone = models.CharField(max_length=20, unique=True) # E.164 like "+1416..."
     email = models.EmailField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -32,7 +32,7 @@ class Category(models.Model):
     # self-referencing FK
     parent = models.ForeignKey(
         "self",
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="subcategories"
@@ -54,6 +54,7 @@ class MenuItem(models.Model):
     price_cents = models.IntegerField()
     active = models.BooleanField(default=True)
     description = models.TextField(blank=True)
+    position = models.PositiveIntegerField(default=0)
 
     class Meta:
         ordering = ["category__position", "position", "name"]
@@ -194,31 +195,31 @@ class Order(models.Model):
         ]
         ordering = ["-paid_at", "-id"]
 
-def mark_completed(self):
-        if self.status == self.STATUS_PAID:
-            self.status = self.STATUS_COMPLETED
+    def mark_completed(self):
+            if self.status == self.STATUS_PAID:
+                self.status = self.STATUS_COMPLETED
+                self.save(update_fields=["status"])
+
+    def mark_refunded(self, reason: str):
+        if self.status in (self.STATUS_PAID, self.STATUS_COMPLETED):
+            self.status = self.STATUS_REFUNDED
             self.save(update_fields=["status"])
 
-def mark_refunded(self, reason: str):
-    if self.status in (self.STATUS_PAID, self.STATUS_COMPLETED):
-        self.status = self.STATUS_REFUNDED
-        self.save(update_fields=["status"])
-
-def validate_totals(self):
-    expected = (self.subtotal_cents
-                - self.manual_discount_cents
-                - self.loyalty_redemption_cents
-                + self.tax_cents
-                + self.tip_cents)
-    if expected != self.total_cents:
-        raise ValidationError("Order totals invariant failed.")
+    def validate_totals(self):
+        expected = (self.subtotal_cents
+                    - self.manual_discount_cents
+                    - self.loyalty_redemption_cents
+                    + self.tax_cents
+                    + self.tip_cents)
+        if expected != self.total_cents:
+            raise ValidationError("Order totals invariant failed.")
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
     menu_item = models.ForeignKey(MenuItem, on_delete=models.PROTECT, related_name="order_lines")
     name_snapshot = models.CharField(max_length=120)
     variant_name_snapshot = models.CharField(max_length=40, blank=True)  # e.g., "12oz" or blank for food
-    base_unit_price_cents = models.IntegerField()
+    base_unit_price_cents = models.IntegerField(default=0)
     unit_price_cents = models.IntegerField()
     qty = models.PositiveIntegerField()
 
