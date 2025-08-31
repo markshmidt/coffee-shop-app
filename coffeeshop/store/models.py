@@ -55,6 +55,90 @@ class MenuItem(models.Model):
     active = models.BooleanField(default=True)
     description = models.TextField(blank=True)
 
+    class Meta:
+        ordering = ["category__position", "position", "name"]
+        constraints = [
+            models.UniqueConstraint(fields=["category", "name"], name="uniq_item_per_category"),
+        ]
+
+    def __str__(self):
+        return self.name
+
+
+class Variant(models.Model):
+    """
+    A purchasable size for a DRINK menu item (e.g., 8oz/12oz/16oz) with its own base price.
+    Food items have no variants.
+    """
+    menu_item = models.ForeignKey(MenuItem, on_delete=models.CASCADE, related_name="variants")
+    name = models.CharField(max_length=40)                                  # e.g., "12oz"
+    base_price_cents = models.IntegerField()
+    position = models.PositiveIntegerField(default=0)
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["menu_item", "position", "name"]
+        constraints = [
+            models.UniqueConstraint(fields=["menu_item", "name"], name="uniq_variant_per_item"),
+        ]
+
+    def __str__(self):
+        return f"{self.menu_item.name} – {self.name}"
+
+
+class ModifierGroup(models.Model):
+    SINGLE = "SINGLE"
+    MULTI = "MULTI"
+    SELECTION_CHOICES = [(SINGLE, "Single"), (MULTI, "Multi")]
+
+    name = models.CharField(max_length=80)                                  # e.g., "Milk", "Syrups"
+    selection_type = models.CharField(max_length=10, choices=SELECTION_CHOICES, default=SINGLE)
+    min_select = models.PositiveIntegerField(default=0)
+    max_select = models.PositiveIntegerField(default=1)
+    position = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["position", "name"]
+        verbose_name = "Modifier group"
+
+    def __str__(self):
+        return self.name
+
+
+class ModifierOption(models.Model):
+    group = models.ForeignKey(ModifierGroup, on_delete=models.CASCADE, related_name="options")
+    name = models.CharField(max_length=80)                                  # e.g., "Oat", "Vanilla"
+    price_delta_cents = models.IntegerField(default=0)
+    position = models.PositiveIntegerField(default=0)
+    is_default = models.BooleanField(default=False)                         # for required SINGLE groups
+
+    class Meta:
+        ordering = ["group__position", "group__name", "position", "name"]
+        constraints = [
+            models.UniqueConstraint(fields=["group", "name"], name="uniq_option_per_group"),
+        ]
+
+    def __str__(self):
+        return f"{self.group.name}: {self.name}"
+
+
+class ItemModifierGroup(models.Model):
+    """
+    Attaches a ModifierGroup to a specific drink MenuItem.
+    """
+    menu_item = models.ForeignKey(MenuItem, on_delete=models.CASCADE, related_name="modifier_groups")
+    group = models.ForeignKey(ModifierGroup, on_delete=models.CASCADE, related_name="attached_items")
+    position = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["menu_item", "position"]
+        constraints = [
+            models.UniqueConstraint(fields=["menu_item", "group"], name="uniq_group_per_item"),
+        ]
+
+    def __str__(self):
+        return f"{self.menu_item.name} ↔ {self.group.name}"
+
 
 class Order(models.Model):
     STATUS_PAID = "PAID"
@@ -71,7 +155,7 @@ class Order(models.Model):
                               default=STATUS_PAID)
 
     # id = models.AutoField(primary_key=True)
-    customer = models.ForeignKey(Customer, on_delete=models.SET_NULL, null=True, blank=True)
+    customer = models.ForeignKey(Customer, on_delete=models.SET_NULL, null=True, blank=True, related_name="orders")
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="orders")
 
     #money
@@ -98,33 +182,73 @@ class Order(models.Model):
         max_length=8, choices=[("CASH", "Cash"), ("CARD", "Card"), ("COMP", "Comp")]
     )
     refund_reason = models.CharField(max_length=200, blank=True)
+    register_id = models.CharField(max_length=40, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    def mark_completed(self):
+    class Meta:
+        indexes = [
+            models.Index(fields=["paid_at"]),
+            models.Index(fields=["status"]),
+            models.Index(fields=["created_by"]),
+            models.Index(fields=["customer"]),
+        ]
+        ordering = ["-paid_at", "-id"]
+
+def mark_completed(self):
         if self.status == self.STATUS_PAID:
             self.status = self.STATUS_COMPLETED
             self.save(update_fields=["status"])
 
-    def mark_refunded(self, reason: str):
-        if self.status in (self.STATUS_PAID, self.STATUS_COMPLETED):
-            self.status = self.STATUS_REFUNDED
-            self.save(update_fields=["status"])
+def mark_refunded(self, reason: str):
+    if self.status in (self.STATUS_PAID, self.STATUS_COMPLETED):
+        self.status = self.STATUS_REFUNDED
+        self.save(update_fields=["status"])
 
-    def validate_totals(self):
-        expected = (self.subtotal_cents
-                    - self.manual_discount_cents
-                    - self.loyalty_redemption_cents
-                    + self.tax_cents
-                    + self.tip_cents)
-        if expected != self.total_cents:
-            raise ValidationError("Order totals invariant failed.")
+def validate_totals(self):
+    expected = (self.subtotal_cents
+                - self.manual_discount_cents
+                - self.loyalty_redemption_cents
+                + self.tax_cents
+                + self.tip_cents)
+    if expected != self.total_cents:
+        raise ValidationError("Order totals invariant failed.")
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
     menu_item = models.ForeignKey(MenuItem, on_delete=models.PROTECT, related_name="order_lines")
     name_snapshot = models.CharField(max_length=120)
+    variant_name_snapshot = models.CharField(max_length=40, blank=True)  # e.g., "12oz" or blank for food
+    base_unit_price_cents = models.IntegerField()
     unit_price_cents = models.IntegerField()
     qty = models.PositiveIntegerField()
+
+    class Meta:
+        indexes = [models.Index(fields=["order"])]
+
+    def __str__(self):
+        label = self.name_snapshot
+        if self.variant_name_snapshot:
+            label += f" {self.variant_name_snapshot}"
+        return label
+
+class OrderItemModifier(models.Model):
+    """
+    Snapshot of a chosen modifier option for an OrderItem.
+    One row per selected option. Deltas are per-unit (multiply by qty when totaling).
+    """
+    order_item = models.ForeignKey(OrderItem, on_delete=models.CASCADE, related_name="modifiers")
+    group_name_snapshot = models.CharField(max_length=80)                    # e.g., "Milk"
+    option_name_snapshot = models.CharField(max_length=80)                   # e.g., "Oat"
+    price_delta_cents_snapshot = models.IntegerField(default=0)
+
+    class Meta:
+        indexes = [models.Index(fields=["order_item"])]
+
+    def __str__(self):
+        sign = "+" if self.price_delta_cents_snapshot >= 0 else "-"
+        cents = abs(self.price_delta_cents_snapshot)
+        return f"{self.group_name_snapshot}: {self.option_name_snapshot} ({sign}{cents}¢)"
+
 
 class PaymentRecord(models.Model):
     id = models.AutoField(primary_key=True)
@@ -134,6 +258,9 @@ class PaymentRecord(models.Model):
     rounding_cents = models.IntegerField(default=0)  # CASH only: −2..+2; 0 for CARD/COMP
     reference = models.CharField(max_length=80, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
 
     def __str__(self):
         return f"{self.id}"
