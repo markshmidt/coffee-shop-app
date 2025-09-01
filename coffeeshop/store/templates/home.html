@@ -1,5 +1,6 @@
 {% load static %}
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -244,65 +245,36 @@
       <!-- RIGHT: Menu -->
       <section class="menu">
         <div class="panel">
-          <div class="categories">
-            {% for parent in categories %}
-              <button class="cat-btn">{{ parent.name }}</button>
+          <div class="categories" id="cat-bar">
+            {% for cat in parents %}
+              <button class="cat-btn" data-cat="{{ cat.id }}">{{ cat.name }}</button>
             {% endfor %}
           </div>
         </div>
+        <div class="categories" id="sub-bar" style="display:none;"></div>
+
+        <div id="all-subcats" style="display:none;">
+        {% for c in cats %}
+          <button class="cat-btn" data-cat="{{ c.id }}" data-parent="{{ c.parent_id }}">{{ c.name }}</button>
+        {% endfor %}
+        </div>
+
 
         <div class="panel" style="flex:1; min-height:300px;">
-          <div class="grid" id="menu-grid">
-            <!-- Example items; replace with a real loop later -->
-            {% for item in items%}
-            <div class="item" data-type="drink">
-
+        <div class="grid" id="menu-grid">
+          {% for item in items %}
+            <div class="item" data-cat="{{ item.category_id }}">
               <div>
-               <h5> {{ item.name}}</h5>
-                <div class="muted">{{item.description}}</div>
+                <h5>{{ item.name }}</h5>
               </div>
               <div class="add">
-                <div class="price">{{item.price}}</div>
-                <button class="btn" data-open-modal="Latte">Choose</button>
+                <div class="price">${{ item.price|floatformat:2 }}</div>
+                <button class="btn" data-open-modal="{{ item.name }}">Choose</button>
               </div>
-
             </div>
-            {% endfor %}
-
-<!--            <div class="item" data-type="drink">-->
-<!--              <div>-->
-<!--                <h5>Americano</h5>-->
-<!--                <div class="muted">Espresso + hot water</div>-->
-<!--              </div>-->
-<!--              <div class="add">-->
-<!--                <div class="price">$3.50+</div>-->
-<!--                <button class="btn" data-open-modal="Americano">Choose</button>-->
-<!--              </div>-->
-<!--            </div>-->
-
-<!--            <div class="item" data-type="food">-->
-<!--              <div>-->
-<!--                <h5>Croissant</h5>-->
-<!--                <div class="muted">Flaky butter pastry</div>-->
-<!--              </div>-->
-<!--              <div class="add">-->
-<!--                <div class="price">$3.50</div>-->
-<!--                <button class="btn">Add</button>-->
-<!--              </div>-->
-<!--            </div>-->
-
-<!--            <div class="item" data-type="drink">-->
-<!--              <div>-->
-<!--                <h5>Flat White</h5>-->
-<!--                <div class="muted">Velvety small latte</div>-->
-<!--              </div>-->
-<!--              <div class="add">-->
-<!--                <div class="price">$4.20+</div>-->
-<!--                <button class="btn" data-open-modal="Flat White">Choose</button>-->
-<!--              </div>-->
-            </div>
-          </div>
-<!--        </div>-->
+          {% endfor %}
+        </div>
+      </div>
       </section>
 
     </main>
@@ -352,8 +324,60 @@
     </div>
   </div>
 
-  <!-- JS just for clock + opening/closing the modal -->
+
   <script>
+    // ------- Category filter (no-JSON version) -------
+  const barTop   = document.getElementById('cat-bar');
+  const barSub   = document.getElementById('sub-bar');
+  const pool     = document.getElementById('all-subcats');   // hidden pool with ALL categories
+  const grid     = document.getElementById('menu-grid');
+  const cards    = Array.from(grid.querySelectorAll('.item'));
+
+  const hideAllItems = () => cards.forEach(c => c.style.display = 'none');
+  const showOnlyItemsOf = (catId) => {
+    hideAllItems();
+    barSub.style.display = 'none';
+    cards.forEach(c => {
+      c.style.display = (String(c.dataset.cat) === String(catId)) ? '' : 'none';
+    });
+  };
+
+  function showChildrenOf(catId){
+    // find *all* children of this category from the hidden pool
+    const children = Array.from(pool.querySelectorAll(`[data-parent="${catId}"]`));
+    // highlight active top button
+    barTop.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+    const activeTop = barTop.querySelector(`.cat-btn[data-cat="${catId}"]`);
+    if (activeTop) activeTop.classList.add('active');
+
+    if (children.length === 0) {
+      // leaf: show items for this category
+      showOnlyItemsOf(catId);
+      return;
+    }
+
+    // render children into the sub-bar
+    barSub.innerHTML = '';
+    children.forEach(btn => {
+      const clone = btn.cloneNode(true);      // keep same data-cat & label
+      clone.addEventListener('click', () => showChildrenOf(clone.dataset.cat));
+      barSub.appendChild(clone);
+    });
+    barSub.style.display = 'flex';
+    hideAllItems(); // wait until a subcategory is chosen
+  }
+
+  // attach clicks to top-level categories
+  barTop.querySelectorAll('.cat-btn').forEach(btn => {
+    btn.addEventListener('click', () => showChildrenOf(btn.dataset.cat));
+  });
+
+  // initial state: hide everything (or open a default)
+  hideAllItems();
+  // Example: open "Hot drinks" by default if you know its id:
+  // showChildrenOf("{{ hot_drinks_id }}");
+
+    // ---- Clock and modal windows JS
     const clk = document.getElementById('clock');
     setInterval(() => {
       const d = new Date();
@@ -379,6 +403,8 @@
     });
     document.getElementById('close-modal').addEventListener('click', ()=> modal.style.display='none');
     modal.addEventListener('click', (e)=>{ if(e.target===modal){ modal.style.display='none'; }});
+
   </script>
+{{ cats|json_script:"cats-data" }}
 </body>
 </html>
