@@ -1,10 +1,374 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Title</title>
+  <meta charset="utf-8" />
+  <title>Coffee Island POS</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root{
+      --bg:#0f172a;         /* slate-900 */
+      --panel:#111827;      /* gray-900 */
+      --panel-2:#0b1222;    /* dark accent */
+      --muted:#94a3b8;      /* slate-400 */
+      --text:#e5e7eb;       /* gray-200 */
+      --accent:#22c55e;     /* green-500 */
+      --accent-2:#3b82f6;   /* blue-500 */
+      --danger:#ef4444;     /* red-500 */
+      --warn:#f59e0b;       /* amber-500 */
+      --card:#111827;
+      --br:14px;
+    }
+    * { box-sizing: border-box; }
+    html, body { height:100%; }
+    body{
+      margin:0; background:linear-gradient(180deg, var(--bg), #0b1020);
+      color:var(--text); font:16px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+    a, button { cursor:pointer; }
+    .app{
+      display:grid; grid-template-rows:auto 1fr; height:100vh; gap:12px; padding:16px;
+    }
+    .topbar{
+      display:flex; align-items:center; justify-content:space-between;
+      padding:10px 14px; border:1px solid #1f2937; border-radius:var(--br);
+      background:radial-gradient(1200px 600px at -20% -50%, #0b1020 10%, transparent 40%), var(--panel);
+      box-shadow: 0 10px 25px rgba(0,0,0,.25);
+    }
+    .topbar .brand{ display:flex; gap:10px; align-items:center; }
+    .chip{ padding:6px 10px; border-radius:999px; background:#0a0f1d; border:1px solid #1f2937; color:var(--muted); font-size:12px; }
+    .clock{ color:var(--muted); font-variant-numeric:tabular-nums; }
+
+    .main{
+      display:grid; gap:16px;
+      grid-template-columns: 36% 1fr; min-height:0;
+    }
+
+    /* Left: Cart */
+    .cart{
+      display:flex; flex-direction:column; gap:12px; min-width:280px;
+    }
+    .panel{
+      background:radial-gradient(1000px 500px at 110% -50%, #101938 10%, transparent 40%), var(--panel);
+      border:1px solid #1f2937; border-radius:var(--br);
+      box-shadow: 0 10px 25px rgba(0,0,0,.25); padding:14px;
+    }
+    .section-title{ font-weight:600; letter-spacing:.2px; margin:0 0 10px; color:#cbd5e1; }
+
+    .customer{
+      display:flex; gap:8px; align-items:center; flex-wrap:wrap;
+    }
+    .input{
+      background:#0b1222; border:1px solid #1e293b; color:var(--text);
+      padding:10px 12px; border-radius:10px; outline:none;
+    }
+    .btn{
+      padding:10px 12px; border-radius:10px; border:1px solid #1f2937;
+      background:#0b1222; color:#e2e8f0; transition:.15s transform, .15s filter;
+    }
+    .btn:hover{ filter:brightness(1.15); }
+    .btn:active{ transform:translateY(1px); }
+    .btn.primary{ background:linear-gradient(180deg, #22c55e, #16a34a); border-color:#065f46; color:#032114; }
+    .btn.warn{ background:linear-gradient(180deg, #f59e0b, #d97706); border-color:#92400e; color:#1f1300; }
+    .btn.ghost{ background:#0b1222; }
+
+    .cart-lines{ display:flex; flex-direction:column; gap:10px; max-height:38vh; overflow:auto; padding-right:2px; }
+    .line{
+      display:grid; grid-template-columns: 1fr auto; gap:8px; align-items:start;
+      padding:10px; border:1px solid #1f2937; border-radius:12px; background:var(--card);
+    }
+    .line h4{ margin:0; font-size:15px; font-weight:600; }
+    .muted{ color:var(--muted); font-size:13px; }
+    .qty-controls{ display:flex; align-items:center; gap:6px; }
+    .qty-pill{ padding:4px 8px; border:1px solid #334155; border-radius:999px; color:#cbd5e1; font-size:13px; }
+
+    .summary{
+      display:grid; gap:8px; font-variant-numeric:tabular-nums;
+    }
+    .row{ display:flex; justify-content:space-between; }
+    .row.total{ font-size:20px; font-weight:700; padding-top:6px; border-top:1px dashed #334155; }
+    .row.em{ color:#cbd5e1; }
+
+    .actions{ display:flex; gap:8px; flex-wrap:wrap; }
+    .actions .btn{ flex:1 0 auto; }
+
+    .paybar{
+      display:flex; gap:10px; align-items:center; justify-content:space-between; margin-top:8px;
+    }
+    .paybar .pay-group{ display:flex; gap:8px; }
+    .pill{ padding:7px 10px; border-radius:999px; border:1px solid #334155; color:#cbd5e1; }
+
+    /* Right: Menu */
+    .menu{
+      display:flex; flex-direction:column; gap:12px; min-width:360px; min-height:0;
+    }
+    .categories{ display:flex; gap:8px; overflow:auto; padding-bottom:2px; }
+    .cat-btn{
+      padding:8px 12px; border-radius:999px; border:1px solid #1f2937; background:#0b1222; color:#cbd5e1;
+      white-space:nowrap;
+    }
+    .cat-btn.active{ background:#12223f; border-color:#355081; color:#dbeafe; }
+
+    .grid{
+      --cols:4;
+      display:grid; gap:10px; grid-template-columns: repeat(var(--cols), minmax(0,1fr));
+      overflow:auto; padding-right:2px;
+    }
+    @media (max-width: 1100px){ .grid{ --cols:3; } .main{ grid-template-columns: 40% 1fr; } }
+    @media (max-width: 900px){ .grid{ --cols:2; } .main{ grid-template-columns: 1fr; } }
+
+    .item{
+      display:flex; flex-direction:column; justify-content:space-between; gap:8px;
+      padding:12px; border:1px solid #1f2937; border-radius:14px; background:radial-gradient(800px 400px at -10% -50%, #101938 10%, transparent 40%), var(--panel);
+      min-height:100px;
+    }
+    .item h5{ margin:0; font-size:15px; font-weight:600; color:#e2e8f0; }
+    .item .price{ color:#93c5fd; font-weight:600; }
+    .item .add{ align-self:flex-end; }
+
+    /* Modal */
+    .modal-backdrop{
+      position:fixed; inset:0; background:rgba(2,6,23,.6); display:none; align-items:center; justify-content:center; z-index:50;
+    }
+    .modal{ width:min(720px, 92vw); background:var(--panel); border:1px solid #1f2937; border-radius:16px; padding:16px;
+      box-shadow: 0 25px 60px rgba(0,0,0,.45);
+    }
+    .modal-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+    .x{ background:transparent; border:0; color:#93a2b8; font-size:20px; }
+
+    .variant-row, .mods{ display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 4px; }
+    .chip-btn{
+      padding:8px 12px; border-radius:999px; border:1px solid #334155; background:#0b1222; color:#cbd5e1;
+    }
+    .chip-btn.active{ background:#12322a; border-color:#1b7a52; color:#86efac; }
+    .group{ margin:10px 0; padding:10px; border:1px dashed #334155; border-radius:12px; }
+    .group h6{ margin:0 0 8px; font-size:13px; color:#cbd5e1; }
+    .modal-footer{ display:flex; justify-content:space-between; align-items:center; margin-top:12px; }
+  </style>
 </head>
 <body>
-<h1> Coffee shop app!</h1>
+  <div class="app">
+
+    <!-- Top bar -->
+    <header class="topbar">
+      <div class="brand">
+        <strong>Coffee Island POS</strong>
+        <span class="chip">Register A</span>
+        <span class="chip">User: <span id="who">barista</span></span> <!-- user logged in-->
+      </div>
+      <div class="clock" id="clock">--:--</div>
+    </header>
+
+    <main class="main">
+      <!-- LEFT: Cart -->
+      <aside class="cart">
+
+          <section class="panel" id="prevInv">
+              <h3> Previous invoices</h3>
+              <div class="invoice"> <!-- by clicking each you can see whole order / list of all orders-->
+                  <span class="pill">7.35 Cash <strong id="pts">—</strong></span>
+                  <span class="pill">6.22 Visa <strong id="pts1">—</strong></span>
+                  <span class="pill">More... <strong id="pts2">—</strong></span>
+              </div>
+          </section>
+
+        <section class="panel" style="flex:1; min-height:220px;">
+          <h3 class="section-title">Cart</h3>
+            <h4> ORDER 99</h4>
+            <a href="#" > Customer: Guest</a> <!-- when you click guest there is a list opening, with all customers, where you find the needed customer and assign him to order-->
+
+          <!-- Lines list (static placeholders for now) -->
+          <div class="cart-lines" id="cart-lines">
+            <div class="line">
+              <div>
+                <h4>Latte <span class="muted">· 12oz</span></h4>
+                <div class="muted">Milk: Oat (+$0.70) · Syrup: Vanilla (+$0.50)</div>
+                <div class="qty-controls" style="margin-top:6px;">
+                  <span class="qty-pill">Qty: x1</span>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <div>$5.70</div>
+                  <button class="btn ghost" style="margin-top:6px;">Add more</button>
+                <button class="btn ghost" style="margin-top:6px;">Remove</button>
+              </div>
+            </div>
+
+            <div class="line">
+              <div>
+                <h4>Croissant</h4>
+                <div class="muted">—</div>
+                <div class="qty-controls" style="margin-top:6px;">
+                  <span class="qty-pill">Qty: x1</span>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <div>$3.50</div>
+                  <button class="btn ghost" style="margin-top:6px;">Add more</button>
+                <button class="btn ghost" style="margin-top:6px;">Remove</button>
+              </div>
+            </div>
+          </div>
+
+
+
+          <div class="summary" style="margin-top:10px;">
+            <div class="row"><span>Subtotal</span><span>$9.20</span></div>
+            <div class="row"><span>Discount</span><span>−$0.92</span></div>
+            <div class="row"><span>Tax (13%)</span><span>$0.56</span></div>
+               <div class="row total" style="flex:1;">
+               <span>Discount</span> <!-- if none, discount is 0.00 -->
+              <label class="pill"><input type="radio" name="pm" checked /> None</label>
+              <label class="pill"><input type="radio" name="pm" /> Student</label>
+              <label class="pill"><input type="radio" name="pm" /> Friends/Family</label>
+            </div>
+            <div class="row total"><span>Total</span><span>$5.34</span></div>
+          </div>
+
+          <div class="paybar">
+            <div class="pay-group">
+              <label class="pill"><input type="radio" name="pm" checked /> Card</label>
+              <label class="pill"><input type="radio" name="pm" /> Cash</label>
+             <span class="pill" title="Cash rounding preview">Rounding: +$0.01</span> <!-- #should be seen only for cash-->
+            </div>
+
+            <div>
+              <button class="btn warn">Discard</button>
+              <button class="btn primary">Pay</button>
+            </div>
+          </div>
+
+        </section>
+      </aside>
+
+      <!-- RIGHT: Menu -->
+      <section class="menu">
+        <div class="panel">
+          <div class="categories">
+            <button class="cat-btn active">All</button>
+            <button class="cat-btn">Hot drinks</button>
+            <button class="cat-btn">Cold drinks</button>
+            <button class="cat-btn">Grindery</button>
+            <button class="cat-btn">Home barista</button>
+          </div>
+        </div>
+
+        <div class="panel" style="flex:1; min-height:300px;">
+          <div class="grid" id="menu-grid">
+            <!-- Example items; replace with a real loop later -->
+            <div class="item" data-type="drink">
+              <div>
+                <h5>Latte</h5>
+                <div class="muted">Espresso + milk</div>
+              </div>
+              <div class="add">
+                <div class="price">$4.50+</div>
+                <button class="btn" data-open-modal="Latte">Choose</button>
+              </div>
+            </div>
+
+            <div class="item" data-type="drink">
+              <div>
+                <h5>Americano</h5>
+                <div class="muted">Espresso + hot water</div>
+              </div>
+              <div class="add">
+                <div class="price">$3.50+</div>
+                <button class="btn" data-open-modal="Americano">Choose</button>
+              </div>
+            </div>
+
+            <div class="item" data-type="food">
+              <div>
+                <h5>Croissant</h5>
+                <div class="muted">Flaky butter pastry</div>
+              </div>
+              <div class="add">
+                <div class="price">$3.50</div>
+                <button class="btn">Add</button>
+              </div>
+            </div>
+
+            <div class="item" data-type="drink">
+              <div>
+                <h5>Flat White</h5>
+                <div class="muted">Velvety small latte</div>
+              </div>
+              <div class="add">
+                <div class="price">$4.20+</div>
+                <button class="btn" data-open-modal="Flat White">Choose</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Modal (size + modifiers) -->
+    <div class="modal-backdrop" id="modal">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-header">
+          <h4 id="modal-title">Latte</h4>
+          <button class="x" id="close-modal" aria-label="Close">✕</button>
+        </div>
+
+        <div>
+          <div class="muted">Choose a size</div>
+          <div class="variant-row">
+            <button class="chip-btn active">8oz · $3.80</button>
+            <button class="chip-btn">12oz · $4.50</button>
+            <button class="chip-btn">16oz · $5.20</button>
+          </div>
+
+          <div class="group">
+            <h6>Milk (pick 1)</h6>
+            <div class="mods">
+              <button class="chip-btn active">Dairy · +$0.00</button>
+              <button class="chip-btn">Oat · +$0.70</button>
+              <button class="chip-btn">Almond · +$0.60</button>
+            </div>
+          </div>
+
+          <div class="group">
+            <h6>Syrups (up to 3)</h6>
+            <div class="mods">
+              <button class="chip-btn">Vanilla · +$0.50</button>
+              <button class="chip-btn">Caramel · +$0.50</button>
+              <button class="chip-btn">Hazelnut · +$0.50</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <div class="muted">Preview: <strong>$5.70</strong></div>
+          <div>
+            <button class="btn">Add ×1</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JS just for clock + opening/closing the modal -->
+  <script>
+    const clk = document.getElementById('clock');
+    setInterval(() => {
+      const d = new Date();
+      const hh = String(d.getHours()).padStart(2,'0');
+      const mm = String(d.getMinutes()).padStart(2,'0');
+      clk.textContent = `${hh}:${mm}`;
+    }, 1000);
+
+    const modal = document.getElementById('modal');
+    const title = document.getElementById('modal-title');
+    document.querySelectorAll('[data-open-modal]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        title.textContent = btn.getAttribute('data-open-modal');
+        modal.style.display='flex';
+      });
+    });
+    document.getElementById('close-modal').addEventListener('click', ()=> modal.style.display='none');
+    modal.addEventListener('click', (e)=>{ if(e.target===modal){ modal.style.display='none'; }});
+  </script>
 </body>
 </html>
