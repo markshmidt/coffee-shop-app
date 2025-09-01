@@ -175,7 +175,7 @@
           <h3 class="section-title">Cart</h3>
             <h4> ORDER 99</h4>
             <a href="#" > Customer: Guest</a> <!-- when you click guest there is a list opening, with all customers, where you find the needed customer and assign him to order-->
-
+            <div class="clock" id="clock2">--:--</div>
           <!-- Lines list (static placeholders for now) -->
           <div class="cart-lines" id="cart-lines">
             <div class="line">
@@ -357,6 +357,13 @@
       const hh = String(d.getHours()).padStart(2,'0');
       const mm = String(d.getMinutes()).padStart(2,'0');
       clk.textContent = `${hh}:${mm}`;
+    }, 1000);
+    const clock = document.getElementById('clock2');
+    setInterval(() => {
+      const d = new Date();
+      const hh = String(d.getHours()).padStart(2,'0');
+      const mm = String(d.getMinutes()).padStart(2,'0');
+      clock.textContent = `${hh}:${mm}`;
     }, 1000);
 
     const modal = document.getElementById('modal');
