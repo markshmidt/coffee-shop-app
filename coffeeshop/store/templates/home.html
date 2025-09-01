@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -244,62 +245,64 @@
       <section class="menu">
         <div class="panel">
           <div class="categories">
-            <button class="cat-btn active">All</button>
-            <button class="cat-btn">Hot drinks</button>
-            <button class="cat-btn">Cold drinks</button>
-            <button class="cat-btn">Grindery</button>
-            <button class="cat-btn">Home barista</button>
+            {% for parent in categories %}
+              <button class="cat-btn">{{ parent.name }}</button>
+            {% endfor %}
           </div>
         </div>
 
         <div class="panel" style="flex:1; min-height:300px;">
           <div class="grid" id="menu-grid">
             <!-- Example items; replace with a real loop later -->
+            {% for item in items%}
             <div class="item" data-type="drink">
+
               <div>
-                <h5>Latte</h5>
-                <div class="muted">Espresso + milk</div>
+               <h5> {{ item.name}}</h5>
+                <div class="muted">{{item.description}}</div>
               </div>
               <div class="add">
-                <div class="price">$4.50+</div>
+                <div class="price">{{item.price}}</div>
                 <button class="btn" data-open-modal="Latte">Choose</button>
               </div>
-            </div>
 
-            <div class="item" data-type="drink">
-              <div>
-                <h5>Americano</h5>
-                <div class="muted">Espresso + hot water</div>
-              </div>
-              <div class="add">
-                <div class="price">$3.50+</div>
-                <button class="btn" data-open-modal="Americano">Choose</button>
-              </div>
             </div>
+            {% endfor %}
 
-            <div class="item" data-type="food">
-              <div>
-                <h5>Croissant</h5>
-                <div class="muted">Flaky butter pastry</div>
-              </div>
-              <div class="add">
-                <div class="price">$3.50</div>
-                <button class="btn">Add</button>
-              </div>
-            </div>
+<!--            <div class="item" data-type="drink">-->
+<!--              <div>-->
+<!--                <h5>Americano</h5>-->
+<!--                <div class="muted">Espresso + hot water</div>-->
+<!--              </div>-->
+<!--              <div class="add">-->
+<!--                <div class="price">$3.50+</div>-->
+<!--                <button class="btn" data-open-modal="Americano">Choose</button>-->
+<!--              </div>-->
+<!--            </div>-->
 
-            <div class="item" data-type="drink">
-              <div>
-                <h5>Flat White</h5>
-                <div class="muted">Velvety small latte</div>
-              </div>
-              <div class="add">
-                <div class="price">$4.20+</div>
-                <button class="btn" data-open-modal="Flat White">Choose</button>
-              </div>
+<!--            <div class="item" data-type="food">-->
+<!--              <div>-->
+<!--                <h5>Croissant</h5>-->
+<!--                <div class="muted">Flaky butter pastry</div>-->
+<!--              </div>-->
+<!--              <div class="add">-->
+<!--                <div class="price">$3.50</div>-->
+<!--                <button class="btn">Add</button>-->
+<!--              </div>-->
+<!--            </div>-->
+
+<!--            <div class="item" data-type="drink">-->
+<!--              <div>-->
+<!--                <h5>Flat White</h5>-->
+<!--                <div class="muted">Velvety small latte</div>-->
+<!--              </div>-->
+<!--              <div class="add">-->
+<!--                <div class="price">$4.20+</div>-->
+<!--                <button class="btn" data-open-modal="Flat White">Choose</button>-->
+<!--              </div>-->
             </div>
           </div>
-        </div>
+<!--        </div>-->
       </section>
 
     </main>
