@@ -73,7 +73,7 @@ class Variant(models.Model):
     """
     menu_item = models.ForeignKey(MenuItem, on_delete=models.CASCADE, related_name="variants")
     name = models.CharField(max_length=40)                                  # e.g., "12oz"
-    base_price_cents = models.IntegerField()
+    price_cents = models.IntegerField()
     position = models.PositiveIntegerField(default=0)
     active = models.BooleanField(default=True)
 

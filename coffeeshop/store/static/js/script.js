@@ -81,3 +81,42 @@
     });
     document.getElementById('close-modal').addEventListener('click', ()=> modal.style.display='none');
     modal.addEventListener('click', (e)=>{ if(e.target===modal){ modal.style.display='none'; }});
+
+
+    // ----- Filtering variants
+document.addEventListener("DOMContentLoaded", () => {
+  const modal = document.getElementById("modal");
+  const title = document.getElementById("modal-title");
+  const variantList = document.getElementById("variant-list");
+  const allVariants = Array.from(variantList.querySelectorAll("[data-variant-id]"));
+
+  // open modal
+  document.querySelectorAll("[data-open-modal]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const itemName = btn.getAttribute("data-open-modal");
+      const itemId   = btn.getAttribute("data-item-id");
+
+      // set modal title
+      title.textContent = itemName;
+
+      // filter variants
+      allVariants.forEach(v => {
+        if (v.dataset.itemId === itemId) {
+          v.style.display = "";
+        } else {
+          v.style.display = "none";
+        }
+      });
+
+      modal.style.display = "flex";
+    });
+  });
+
+  // close modal
+  document.getElementById("close-modal").addEventListener("click", () => {
+    modal.style.display = "none";
+  });
+  modal.addEventListener("click", e => {
+    if (e.target === modal) modal.style.display = "none";
+  });
+});

@@ -131,8 +131,8 @@
                 <h5>{{ item.name }}</h5>
               </div>
               <div class="add">
-                <div class="price">${{ item.price|floatformat:2 }}</div>
-                <button class="btn" data-open-modal="{{ item.name }}">Choose</button>
+                <div class="price">${{item.price|floatformat:2 }}</div>
+                <button class="btn" data-open-modal="{{ item.name }}" data-item-id="{{ item.id }}">Choose</button>
               </div>
             </div>
           {% endfor %}
@@ -152,10 +152,14 @@
 
         <div>
           <div class="muted">Choose a size</div>
-          <div class="variant-row">
-            <button class="chip-btn active">8oz · $3.80</button>
-            <button class="chip-btn">12oz · $4.50</button>
-            <button class="chip-btn">16oz · $5.20</button>
+          <div class="variant-row" id="variant-list">
+            {% for variant in variants %}
+            <button class="chip-btn"
+                    data-variant-id="{{ variant.id }}"
+                    data-item-id="{{ variant.menu_item_id }}">
+              {{ variant.name }} · ${{ variant.price|floatformat:2 }}
+            </button>
+          {% endfor %}
           </div>
 
           <div class="group">
