@@ -179,8 +179,8 @@
       {% for option in group.options.all %}
         <button class="chip-btn{% if option.is_default %} active{% endif %}">
           {{ option.name }}
-          {% if option.price_cents %}
-            · +${{ option.price_cents}}
+          {% if option.price %}
+            · +${{ option.price|floatformat:2}}
           {% else %}
             · +$0.00
           {% endif %}

@@ -1,8 +1,12 @@
+from decimal import Decimal
+
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.conf import settings
-from django.db.models import Q
-
+from django.db.models import (
+    F, Value, ExpressionWrapper, DecimalField, Prefetch, Q
+)
+from decimal import Decimal
 
 # Create your models here.
 
@@ -76,6 +80,15 @@ class MenuItem(models.Model):
     def applicable_modifier_groups(self):
         # Use the item's kind (FOOD/DRINK)
         kind = self.kind
+        option_price = ExpressionWrapper(
+            F("price_cents") * Value(Decimal("0.01")),
+            output_field=DecimalField(max_digits=8, decimal_places=2),
+        )
+        annotated_options = (
+            ModifierOption.objects
+            .annotate(price=option_price)
+            .order_by("position", "name")
+        )
 
         return (
             ModifierGroup.objects
@@ -91,7 +104,7 @@ class MenuItem(models.Model):
                 Q(items=self)
                 | Q(categories=self.category)
                 | (Q(items__isnull=True) & Q(categories__isnull=True))
-            )
+            ).prefetch_related(Prefetch("options", queryset=annotated_options))
             .distinct()
             .order_by("position", "name")
         )
