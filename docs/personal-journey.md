@@ -36,4 +36,5 @@ Might add a category like "most popular drinks" that would be default and showin
 
 ## Day 6.
 
-to be continued
+For now, the most complicated part for me is integrating variants of items into template. After couple of hours filtering with js and trying to make prices look normal, I realized that MenuItems price_cents differs from Variant base_price_cents and that is why the price with ExpressionWrapper was not workinb. 
+Similar problem with Modifiers: I want them to be different for different item groups (e.g. Food does not need to have "add syrup/extra shot", right?). I will change models again and attach groups to categories (perhaps items in the future?)
