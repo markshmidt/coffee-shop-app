@@ -1,6 +1,8 @@
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.conf import settings
+from django.db.models import Q
+
 
 # Create your models here.
 
@@ -49,6 +51,12 @@ class Category(models.Model):
         self.position += 1
 
 class MenuItem(models.Model):
+    # For modifiers filtering
+    FOOD = "FOOD"
+    DRINK = "DRINK"
+    KIND_CHOICES = [(FOOD, "Food"), (DRINK, "Drink")]
+    kind = models.CharField(max_length=10, choices=KIND_CHOICES, default=DRINK)
+
     category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="items")
     name = models.CharField(max_length=120)
     price_cents = models.IntegerField()
@@ -64,6 +72,19 @@ class MenuItem(models.Model):
 
     def __str__(self):
         return self.name
+
+    def applicable_modifier_groups(self):
+        kind = self.category.kind
+        base = ModifierGroup.objects.filter(Q(applies_to="BOTH") | Q(applies_to=kind))
+
+        # groups linked to this item
+        direct = base.filter(items=self)
+        # groups linked to this category
+        via_cat = base.filter(categories=self.category)
+        # groups that have no targeting at all
+        untargeted = base.filter(categories__isnull=True, items__isnull=True)
+
+        return (direct | via_cat | untargeted).distinct().order_by("position", "name")
 
 
 class Variant(models.Model):
@@ -97,6 +118,14 @@ class ModifierGroup(models.Model):
     min_select = models.PositiveIntegerField(default=0)
     max_select = models.PositiveIntegerField(default=1)
     position = models.PositiveIntegerField(default=0)
+
+    applies_to = models.CharField(
+        max_length=10,
+        choices=[("FOOD", "Food"), ("DRINK", "Drink"), ("BOTH", "Both")],
+        default="BOTH",
+    )
+    categories = models.ManyToManyField("Category", blank=True, related_name="modifier_groups")
+    items = models.ManyToManyField("MenuItem", blank=True, related_name="direct_modifier_groups")
 
     class Meta:
         ordering = ["position", "name"]

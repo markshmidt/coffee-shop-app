@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.db.models import Prefetch, ExpressionWrapper, DecimalField, F, Value
 from django.shortcuts import render
 
-from .models import Category, MenuItem, Variant
+from .models import Category, MenuItem, Variant, ModifierGroup
 
 
 # Create your views here.
@@ -19,6 +19,10 @@ def home(request):
         .annotate(price=price_expr)
         .order_by("name")
         .values("id", "name", "category_id", "price")
+        .select_related("category")
+        .prefetch_related(
+            "direct_modifier_groups__options",
+            "category__modifier_groups__options",)
     )
 
     parents = Category.objects.filter(parent__isnull=True).order_by("position", "name")
@@ -26,6 +30,7 @@ def home(request):
 
     variants = Variant.objects.filter(active=True).annotate(price=price_expr).values("id", "name", "price", "menu_item_id").order_by("price_cents", "name" )
 
+    modifier_groups = ModifierGroup.objects.all()
     return render(
         request,
         "home.html",
