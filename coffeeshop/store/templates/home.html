@@ -143,6 +143,7 @@
     </main>
 
     <!-- Modal (size + modifiers) -->
+    {% for item in items %}
     <div class="modal-backdrop" id="modal">
       <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
         <div class="modal-header">
@@ -162,23 +163,37 @@
           {% endfor %}
           </div>
 
-          <div class="group">
-            <h6>Milk (pick 1)</h6>
-            <div class="mods">
-              <button class="chip-btn active">Dairy · +$0.00</button>
-              <button class="chip-btn">Oat · +$0.70</button>
-              <button class="chip-btn">Almond · +$0.60</button>
-            </div>
-          </div>
 
-          <div class="group">
-            <h6>Syrups (up to 3)</h6>
-            <div class="mods">
-              <button class="chip-btn">Vanilla · +$0.50</button>
-              <button class="chip-btn">Caramel · +$0.50</button>
-              <button class="chip-btn">Hazelnut · +$0.50</button>
-            </div>
-          </div>
+{% for group in item.applicable_modifier_groups %}
+  <div class="group">
+    <h6>
+      {{ group.name }}
+      {% if group.selection_type == "SINGLE" %}
+        (pick 1)
+      {% elif group.max_select > 1 %}
+        (up to {{ group.max_select }})
+      {% endif %}
+    </h6>
+
+    <div class="mods">
+      {% for option in group.options.all %}
+        <button class="chip-btn{% if option.is_default %} active{% endif %}">
+          {{ option.name }}
+          {% if option.price_cents %}
+            · +${{ option.price_cents}}
+          {% else %}
+            · +$0.00
+          {% endif %}
+        </button>
+      {% empty %}
+        <span class="muted">No options</span>
+      {% endfor %}
+    </div>
+  </div>
+{% empty %}
+  <div class="group"><em>No modifiers for this item.</em></div>
+{% endfor %}
+
         </div>
 
         <div class="modal-footer">
@@ -190,6 +205,7 @@
       </div>
     </div>
   </div>
+  {% endfor%}
 
 <script src="{% static 'js/script.js' %}" defer></script>
 {{ cats|json_script:"cats-data" }}

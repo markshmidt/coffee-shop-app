@@ -74,17 +74,27 @@ class MenuItem(models.Model):
         return self.name
 
     def applicable_modifier_groups(self):
-        kind = self.category.kind
-        base = ModifierGroup.objects.filter(Q(applies_to="BOTH") | Q(applies_to=kind))
+        # Use the item's kind (FOOD/DRINK)
+        kind = self.kind
 
-        # groups linked to this item
-        direct = base.filter(items=self)
-        # groups linked to this category
-        via_cat = base.filter(categories=self.category)
-        # groups that have no targeting at all
-        untargeted = base.filter(categories__isnull=True, items__isnull=True)
-
-        return (direct | via_cat | untargeted).distinct().order_by("position", "name")
+        return (
+            ModifierGroup.objects
+            .filter(
+                # group must apply to BOTH or to this item's kind
+                Q(applies_to="BOTH") | Q(applies_to=kind)
+            )
+            .filter(
+                # and it must be either:
+                # - explicitly linked to this item, OR
+                # - linked to this item's category, OR
+                # - completely untargeted (no item/category links at all)
+                Q(items=self)
+                | Q(categories=self.category)
+                | (Q(items__isnull=True) & Q(categories__isnull=True))
+            )
+            .distinct()
+            .order_by("position", "name")
+        )
 
 
 class Variant(models.Model):
@@ -138,7 +148,7 @@ class ModifierGroup(models.Model):
 class ModifierOption(models.Model):
     group = models.ForeignKey(ModifierGroup, on_delete=models.CASCADE, related_name="options")
     name = models.CharField(max_length=80)                                  # e.g., "Oat", "Vanilla"
-    price_delta_cents = models.IntegerField(default=0)
+    price_cents = models.IntegerField(default=0)
     position = models.PositiveIntegerField(default=0)
     is_default = models.BooleanField(default=False)                         # for required SINGLE groups
 

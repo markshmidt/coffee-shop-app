@@ -18,7 +18,6 @@ def home(request):
         MenuItem.objects
         .annotate(price=price_expr)
         .order_by("name")
-        .values("id", "name", "category_id", "price")
         .select_related("category")
         .prefetch_related(
             "direct_modifier_groups__options",
@@ -36,9 +35,10 @@ def home(request):
         "home.html",
         {
             "parents": parents,
-            "items": list(items),
+            "items": items,
             "cats": list(cats),
             "variants": variants,
+            "modifier_groups": modifier_groups,
         }
     )
 
