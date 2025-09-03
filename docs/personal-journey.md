@@ -38,3 +38,7 @@ Might add a category like "most popular drinks" that would be default and showin
 
 For now, the most complicated part for me is integrating variants of items into template. After couple of hours filtering with js and trying to make prices look normal, I realized that MenuItems price_cents differs from Variant base_price_cents and that is why the price with ExpressionWrapper was not workinb. 
 Similar problem with Modifiers: I want them to be different for different item groups (e.g. Food does not need to have "add syrup/extra shot", right?). I will change models again and attach groups to categories (perhaps items in the future?)
+
+## Day 7.
+
+Continued working on modifiers: after they were shown in UI almost correctly, I realized that "milk" group was nowhere to be seen, though I attached it to both specific drinks and items categories. Needed to refactor the code a bit and assign each model unique id connected with item$ before that I was using the same ids ( like id="modal") for every one. Ih helped to make the code clearer and render template with correct modifiers. JS is a bit hard for me, I use a lot of help with that, but still learning. Planning to finish the correct price display for the whole modal window today, though my classes have started. 
