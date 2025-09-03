@@ -135,7 +135,8 @@
                  <button class="btn open-modal"
                     data-modal-id="modal-{{ item.id }}"
                     data-item-id="{{ item.id }}"
-                   data-item-name="{{ item.name }}">
+                   data-item-name="{{ item.name }}"
+                 data-base-cents="{{ item.price_cents }}">
                     Choose
                  </button>
               </div>
@@ -162,7 +163,8 @@
             {% for variant in variants %}
             <button class="chip-btn"
                     data-variant-id="{{ variant.id }}"
-                    data-item-id="{{ variant.menu_item_id }}">
+                    data-item-id="{{ variant.menu_item_id }}"
+                    data-price-cents="{{ variant.price_cents }}">
               {{ variant.name }} · ${{ variant.price|floatformat:2 }}
             </button>
           {% endfor %}
@@ -172,14 +174,21 @@
         {% with groups=item.applicable_modifier_groups %}
         {% if groups %}
           {% for group in groups %}
-            <div class="group">
+            <div class="group"
+            data-group-id="{{ group.id }}"
+     data-selection="{{ group.selection_type }}"
+     data-min="{{ group.min_select }}"
+     data-max="{{ group.max_select }}">
               <h6>
                 {{ group.name }}
                 {% if group.selection_type == "SINGLE" %}(pick 1){% elif group.max_select > 1 %}(up to {{ group.max_select }}){% endif %}
               </h6>
               <div class="mods">
                 {% for option in group.options.all %}
-                  <button class="chip-btn{% if option.is_default %} active{% endif %}">
+                  <button class="chip-btn{% if option.is_default %} active{% endif %}"
+                          data-option-id="{{ option.id }}"
+                  data-delta-cents="{{ option.price_cents }}"
+                  >
                     {{ option.name }}
                     {% if option.price %} · +${{ option.price|floatformat:2 }}{% else %} · +$0.00{% endif %}
                   </button>
