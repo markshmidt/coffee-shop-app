@@ -116,3 +116,5 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
+
+// ===== Price update =====
