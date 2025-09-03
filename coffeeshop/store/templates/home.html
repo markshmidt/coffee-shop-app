@@ -190,16 +190,14 @@
                   data-delta-cents="{{ option.price_cents }}"
                   >
                     {{ option.name }}
-                    {% if option.price %} · +${{ option.price|floatformat:2 }}{% else %} · +$0.00{% endif %}
+                    · +${{ option.price|floatformat:2 }}
                   </button>
-                {% empty %}
-                  <span class="muted">No options</span>
                 {% endfor %}
               </div>
             </div>
           {% endfor %}
-        {% else %}
-          <div class="group"><em>No modifiers for this item.</em></div>
+       {% else %}
+         <div class="group"><em>No modifiers for this item.</em></div>
         {% endif %}
       {% endwith %}
         </div>
