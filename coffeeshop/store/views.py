@@ -19,9 +19,7 @@ def home(request):
         .annotate(price=price_expr)
         .order_by("name")
         .select_related("category")
-        .prefetch_related(
-            "direct_modifier_groups__options",
-            "category__modifier_groups__options",)
+        .prefetch_related("direct_modifier_groups", "category__modifier_groups")
     )
 
     parents = Category.objects.filter(parent__isnull=True).order_by("position", "name")

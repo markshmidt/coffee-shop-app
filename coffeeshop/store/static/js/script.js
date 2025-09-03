@@ -71,52 +71,48 @@
       clock.textContent = `${hh}:${mm}`;
     }, 1000);
 
-    const modal = document.getElementById('modal');
-    const title = document.getElementById('modal-title');
-    document.querySelectorAll('[data-open-modal]').forEach(btn=>{
-      btn.addEventListener('click', ()=>{
-        title.textContent = btn.getAttribute('data-open-modal');
-        modal.style.display='flex';
-      });
-    });
-    document.getElementById('close-modal').addEventListener('click', ()=> modal.style.display='none');
-    modal.addEventListener('click', (e)=>{ if(e.target===modal){ modal.style.display='none'; }});
+// === Per-item modal open/close + variant filtering
+document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('click', (e) => {
+    // OPEN
+    const openBtn = e.target.closest('button[data-modal-id][data-item-id]');
+    if (openBtn) {
+      e.preventDefault();
 
+      const modalId   = openBtn.dataset.modalId;          // e.g. "modal-42"
+      const itemId    = openBtn.dataset.itemId;           // "42"
+      const modalName = openBtn.dataset.modalName || '';  // from data-modal-name
 
-    // ----- Filtering variants
-document.addEventListener("DOMContentLoaded", () => {
-  const modal = document.getElementById("modal");
-  const title = document.getElementById("modal-title");
-  const variantList = document.getElementById("variant-list");
-  const allVariants = Array.from(variantList.querySelectorAll("[data-variant-id]"));
+      const modal = document.getElementById(modalId);
+      if (!modal) { console.warn('Modal not found:', modalId); return; }
 
-  // open modal
-  document.querySelectorAll("[data-open-modal]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const itemName = btn.getAttribute("data-open-modal");
-      const itemId   = btn.getAttribute("data-item-id");
+      // Set the title inside the modal
+      const titleEl = modal.querySelector('.modal-header h4');
+      if (titleEl && modalName) titleEl.textContent = modalName;
 
-      // set modal title
-      title.textContent = itemName;
+      // Show only the item's variants
+      const vlist = modal.querySelector('.variant-row');
+      if (vlist) {
+        vlist.querySelectorAll('[data-variant-id]').forEach(btn => {
+          btn.style.display = (String(btn.dataset.itemId) === String(itemId)) ? '' : 'none';
+        });
+      }
 
-      // filter variants
-      allVariants.forEach(v => {
-        if (v.dataset.itemId === itemId) {
-          v.style.display = "";
-        } else {
-          v.style.display = "none";
-        }
-      });
+      modal.style.display = 'flex';
+      return;
+    }
 
-      modal.style.display = "flex";
-    });
-  });
+    // CLOSE via the "X" button
+    const closeBtn = e.target.closest('.close-modal');
+    if (closeBtn) {
+      const modal = document.getElementById(closeBtn.dataset.modalId) || closeBtn.closest('.modal-backdrop');
+      if (modal) modal.style.display = 'none';
+      return;
+    }
 
-  // close modal
-  document.getElementById("close-modal").addEventListener("click", () => {
-    modal.style.display = "none";
-  });
-  modal.addEventListener("click", e => {
-    if (e.target === modal) modal.style.display = "none";
+    // CLOSE by clicking the backdrop
+    if (e.target.classList.contains('modal-backdrop')) {
+      e.target.style.display = 'none';
+    }
   });
 });

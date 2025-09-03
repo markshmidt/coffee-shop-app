@@ -101,9 +101,9 @@ class MenuItem(models.Model):
                 # - explicitly linked to this item, OR
                 # - linked to this item's category, OR
                 # - completely untargeted (no item/category links at all)
-                Q(items=self)
-                | Q(categories=self.category)
-                | (Q(items__isnull=True) & Q(categories__isnull=True))
+                Q(items=self) |  # ← per-item allowlist
+                Q(categories=self.category) |  # ← category default
+                (Q(items__isnull=True) & Q(categories__isnull=True))  # ← untargeted-by-kind
             ).prefetch_related(Prefetch("options", queryset=annotated_options))
             .distinct()
             .order_by("position", "name")
