@@ -132,13 +132,15 @@ const dollarsToCents = v => {
 
     const variantActive = modal.querySelector('.variant-row .chip-btn.active'); //selected size button
     const hasVariants = !!modal.querySelector('.variant-row [data-variant-id]');
-    console.log(int(variantActive.dataset.priceCents))
+
 
    if (hasVariants) {
     if (!variantActive) {
       total = null;                         // require a size
     } else {
-      total = int(variantActive.dataset.priceCents);   // <-- CENTS
+      total = int(variantActive.dataset.priceCents);
+
+   console.log(int(variantActive.dataset.priceCents))// <-- CENTS
       if (!variantActive.dataset.priceCents) {
         console.warn('Missing data-price-cents on variant button:', variantActive);
       }
@@ -256,6 +258,7 @@ const dollarsToCents = v => {
         if (optionIds.length) selections.push({ group_id: groupId, option_ids: optionIds });
       });
 
+      // for a future cart
       const payload = {
         item_id: itemId,
         variant_id: variantId,

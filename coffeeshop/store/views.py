@@ -1,12 +1,19 @@
 from decimal import Decimal
 
-from django.db.models import Prefetch, ExpressionWrapper, DecimalField, F, Value
+from django.db.models import ExpressionWrapper, DecimalField, F, Value
 from django.shortcuts import render
+import json
+import uuid
+from decimal import Decimal
+from django.http import JsonResponse, HttpResponseBadRequest
+from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import csrf_exempt, csrf_protect
+from django.db.models import Sum, Q
 
 from .models import Category, MenuItem, Variant, ModifierGroup
 
 
-# Create your views here.
+# POS home page
 def home(request):
 
     price_expr = ExpressionWrapper(
@@ -40,7 +47,25 @@ def home(request):
         }
     )
 
-def api_add_line(request):
+# ----- CART -----
+
+def _get_cart(session):
+    cart = session.get("cart")
+    if not cart:
+        cart = {"lines": [], "subtotal_cents": 0}
+        session["cart"] = cart
+    return cart
+
+def _save_cart(session, cart):
+    cart["subtotal_cents"] = sum(l["qty"] * l["unit_total_cents"] for l in cart["lines"])
+    session["cart"] = cart
+    session.modified = True
+
+def _fmt_cents(c):
+    return f"${(Decimal(c) / Decimal(100)).quantize(Decimal('0.00'))}"
+
+
+def cart_add_line(request):
     pass
-def api_pay(request):
+def cart_pay(request):
     pass
