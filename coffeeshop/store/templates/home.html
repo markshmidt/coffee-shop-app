@@ -164,21 +164,21 @@
             <button class="chip-btn"
                     data-variant-id="{{ variant.id }}"
                     data-item-id="{{ variant.menu_item_id }}"
-                    data-price-cents="{{ variant.price_cents }}">
-              {{ variant.name }} · ${{ variant.price|floatformat:2 }}
+                    data-price-cents="{{ variant.price_cents}}">
+              {{ variant.name }} · ${{ variant.price}}
             </button>
           {% endfor %}
           </div>
 
 
         {% with groups=item.applicable_modifier_groups %}
-        {% if groups %}
-          {% for group in groups %}
-            <div class="group"
-            data-group-id="{{ group.id }}"
-     data-selection="{{ group.selection_type }}"
-     data-min="{{ group.min_select }}"
-     data-max="{{ group.max_select }}">
+            {% if groups %}
+              {% for group in groups %}
+                <div class="group"
+                data-group-id="{{ group.id }}"
+               data-selection="{{ group.selection_type }}"
+               data-min="{{ group.min_select }}"
+               data-max="{{ group.max_select }}">
               <h6>
                 {{ group.name }}
                 {% if group.selection_type == "SINGLE" %}(pick 1){% elif group.max_select > 1 %}(up to {{ group.max_select }}){% endif %}

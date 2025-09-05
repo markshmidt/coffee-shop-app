@@ -25,7 +25,7 @@ def home(request):
     parents = Category.objects.filter(parent__isnull=True).order_by("position", "name")
     cats = Category.objects.values("id", "name", "parent_id").order_by("position", "name")
 
-    variants = Variant.objects.filter(active=True).annotate(price=price_expr).values("id", "name", "price", "menu_item_id").order_by("price_cents", "name" )
+    variants = Variant.objects.filter(active=True).annotate(price=price_expr).values("id", "name", "price", "price_cents", "menu_item_id").order_by("price_cents", "name" )
 
     modifier_groups = ModifierGroup.objects.all()
     return render(
