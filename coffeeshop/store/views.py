@@ -6,7 +6,7 @@ import json
 import uuid
 from decimal import Decimal
 from django.http import JsonResponse, HttpResponseBadRequest
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_GET
 from django.views.decorators.csrf import csrf_exempt, csrf_protect
 from django.db.models import Sum, Q
 
@@ -161,7 +161,85 @@ def _price_item_validate(item: MenuItem, variant_id, selections):
 # }
 
 
+@require_POST
 def cart_add_line(request):
-    pass
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+    except Exception:
+        return HttpResponseBadRequest("Invalid json")
+
+    try:
+        item = MenuItem.objects.select_related("category").get(id=payload["item_id"])
+    except MenuItem.DoesNotExist:
+        return HttpResponseBadRequest("Unknown item")
+
+    variant_id = payload.get("variant_id")
+    selections = payload.get("selections", [])
+    qty = int(payload.get("qty", 1) or 1)
+    if qty < 1:
+        qty = 1
+
+    try:
+        base, delta, unit_total, normalized, variant_name = _price_item_validate(
+            item, variant_id, selections
+        )
+    except ValueError as e:
+        return JsonResponse({"ok": False, "error": str(e)}, status=400)
+
+    # build a display summary for UI (simple)
+    choice_labels = []
+    if normalized:
+        groups = ModifierGroup.objects.filter(id__in=[s["group_id"] for s in normalized]).in_bulk()
+        all_opts = ModifierOption.objects.filter(
+            id__in=[oid for s in normalized for oid in s["option_ids"]]
+        ).in_bulk()
+        # flatten
+        for s in normalized:
+            g = groups[s["group_id"]]
+            names = ", ".join(all_opts[oid].name for oid in s["option_ids"])
+            choice_labels.append(f"{g.name}: {names}")
+
+    # put into session cart
+    cart = _get_cart(request.session)
+    line_id = str(uuid.uuid4())
+    cart["lines"].append({
+        "id": line_id,
+        "item_id": item.id,
+        "item_name": item.name,
+        "variant_id": variant_id,
+        "variant_name": variant_name,
+        "qty": qty,
+        "unit_total_cents": unit_total,
+        "base_cents": base,
+        "options_cents": delta,
+        "selections": normalized,
+        "summary": " ; ".join(choice_labels),
+    })
+    _save_cart(request.session, cart)
+
+    # return a minimal cart snapshot (client renders)
+    return JsonResponse({
+        "ok": True,
+        "cart": {
+
+            "lines": cart["lines"],
+            "subtotal_cents": cart["subtotal_cents"],
+            "subtotal_label": _fmt_cents(cart["subtotal_cents"]),
+        }
+    })
+
+# Retrieve full cart snapshot
+@require_GET
+def cart_get(request):
+    cart = _get_cart(request.session)
+    return JsonResponse({
+        "ok": True,
+        "cart": {
+            "lines": cart["lines"],
+            "subtotal_cents": cart["subtotal_cents"],
+            "subtotal_label": _fmt_cents(cart["subtotal_cents"]),
+        }
+    })
+
 def cart_pay(request):
     pass
