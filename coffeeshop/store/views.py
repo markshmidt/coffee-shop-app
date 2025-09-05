@@ -241,5 +241,13 @@ def cart_get(request):
         }
     })
 
+# Empty the cart
+@require_POST
+def cart_clear(request):
+    request.session["cart"] = {"lines": [], "subtotal_cents": 0}
+    request.session.modified = True
+    return JsonResponse({"ok": True, "cart": request.session["cart"]})
+
+
 def cart_pay(request):
     pass
