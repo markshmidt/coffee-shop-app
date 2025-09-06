@@ -71,6 +71,17 @@ def _save_cart(session, cart):
     cart["subtotal_cents"] = sum(l["qty"] * l["unit_total_cents"] for l in cart["lines"])
     session["cart"] = cart
     session.modified = True
+# ---- convenience function to return a uniform JSON cart snapshot
+def _cart_snapshot(cart):
+    """
+    Snapshot returned to the client after any change.
+    Keep fields stable so frontend render code is simple.
+    """
+    return {
+        "lines": cart["lines"],
+        "subtotal_cents": cart["subtotal_cents"],
+        "subtotal_label": _fmt_cents(cart["subtotal_cents"]),
+    }
 
 def _fmt_cents(c):
     return f"${(Decimal(c) / Decimal(100)).quantize(Decimal('0.00'))}"
@@ -276,6 +287,26 @@ def cart_update_line(request):
             }})
 
     return HttpResponseBadRequest("Line not found")
+
+@require_POST
+def cart_remove_line(request):
+    """
+    Payload: {"line_id": "uuid"}
+    """
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+        line_id = payload["line_id"]
+    except Exception:
+        return HttpResponseBadRequest("Bad payload")
+
+    cart = _get_cart(request.session)
+    before = len(cart["lines"])
+    cart["lines"] = [l for l in cart["lines"] if l["id"] != line_id]
+    if len(cart["lines"]) == before:
+        return HttpResponseBadRequest("Line not found")
+
+    _save_cart(request.session, cart)
+    return JsonResponse({"ok": True, "cart": _cart_snapshot(cart)})
 
 def cart_pay(request):
     pass

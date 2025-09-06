@@ -41,35 +41,21 @@
             <h4> ORDER 99</h4>
             <a href="#" > Customer: Guest</a> <!-- when you click guest there is a list opening, with all customers, where you find the needed customer and assign him to order-->
             <div class="clock" id="clock2">--:--</div>
+
           <!-- Lines list (static placeholders for now) -->
           <div class="cart-lines" id="cart-lines">
             <div class="line">
               <div class="cart-row">
-                <h4>Latte <span class="muted">· 12oz</span></h4>
-                <div class="muted">Milk: Oat (+$0.70) · Syrup: Vanilla (+$0.50)</div>
-                <div class="qty-controls" style="margin-top:6px;">
-                  <span class="qty-pill">Qty: x1</span>
-                </div>
-              </div>
-              <div style="text-align:right;">
-                <div>$5.70</div>
-                  <button class="btn ghost" style="margin-top:6px;">Add more</button>
-                <button class="btn ghost" style="margin-top:6px;">Remove</button>
-              </div>
-            </div>
-
-            <div class="line">
-              <div>
-                <h4>Croissant</h4>
-                <div class="muted">—</div>
-                <div class="qty-controls" style="margin-top:6px;">
-                  <span class="qty-pill">Qty: x1</span>
-                </div>
-              </div>
-              <div style="text-align:right;">
-                <div>$3.50</div>
-                  <button class="btn ghost" style="margin-top:6px;">Add more</button>
-                <button class="btn ghost" style="margin-top:6px;">Remove</button>
+<!--                <h4>Latte <span class="muted">· 12oz</span></h4>-->
+<!--                <div class="muted">Milk: Oat (+$0.70) · Syrup: Vanilla (+$0.50)</div>-->
+<!--                <div class="qty-controls" style="margin-top:6px;">-->
+<!--                  <span class="qty-pill">Qty: x1</span>-->
+<!--                </div>-->
+<!--              </div>-->
+<!--              <div style="text-align:right;">-->
+<!--                <div>$5.70</div>-->
+<!--                  <button class="btn ghost" style="margin-top:6px;">Add more</button>-->
+<!--                <button class="btn ghost" style="margin-top:6px;">Remove</button>-->
               </div>
             </div>
           </div>
@@ -77,9 +63,9 @@
 
 
           <div class="summary" style="margin-top:10px;">
-            <div class="row"><span>Subtotal</span><span>$9.20</span></div>
-            <div class="row"><span>Discount</span><span>−$0.92</span></div>
-            <div class="row"><span>Tax (13%)</span><span>$0.56</span></div>
+            <div class="row" id="cart-subtotal"><span>Subtotal</span><span>$9.20</span></div>
+            <div class="row" id="cart-discount"><span>Discount</span><span>−$0.92</span></div>
+            <div class="row" id="cart-tax"><span>Tax (13%)</span><span>$0.56</span></div>
                <div class="row total" style="flex:1;">
                <span>Discount</span> <!-- if none, discount is 0.00 -->
               <label class="pill"><input type="radio" name="pm" checked /> None</label>
