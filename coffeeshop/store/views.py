@@ -248,6 +248,34 @@ def cart_clear(request):
     request.session.modified = True
     return JsonResponse({"ok": True, "cart": request.session["cart"]})
 
+@require_POST
+# Update quantity
+def cart_update_line(request):
+    """
+       Payload: {"line_id": "uuid", "qty": 3}
+       - qty <= 0 → remove the line
+       """
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+        #scan lines to find line_id
+        line_id = payload["line_id"]
+        qty = max(1, int(payload["qty"]))
+    except Exception:
+        return HttpResponseBadRequest("Bad payload")
+
+    cart = _get_cart(request.session)
+    for l in cart["lines"]:
+        if l["id"] == line_id:
+            #set new quantity
+            l["qty"] = qty
+            _save_cart(request.session, cart)
+            return JsonResponse({"ok": True, "cart": {
+                "lines": cart["lines"],
+                "subtotal_cents": cart["subtotal_cents"],
+                "subtotal_label": _fmt_cents(cart["subtotal_cents"]),
+            }})
+
+    return HttpResponseBadRequest("Line not found")
 
 def cart_pay(request):
     pass
