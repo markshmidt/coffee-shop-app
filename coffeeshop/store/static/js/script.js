@@ -219,7 +219,7 @@ const dollarsToCents = v => {
   });
 
   // Clicks inside modals: variants & options & add
-  document.addEventListener('click', (e) => {
+  document.addEventListener('click', async (e) => {
     // variant (size)
     const variantBtn = e.target.closest('.modal .variant-row .chip-btn');
     if (variantBtn) {
@@ -241,11 +241,11 @@ const dollarsToCents = v => {
       return;
     }
 
-    // Add ×1 → build a payload (no network call yet)
+    // Add ×1 → POST to server then render cart
     const addBtn = e.target.closest('.modal .modal-footer .btn');
     if (addBtn) {
       const modal = addBtn.closest('.modal-backdrop');
-      const itemId = modal.id.replace('modal-','');
+      const itemId = modal.id.replace('modal-', '');
 
       const variant = modal.querySelector('.variant-row .chip-btn.active');
       const variantId = variant ? variant.dataset.variantId : null;
@@ -254,23 +254,25 @@ const dollarsToCents = v => {
       modal.querySelectorAll('.group').forEach(g => {
         const groupId = g.dataset.groupId;
         const optionIds = Array.from(g.querySelectorAll('.mods .chip-btn.active'))
-          .map(b => b.dataset.optionId);
-        if (optionIds.length) selections.push({ group_id: groupId, option_ids: optionIds });
+            .map(b => b.dataset.optionId);
+        if (optionIds.length) selections.push({group_id: groupId, option_ids: optionIds});
       });
 
-      // for a future cart
       const payload = {
         item_id: itemId,
         variant_id: variantId,
         qty: 1,
-        selections,                     // [{group_id, option_ids:[...]}]
+        selections,
         unit_total_cents: parseInt(modal.dataset.totalCents || '0', 10),
       };
 
-      console.log('Add-to-cart payload (client):', payload);
-      // In the future: POST to /cart/add, then close the modal.
-      // fetch('/cart/add/', {method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':...}, body: JSON.stringify(payload)})
-      modal.style.display = 'none';
+      try {
+        const {cart} = await postJSON('/cart/add-line/', payload);
+        renderCart(cart);                                         // <-- re-render
+        modal.style.display = 'none';                             // close modal
+      } catch (err) {
+        console.error(err);
+      }
     }
   });
 })();
@@ -309,7 +311,7 @@ async function postJSON(url, body) {
 // ------- rendering --------
 function renderCart(cart) {
   const linesLst = document.getElementById('cart-lines');     // container for all lines
-  const sub  = document.getElementById('cart-subtotal');  // subtotal
+  const sub  = document.querySelector('#cart-subtotal span:last-child');  // subtotal
   if (!linesLst || !sub) return;
 
   // 1) clear current DOM
@@ -338,7 +340,7 @@ function renderCart(cart) {
     // 4) layout
     li.innerHTML = `
       <div class="cart-row">
-        <h4>${line.item_name}· ${line.variant_name ? `<span class="muted">· ${line.variant_name}</span>` : ''}</h4>
+        <h4>${line.item_name} ${line.variant_name ? `<span class="muted">· ${line.variant_name}</span>` : ''}</h4>
         <div class="muted">Milk: Oat (+$0.70) · Syrup: Vanilla (+$0.50)</div>-->
          ${line.summary ? `<div class="muted">${line.summary}</div>` : ''}
         <button class="cart-remove btn-link" aria-label="Remove">Remove</button>
@@ -350,14 +352,15 @@ function renderCart(cart) {
       
         <div style="text-align:right;">
            <div class="line-total">${centsToLabel(line.unit_total_cents * line.qty)}</div>
-          <button class="btn ghost" id="qty-dec" aria-label="Decrease">–1</button>
-          <button class="btn ghost" id="qty-inc" aria-label="Increase">+1</button>
+          <button class="btn ghost qty-dec" aria-label="Decrease">–1</button>
+          <button class="btn ghost qty-inc" aria-label="Increase">+1</button>
            <button class="btn ghost remove-line" style="margin-top:6px;">Remove</button>
       </div>
     `;
-    list.appendChild(li);
+    linesLst.appendChild(li);
   });
 
   // set subtotal label
   sub.textContent = cart.subtotal_label || centsToLabel(cart.subtotal_cents);
 }
+
