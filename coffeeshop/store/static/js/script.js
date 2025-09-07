@@ -341,9 +341,6 @@ function renderCart(cart) {
     li.innerHTML = `
       <div class="cart-row">
         <h4>${line.item_name} ${line.variant_name ? `<span class="muted">· ${line.variant_name}</span>` : ''}</h4>
-        <div class="muted">Milk: Oat (+$0.70) · Syrup: Vanilla (+$0.50)</div>-->
-         ${line.summary ? `<div class="muted">${line.summary}</div>` : ''}
-        <button class="cart-remove btn-link" aria-label="Remove">Remove</button>
       </div>
       ${line.summary ? `<div class="muted" style="font-size:.9em">${line.summary}</div>` : ''}
        <div class="qty-controls" style="margin-top:6px;">
@@ -364,3 +361,38 @@ function renderCart(cart) {
   sub.textContent = cart.subtotal_label || centsToLabel(cart.subtotal_cents);
 }
 
+
+// ------- card buttons handlers ------
+
+document.getElementById('cart-lines')?.addEventListener('click', async (e) => {
+  const lineEl = e.target.closest('.cart-line');
+  if (!lineEl) return;
+
+  const lineId  = lineEl.dataset.lineId;
+  const qtySpan = lineEl.querySelector('.qty-val');
+  const qty     = parseInt(qtySpan?.textContent || lineEl.dataset.qty || '1', 10);
+
+  // +1
+  if (e.target.closest('.qty-inc')) {
+    const { cart } = await postJSON('/cart/update-line/', { line_id: lineId, qty: qty + 1 });
+    renderCart(cart);
+    return;
+  }
+
+  // –1 (remove if goes to 0)
+  if (e.target.closest('.qty-dec')) {
+    const newQty = qty - 1;
+    const url  = newQty > 0 ? '/cart/update-line/' : '/cart/remove-line/';
+    const body = newQty > 0 ? { line_id: lineId, qty: newQty } : { line_id: lineId };
+    const { cart } = await postJSON(url, body);
+    renderCart(cart);
+    return;
+  }
+
+  // remove explicitly
+  if (e.target.closest('.remove-line')) {
+    const { cart } = await postJSON('/cart/remove-line/', { line_id: lineId });
+    renderCart(cart);
+    return;
+  }
+});
