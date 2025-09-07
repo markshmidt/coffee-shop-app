@@ -262,10 +262,15 @@ def cart_clear(request):
 @require_POST
 # Update quantity
 def cart_update_line(request):
+    """"
+    Payload example:
+      {"line_id": "f2d6-...", "qty": 3}
+
+    Behavior:
+      - if the line exists and qty > 0 -> set that qty
+      - if the line exists and qty <= 0 -> remove the line
+      - recompute subtotal and return a fresh snapshot
     """
-       Payload: {"line_id": "uuid", "qty": 3}
-       - qty <= 0 → remove the line
-       """
     try:
         payload = json.loads(request.body.decode("utf-8"))
         #scan lines to find line_id
@@ -275,10 +280,14 @@ def cart_update_line(request):
         return HttpResponseBadRequest("Bad payload")
 
     cart = _get_cart(request.session)
-    for l in cart["lines"]:
-        if l["id"] == line_id:
+    for line in cart["lines"]:
+        if line["id"] == line_id:
             #set new quantity
-            l["qty"] = qty
+            if qty <= 0:
+                # treat 0 or negative as "remove"
+                cart["lines"].pop(line)
+            else:
+                line["qty"] = qty
             _save_cart(request.session, cart)
             return JsonResponse({"ok": True, "cart": {
                 "lines": cart["lines"],
@@ -300,6 +309,8 @@ def cart_remove_line(request):
         return HttpResponseBadRequest("Bad payload")
 
     cart = _get_cart(request.session)
+
+    # Filter out that line
     before = len(cart["lines"])
     cart["lines"] = [l for l in cart["lines"] if l["id"] != line_id]
     if len(cart["lines"]) == before:

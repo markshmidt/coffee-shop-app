@@ -274,3 +274,90 @@ const dollarsToCents = v => {
     }
   });
 })();
+
+
+
+// Client side formatting
+function centsToLabel(c){ return '$' + (c/100).toFixed(2); }
+
+// read the csrftoken cookie set by Django.
+function getCookie(name) {
+  const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+  return m ? m.pop() : '';
+}
+const CSRF = getCookie('csrftoken');
+
+//  help to POST JSON and parse JSON reply
+async function postJSON(url, body) {
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': CSRF
+    },
+    body: JSON.stringify(body),
+  });
+  let data = null;
+  try { data = await r.json(); } catch {}
+  if (!r.ok || !data || data.ok === false) {
+    const msg = (data && data.error) ? data.error : 'Request failed';
+    throw new Error(msg);
+  }
+  return data;
+}
+
+// ------- rendering --------
+function renderCart(cart) {
+  const linesLst = document.getElementById('cart-lines');     // container for all lines
+  const sub  = document.getElementById('cart-subtotal');  // subtotal
+  if (!linesLst || !sub) return;
+
+  // 1) clear current DOM
+  linesLst.innerHTML = '';
+
+  // 2) if empty, show a message
+  if (!cart.lines || cart.lines.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'line';
+    empty.innerHTML = `<div class="cart-row muted">Cart is empty</div>`;
+    linesLst.appendChild(empty);
+  }
+
+
+  // add each line as a li
+  cart.lines.forEach(line => {
+    const li = document.createElement('li');
+    li.className = 'cart-line';
+
+    // 3) add line id and qty — store as data-*
+    li.dataset.lineId = line.id;
+    li.dataset.qty    = String(line.qty);
+    console.log(li.dataset.lineId)
+    console.log(li.dataset.qty)
+
+    // 4) layout
+    li.innerHTML = `
+      <div class="cart-row">
+        <h4>${line.item_name}· ${line.variant_name ? `<span class="muted">· ${line.variant_name}</span>` : ''}</h4>
+        <div class="muted">Milk: Oat (+$0.70) · Syrup: Vanilla (+$0.50)</div>-->
+         ${line.summary ? `<div class="muted">${line.summary}</div>` : ''}
+        <button class="cart-remove btn-link" aria-label="Remove">Remove</button>
+      </div>
+      ${line.summary ? `<div class="muted" style="font-size:.9em">${line.summary}</div>` : ''}
+       <div class="qty-controls" style="margin-top:6px;">
+          <span class="qty-pill">Qty: x<span class="qty-val">${line.qty}</span></span>
+        </div>
+      
+        <div style="text-align:right;">
+           <div class="line-total">${centsToLabel(line.unit_total_cents * line.qty)}</div>
+          <button class="btn ghost" id="qty-dec" aria-label="Decrease">–1</button>
+          <button class="btn ghost" id="qty-inc" aria-label="Increase">+1</button>
+           <button class="btn ghost remove-line" style="margin-top:6px;">Remove</button>
+      </div>
+    `;
+    list.appendChild(li);
+  });
+
+  // set subtotal label
+  sub.textContent = cart.subtotal_label || centsToLabel(cart.subtotal_cents);
+}
