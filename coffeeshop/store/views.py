@@ -86,6 +86,47 @@ def _cart_snapshot(cart):
 def _fmt_cents(c):
     return f"${(Decimal(c) / Decimal(100)).quantize(Decimal('0.00'))}"
 
+def _summarize_selections(selections):
+    """
+    selections is a list like:
+      [{'group_id': 5, 'option_ids': [20, 21]}, {'group_id': 7, 'option_ids':[22]}]
+    We resolve names & deltas to "Milk: Oat (+$1.00); Syrups: Caramel (+$0.50), Vanilla (+$0.50)".
+    """
+    if not selections:
+        return ""
+
+    parts = []
+    for sel in selections:
+        gid = sel.get("group_id")
+        oids = sel.get("option_ids") or []
+        if not gid or not oids:
+            continue
+
+        try:
+            g = ModifierGroup.objects.only("name").get(id=gid)
+        except ModifierGroup.DoesNotExist:
+            continue
+
+        opts = list(
+            ModifierOption.objects.filter(id__in=oids)
+            .values("name", "price_cents")
+        )
+
+        if not opts:
+            continue
+
+        labeled = []
+        for o in opts:
+            delta = o["price_cents"] or 0
+            if delta:
+                labeled.append(f"{o['name']} (+{_fmt_cents(delta)})")
+            else:
+                labeled.append(o["name"])
+        parts.append(f"{g.name}: " + ", ".join(labeled))
+
+    return " ; ".join(parts)
+
+
 def _price_item_validate(item: MenuItem, variant_id, selections):
     """
     Returns (base_cents, options_cents, unit_total_cents, normalized_selections)
@@ -174,70 +215,83 @@ def _price_item_validate(item: MenuItem, variant_id, selections):
 
 @require_POST
 def cart_add_line(request):
+    # 1) Parse JSON safely
     try:
         payload = json.loads(request.body.decode("utf-8"))
     except Exception:
-        return HttpResponseBadRequest("Invalid json")
+        return JsonResponse({"ok": False, "error": "Bad JSON"}, status=400)
 
+    # 2) Extract & validate fields types
     try:
-        item = MenuItem.objects.select_related("category").get(id=payload["item_id"])
+        item_id = int(payload["item_id"])
+        variant_id = payload.get("variant_id")
+        if variant_id is not None:
+            variant_id = int(variant_id)
+        qty = int(payload.get("qty", 1))
+        selections = payload.get("selections") or []
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Bad payload"}, status=400)
+
+    # 3) Fetch item
+    from .models import MenuItem, Variant
+    try:
+        item = MenuItem.objects.get(id=item_id, active=True)
     except MenuItem.DoesNotExist:
-        return HttpResponseBadRequest("Unknown item")
+        return JsonResponse({"ok": False, "error": "Item not found"}, status=404)
 
-    variant_id = payload.get("variant_id")
-    selections = payload.get("selections", [])
-    qty = int(payload.get("qty", 1) or 1)
-    if qty < 1:
-        qty = 1
-
+    # 4) Price & validate
     try:
-        base, delta, unit_total, normalized, variant_name = _price_item_validate(
-            item, variant_id, selections
+        # accept either 4-tuple or 5-tuple from the validator
+        res = _price_item_validate(
+            item=item,
+            variant_id=variant_id,
+            selections=selections,
         )
+        base_cents, options_cents, unit_total_cents, normalized, *rest = res
     except ValueError as e:
         return JsonResponse({"ok": False, "error": str(e)}, status=400)
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Server error"}, status=500)
 
-    # build a display summary for UI (simple)
-    choice_labels = []
-    if normalized:
-        groups = ModifierGroup.objects.filter(id__in=[s["group_id"] for s in normalized]).in_bulk()
-        all_opts = ModifierOption.objects.filter(
-            id__in=[oid for s in normalized for oid in s["option_ids"]]
-        ).in_bulk()
-        # flatten
-        for s in normalized:
-            g = groups[s["group_id"]]
-            names = ", ".join(all_opts[oid].name for oid in s["option_ids"])
-            choice_labels.append(f"{g.name}: {names}")
+    # 5) Resolve variant name (and ensure it belongs to this item)
+    variant_name = None
+    if variant_id is not None:
+        try:
+            v = Variant.objects.only("name").get(id=variant_id, menu_item=item, active=True)
+            variant_name = v.name
+        except Variant.DoesNotExist:
+            # If your validator already enforced the relation this won't happen.
+            return JsonResponse({"ok": False, "error": "Variant not found for this item"}, status=400)
 
-    # put into session cart
+    # (Optional) If the validator already returned a variant label as the 5th value,
+    # prefer that label:
+    if rest and rest[0]:
+        variant_name = rest[0]
+
+    # 6) Build a user-friendly summary string with option deltas
+    summary = _summarize_selections(normalized)  # function shown below
+
+    # 7) Save into the session cart
+    from uuid import uuid4
+    line_id = uuid4().hex[:16]
+
     cart = _get_cart(request.session)
-    line_id = str(uuid.uuid4())
     cart["lines"].append({
         "id": line_id,
         "item_id": item.id,
         "item_name": item.name,
         "variant_id": variant_id,
-        "variant_name": variant_name,
+        "variant_name": variant_name,            # <— used by the frontend to show size
         "qty": qty,
-        "unit_total_cents": unit_total,
-        "base_cents": base,
-        "options_cents": delta,
-        "selections": normalized,
-        "summary": " ; ".join(choice_labels),
+        "base_cents": base_cents,                # handy if you ever edit the line later
+        "options_cents": options_cents,
+        "unit_total_cents": unit_total_cents,
+        "selections": normalized,                # keep normalized selections
+        "summary": summary,                      # <— “Milk: Oat (+$1.00) ; Syrups: …”
     })
     _save_cart(request.session, cart)
 
-    # return a minimal cart snapshot (client renders)
-    return JsonResponse({
-        "ok": True,
-        "cart": {
-
-            "lines": cart["lines"],
-            "subtotal_cents": cart["subtotal_cents"],
-            "subtotal_label": _fmt_cents(cart["subtotal_cents"]),
-        }
-    })
+    return JsonResponse({"ok": True, "cart": _cart_snapshot(cart)})
 
 # Retrieve full cart snapshot
 @require_GET

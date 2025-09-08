@@ -305,6 +305,7 @@ function renderCart(cart) {
   const linesLst = document.getElementById('cart-lines');     // container for all lines
   const sub  = document.querySelector('#cart-subtotal span:last-child');  // subtotal
   if (!linesLst || !sub) return;
+   if (!cart || !Array.isArray(cart.lines)) return;
 
   // 1) clear current DOM
   linesLst.innerHTML = '';
