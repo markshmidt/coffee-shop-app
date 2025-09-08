@@ -46,16 +46,6 @@
           <div class="cart-lines" id="cart-lines">
             <div class="cart-line">
               <div class="cart-row">
-<!--                <h4>Latte <span class="muted">· 12oz</span></h4>-->
-<!--                <div class="muted">Milk: Oat (+$0.70) · Syrup: Vanilla (+$0.50)</div>-->
-<!--                <div class="qty-controls" style="margin-top:6px;">-->
-<!--                  <span class="qty-pill">Qty: x1</span>-->
-<!--                </div>-->
-<!--              </div>-->
-<!--              <div style="text-align:right;">-->
-<!--                <div>$5.70</div>-->
-<!--                  <button class="btn ghost" style="margin-top:6px;">Add more</button>-->
-<!--                <button class="btn ghost" style="margin-top:6px;">Remove</button>-->
               </div>
             </div>
           </div>
@@ -63,9 +53,9 @@
 
 
           <div class="summary" style="margin-top:10px;">
-            <div class="row" id="cart-subtotal"><span>Subtotal</span><span>$9.20</span></div>
-            <div class="row" id="cart-discount"><span>Discount</span><span>−$0.92</span></div>
-            <div class="row" id="cart-tax"><span>Tax (13%)</span><span>$0.56</span></div>
+            <div class="row" id="cart-subtotal"><span>Subtotal</span><span></span></div>
+            <div class="row" id="cart-discount"><span>Discount</span><span></span></div>
+            <div class="row" id="cart-tax"><span>Tax (13%)</span><span></span></div>
                <div class="row total" style="flex:1;">
                <span>Discount</span> <!-- if none, discount is 0.00 -->
               <label class="pill"><input type="radio" name="pm" checked /> None</label>
@@ -91,6 +81,7 @@
         </section>
       </aside>
 
+
       <!-- RIGHT: Menu -->
       <section class="menu">
         <div class="panel">
@@ -101,11 +92,10 @@
           </div>
         </div>
         <div class="categories" id="sub-bar" style="display:none;"></div>
-
         <div id="all-subcats" style="display:none;">
-        {% for c in cats %}
-          <button class="cat-btn" data-cat="{{ c.id }}" data-parent="{{ c.parent_id }}">{{ c.name }}</button>
-        {% endfor %}
+            {% for c in cats %}
+              <button class="cat-btn" data-cat="{{ c.id }}" data-parent="{{ c.parent_id }}">{{ c.name }}</button>
+            {% endfor %}
         </div>
 
 
@@ -151,7 +141,7 @@
                     data-variant-id="{{ variant.id }}"
                     data-item-id="{{ variant.menu_item_id }}"
                     data-price-cents="{{ variant.price_cents}}">
-              {{ variant.name }} · ${{ variant.price}}
+              {{ variant.name }} · ${{  variant.price|floatformat:"2"}}
             </button>
           {% endfor %}
           </div>
@@ -189,9 +179,9 @@
         </div>
 
         <div class="modal-footer">
-          <div class="muted">Preview: <strong>$5.70</strong></div>
+          <div class="muted">Preview: <strong></strong></div>
           <div>
-            <button class="btn" onclick=renderCart()>Add ×1</button>
+            <button class="btn" >Add ×1</button>
           </div>
         </div>
       </div>

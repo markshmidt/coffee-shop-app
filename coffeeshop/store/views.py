@@ -13,11 +13,11 @@ from django.db.models import Sum, Q
 from .models import Category, MenuItem, Variant, ModifierGroup, ModifierOption
 
 
-# POS home page
+# ----- POS home page -------
 def home(request):
 
     price_expr = ExpressionWrapper(
-        F("price_cents") / Value(Decimal("100")),  # integer division by 100
+        F("price_cents") * Value(Decimal("0.01")),
         output_field=DecimalField(max_digits=8, decimal_places=2),
     )
 
@@ -32,9 +32,9 @@ def home(request):
     parents = Category.objects.filter(parent__isnull=True).order_by("position", "name")
     cats = Category.objects.values("id", "name", "parent_id").order_by("position", "name")
 
-    variants = Variant.objects.filter(active=True).annotate(price=price_expr).values("id", "name", "price", "price_cents", "menu_item_id").order_by("price_cents", "name" )
+    variants = Variant.objects.filter(active=True).annotate(price=price_expr).values("id", "name", "price", "price_cents", "menu_item_id").order_by("price", "name" )
 
-    modifier_groups = ModifierGroup.objects.all()
+    modifier_groups = ModifierGroup.objects.all().order_by("name")
     return render(
         request,
         "home.html",

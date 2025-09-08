@@ -117,14 +117,11 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
+
 // ===== Price update =====
 (() => {
   const fmt = c => '$' + (c/100).toFixed(2);
   const int = v => parseInt(v, 10);
-const dollarsToCents = v => {
-  const n = Number(v);
-  return Number.isFinite(n) ? Math.round(n * 100) : 0;
-};
   // Calculate total for one modal
   function total_modal(modal) {
     let total = 0;
@@ -135,19 +132,14 @@ const dollarsToCents = v => {
 
 
    if (hasVariants) {
-    if (!variantActive) {
-      total = null;                         // require a size
-    } else {
-      total = int(variantActive.dataset.priceCents);
-
-   console.log(int(variantActive.dataset.priceCents))// <-- CENTS
-      if (!variantActive.dataset.priceCents) {
-        console.warn('Missing data-price-cents on variant button:', variantActive);
+      if (variantActive && variantActive.dataset.priceCents) {
+        total = int(variantActive.dataset.priceCents);        // use selected size
+      } else {
+        total = int(modal.dataset.baseCents);                 // show base before pick
       }
+    } else {
+      total = int(modal.dataset.baseCents);
     }
-  } else {
-    total = int(modal.dataset.baseCents);         // <-- CENTS
-  }
 
     // Add all selected option deltas
     modal.querySelectorAll('.group .mods .chip-btn.active').forEach(btn => {

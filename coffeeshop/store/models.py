@@ -26,10 +26,6 @@ class Customer(models.Model):
     def can_redeem(self) -> bool:
         return self.points_balance >= 80
 
-# class User(models.Model):
-#     first_name = models.CharField(max_length=100)
-#     last_name = models.CharField(max_length=100)
-
 class Category(models.Model):
     name = models.CharField(max_length=100, unique=True)
     position = models.PositiveIntegerField(default=0)
