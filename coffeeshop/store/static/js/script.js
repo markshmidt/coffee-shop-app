@@ -71,7 +71,7 @@
       clock.textContent = `${hh}:${mm}`;
     }, 1000);
 
-// === Per-item modal open/close + variant filtering
+// === Per-item modal open/close + variant filtering =====
 document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('click', (e) => {
     // OPEN
@@ -118,10 +118,22 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 
-// ===== Price update =====
+// ===== PRICE UPDATE =====
 (() => {
   const fmt = c => '$' + (c/100).toFixed(2);
   const int = v => parseInt(v, 10);
+
+  async function getJSON(url) {
+  const r = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }});
+  let data = null;
+  try { data = await r.json(); } catch {}
+  if (!r.ok || !data || data.ok === false) {
+    const msg = (data && data.error) ? data.error : 'Request failed';
+    throw new Error(msg);
+  }
+  return data;
+}
+
   // Calculate total for one modal
   function total_modal(modal) {
     let total = 0;
@@ -269,6 +281,20 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 })();
 
+// === HELPERS ====
+
+// ---- GET JSON helper
+function getJSON(url) {
+  return fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .then(r => r.json().catch(() => null)
+      .then(data => {
+        if (!r.ok || !data || data.ok === false) {
+          const msg = (data && data.error) ? data.error : 'Request failed';
+          throw new Error(msg);
+        }
+        return data;
+      }));
+}
 
 
 // Client side formatting
@@ -300,22 +326,32 @@ async function postJSON(url, body) {
   return data;
 }
 
-// ------- rendering --------
+// ------- RENDERING --------
 function renderCart(cart) {
   const linesLst = document.getElementById('cart-lines');     // container for all lines
-  const sub  = document.querySelector('#cart-subtotal span:last-child');  // subtotal
-  if (!linesLst || !sub) return;
-   if (!cart || !Array.isArray(cart.lines)) return;
+  const subRow  = document.getElementById('cart-subtotal');  // subtotal
+  const sub   = subRow? subRow.querySelector('span:last-child') : null;
+  if (!linesLst || !subRow) return;
 
   // 1) clear current DOM
   linesLst.innerHTML = '';
 
   // 2) if empty, show a message
-  if (!cart.lines || cart.lines.length === 0) {
+  if ((!cart.lines || cart.lines.length === 0)){
     const empty = document.createElement('div');
     empty.className = 'line';
     empty.innerHTML = `<div class="cart-row muted">Cart is empty</div>`;
     linesLst.appendChild(empty);
+    sub.textContent = '$0.00'
+  }
+  if (!cart || !Array.isArray(cart.lines)) {
+    linesLst.innerHTML = '';
+    const empty = document.createElement('div');
+    empty.className = 'line';
+    empty.innerHTML = `<div class="cart-row muted">Cart is empty</div>`;
+    linesLst.appendChild(empty);
+    sub.textContent = '$0.00';
+    return;
   }
 
 
@@ -387,5 +423,20 @@ document.getElementById('cart-lines')?.addEventListener('click', async (e) => {
     const { cart } = await postJSON('/cart/remove-line/', { line_id: lineId });
     renderCart(cart);
     return;
+  }
+});
+
+// prerender the cart
+document.addEventListener('DOMContentLoaded', async () => {
+  // Show a quick empty placeholder while we fetch
+  renderCart({ lines: [], subtotal_cents: 0, subtotal_label: '$0.00' });
+
+  try {
+    // This hits your Django view that returns the current cart snapshot
+    const { cart } = await getJSON('/cart/');
+    renderCart(cart);
+  } catch (e) {
+    console.warn('Could not load cart on start:', e.message);
+    // keep the placeholder we just rendered
   }
 });

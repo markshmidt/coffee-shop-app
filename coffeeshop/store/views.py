@@ -47,7 +47,9 @@ def home(request):
         }
     )
 
-# ----- CART -----
+# ====== CART ====
+
+# ---- helpers -----
 
 def _get_cart(session):
     """
