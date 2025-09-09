@@ -364,7 +364,9 @@ document.addEventListener('DOMContentLoaded', () => {
 function renderCart(cart) {
   const linesLst = document.getElementById('cart-lines');     // container for all lines
   const subRow  = document.getElementById('cart-subtotal');  // subtotal
+  const taxRow = document.getElementById("cart-tax"); // tax
   const sub   = subRow? subRow.querySelector('span:last-child') : null;
+  const tax = taxRow? taxRow.querySelector('span:last-child') : null;
   if (!linesLst || !subRow) return;
 
   // 1) clear current DOM
@@ -377,17 +379,8 @@ function renderCart(cart) {
     empty.innerHTML = `<div class="cart-row muted">Cart is empty</div>`;
     linesLst.appendChild(empty);
     sub.textContent = '$0.00'
+    tax.textContent='$0.00'
   }
-  if (!cart || !Array.isArray(cart.lines)) {
-    linesLst.innerHTML = '';
-    const empty = document.createElement('div');
-    empty.className = 'line';
-    empty.innerHTML = `<div class="cart-row muted">Cart is empty</div>`;
-    linesLst.appendChild(empty);
-    sub.textContent = '$0.00';
-    return;
-  }
-
 
   // add each line as a li
   cart.lines.forEach(line => {
@@ -422,6 +415,7 @@ function renderCart(cart) {
 
   // set subtotal label
   sub.textContent = cart.subtotal_label || centsToLabel(cart.subtotal_cents);
+  tax.textContent = cart.tax_label || centsToLabel(cart.tax_label)
 }
 
 
@@ -463,7 +457,7 @@ document.getElementById('cart-lines')?.addEventListener('click', async (e) => {
 // prerender the cart
 document.addEventListener('DOMContentLoaded', async () => {
   // Show a quick empty placeholder while we fetch
-  renderCart({ lines: [], subtotal_cents: 0, subtotal_label: '$0.00' });
+  renderCart({ lines: [], subtotal_cents: 0, subtotal_label: '$0.00', subtotal_tax: '$0.00'});
 
   try {
     // This hits your Django view that returns the current cart snapshot

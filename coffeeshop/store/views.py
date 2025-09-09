@@ -59,7 +59,7 @@ def _get_cart(session):
     """
     cart = session.get("cart")
     if not cart:
-        cart = {"lines": [], "subtotal_cents": 0}
+        cart = {"lines": [], "subtotal_cents": 0, "tax_cents": 0}
         session["cart"] = cart
     return cart
 
@@ -70,8 +70,11 @@ def _save_cart(session, cart):
     :param cart:
     :return: null
     """
-    cart["subtotal_cents"] = sum(l["qty"] * l["unit_total_cents"] for l in cart["lines"])
-    session["cart"] = cart
+    subtotal_cents = sum(l["qty"] * l["unit_total_cents"] for l in cart["lines"])
+    tax_cents = round(subtotal_cents * 13 / 100)
+
+    cart["subtotal_cents"] = subtotal_cents
+    cart["tax_cents"] = tax_cents
     session.modified = True
 # ---- convenience function to return a uniform JSON cart snapshot
 def _cart_snapshot(cart):
@@ -82,6 +85,8 @@ def _cart_snapshot(cart):
     return {
         "lines": cart["lines"],
         "subtotal_cents": cart["subtotal_cents"],
+        "tax_cents": cart["tax_cents"],
+        "tax_label": _fmt_cents(cart["tax_cents"]),
         "subtotal_label": _fmt_cents(cart["subtotal_cents"]),
     }
 
@@ -211,7 +216,8 @@ def _price_item_validate(item: MenuItem, variant_id, selections):
 #     },
 #     ...
 #   ],
-#   "subtotal_cents": 1120 ($11.20)
+#   "subtotal_cents": 1120 ($11.20),
+#   "tax_cents": 1120*0.13
 # }
 
 
@@ -270,8 +276,9 @@ def cart_add_line(request):
     if rest and rest[0]:
         variant_name = rest[0]
 
-    # 6) Build a user-friendly summary string with option deltas
+    # 6) Build a user-friendly summary string with option deltas + tax
     summary = _summarize_selections(normalized)  # function shown below
+    tax_cents = unit_total_cents*0.13
 
     # 7) Save into the session cart
     from uuid import uuid4
@@ -285,10 +292,10 @@ def cart_add_line(request):
         "variant_id": variant_id,
         "variant_name": variant_name,            # <— used by the frontend to show size
         "qty": qty,
-        "base_cents": base_cents,                # handy if you ever edit the line later
+        "base_cents": base_cents,
         "options_cents": options_cents,
         "unit_total_cents": unit_total_cents,
-        "selections": normalized,                # keep normalized selections
+        "selections": normalized,
         "summary": summary,                      # <— “Milk: Oat (+$1.00) ; Syrups: …”
     })
     _save_cart(request.session, cart)
@@ -299,19 +306,13 @@ def cart_add_line(request):
 @require_GET
 def cart_get(request):
     cart = _get_cart(request.session)
-    return JsonResponse({
-        "ok": True,
-        "cart": {
-            "lines": cart["lines"],
-            "subtotal_cents": cart["subtotal_cents"],
-            "subtotal_label": _fmt_cents(cart["subtotal_cents"]),
-        }
+    return JsonResponse({"ok": True, "cart": _cart_snapshot(cart)
     })
 
 # Empty the cart
 @require_POST
 def cart_clear(request):
-    request.session["cart"] = {"lines": [], "subtotal_cents": 0}
+    request.session["cart"] = {"lines": [], "subtotal_cents": 0, "tax_cents": 0,}
     request.session.modified = True
     return JsonResponse({"ok": True, "cart": request.session["cart"]})
 
@@ -345,11 +346,7 @@ def cart_update_line(request):
             else:
                 line["qty"] = qty
             _save_cart(request.session, cart)
-            return JsonResponse({"ok": True, "cart": {
-                "lines": cart["lines"],
-                "subtotal_cents": cart["subtotal_cents"],
-                "subtotal_label": _fmt_cents(cart["subtotal_cents"]),
-            }})
+            return JsonResponse({"ok": True, "cart": _cart_snapshot(cart)})
 
     return HttpResponseBadRequest("Line not found")
 
