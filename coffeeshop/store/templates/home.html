@@ -53,23 +53,26 @@
 
 
           <div class="summary" style="margin-top:10px;">
-            <div class="row" id="cart-subtotal"><span>Subtotal</span><span></span></div>
-            <div class="row" id="cart-discount"><span>Discount</span><span></span></div>
-            <div class="row" id="cart-tax"><span>Tax (13%)</span><span></span></div>
+            <div class="row" id="cart-subtotal"><span>Subtotal</span><span id="subtotal-label">$0.00</span></div>
+            <div class="row" id="cart-discount"><span>Discount</span><span id="discount-label">$0.00</span></div>
+            <div class="row" id="cart-tax"><span>Tax (13%)</span><span id="tax-label">$0.00</span></div>
+
                <div class="row total" style="flex:1;">
-               <span>Discount</span> <!-- if none, discount is 0.00 -->
-              <label class="pill"><input type="radio" name="pm" checked /> None</label>
-              <label class="pill"><input type="radio" name="pm" /> Student</label>
-              <label class="pill"><input type="radio" name="pm" /> Friends/Family</label>
+                <label class="pill"><input type="radio" name="discount" value="NONE" checked> None</label>
+                <label class="pill"><input type="radio" name="discount" value="STUDENT_10"> Student</label>
+                <label class="pill"><input type="radio" name="discount" value="FRIENDS_FAMILY_20"> Friends/Family</label>
+
             </div>
-            <div class="row total"><span>Total</span><span>$5.34</span></div>
+            <div class="row total"> <span>Total</span><span id="total-label">$0.00</span></div>
           </div>
 
           <div class="paybar">
             <div class="pay-group">
               <label class="pill"><input type="radio" name="pm" checked /> Card</label>
               <label class="pill"><input type="radio" name="pm" /> Cash</label>
-             <span class="pill" title="Cash rounding preview">Rounding: +$0.01</span> <!-- #should be seen only for cash-->
+              <span id="rounding-pill" class="pill" title="Cash rounding preview" style="display:none;">
+                  Rounding: <span id="rounding-delta">+$0.00</span>
+                </span>
             </div>
 
             <div>
