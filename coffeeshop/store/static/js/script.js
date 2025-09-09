@@ -183,6 +183,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+
+    // resetting modal
+    function resetModal(modal) {
+      if (!modal) return;
+
+      // Clear selected size (variants) completely
+      modal.querySelectorAll('.variant-row .chip-btn.active')
+           .forEach(b => b.classList.remove('active'));
+
+      // Clear all selected options
+      modal.querySelectorAll('.group .mods .chip-btn.active')
+           .forEach(b => b.classList.remove('active'));
+
+      //  re-apply the original defaults we tagged on load
+      modal.querySelectorAll('.group .mods .chip-btn[data-default="1"]')
+           .forEach(b => b.classList.add('active'));
+
+      // Recompute preview & button state
+      total_modal(modal);
+    }
+
   // Toggle logic for options
   function handleOptionClick(btn) {
     const group = btn.closest('.group');
@@ -272,7 +293,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       try {
         const {cart} = await postJSON('/cart/add-line/', payload);
-        renderCart(cart);                                         // <-- re-render
+        renderCart(cart);
+        resetModal(modal)// <-- re-render
         modal.style.display = 'none';                             // close modal
       } catch (err) {
         console.error(err);
@@ -307,6 +329,7 @@ function getCookie(name) {
 }
 const CSRF = getCookie('csrftoken');
 
+
 //  help to POST JSON and parse JSON reply
 async function postJSON(url, body) {
   const r = await fetch(url, {
@@ -325,6 +348,17 @@ async function postJSON(url, body) {
   }
   return data;
 }
+
+// Tag the buttons that are default on first render to reapply them after a reset
+document.addEventListener('DOMContentLoaded', () => {
+  document
+    .querySelectorAll('.modal-backdrop .group .mods .chip-btn')
+    .forEach(btn => {
+      if (btn.classList.contains('active')) {
+        btn.dataset.default = '1';
+      }
+    });
+});
 
 // ------- RENDERING --------
 function renderCart(cart) {
