@@ -11,6 +11,11 @@ from django.views.decorators.csrf import csrf_exempt, csrf_protect
 from django.db.models import Sum, Q
 
 from .models import Category, MenuItem, Variant, ModifierGroup, ModifierOption
+from .apps import (
+    POS_TAX_RATE_BPS,         # 1300 (13%)
+    POS_DISCOUNT_CHOICES,     # ("NONE", ...), ("STUDENT_10", ...), ...
+    POS_NICKEL_ROUNDING,      # True/False
+)
 
 
 # ----- POS home page -------
@@ -51,6 +56,21 @@ def home(request):
 
 # ---- helpers -----
 
+# 13% -> 1300 basis points; return integer cents
+def _bp(amount_cents: int, bp: int) -> int:
+    return round(amount_cents * bp / 10_000)
+
+# round to nearest $0.05 for CASH only
+def _nickel_round_cents(cents: int) -> int:
+    return int(round(cents / 5.0) * 5)
+
+# Map codes to bp
+DISCOUNT_BP = {
+    "NONE": 0,
+    "STUDENT_10": 1000,
+    "FRIENDS_FAMILY_20": 2000,
+}
+
 def _get_cart(session):
     """
     Reads session["cart"]; if missing, creates a new one:
@@ -59,7 +79,15 @@ def _get_cart(session):
     """
     cart = session.get("cart")
     if not cart:
-        cart = {"lines": [], "subtotal_cents": 0, "tax_cents": 0}
+        cart = {
+            "lines": [],
+            "discount_code": "NONE",
+            "subtotal_cents": 0,
+            "discount_cents": 0,
+            "tax_cents": 0,
+            "total_cents": 0,
+            "payment_method": "CARD",  # or "CASH"
+        }
         session["cart"] = cart
     return cart
 
@@ -71,11 +99,24 @@ def _save_cart(session, cart):
     :return: null
     """
     subtotal_cents = sum(l["qty"] * l["unit_total_cents"] for l in cart["lines"])
-    tax_cents = round(subtotal_cents * 13 / 100)
+    # discount (in basis points from your config)
+    disc_bp = DISCOUNT_BP.get(cart.get("discount_code") or "NONE", 0)
+    discount = _bp(subtotal_cents, disc_bp)
+
+    taxable = max(0, subtotal_cents - discount)
+    tax_cents = _bp(taxable, POS_TAX_RATE_BPS)
+
+    total = taxable + tax_cents
+
+    if cart.get("payment_method") == "CASH" and POS_NICKEL_ROUNDING:
+        total = _nickel_round_cents(total)
 
     cart["subtotal_cents"] = subtotal_cents
+    cart["discount_cents"] = discount
     cart["tax_cents"] = tax_cents
+    cart["total_cents"] = total
     session.modified = True
+
 # ---- convenience function to return a uniform JSON cart snapshot
 def _cart_snapshot(cart):
     """
@@ -83,11 +124,15 @@ def _cart_snapshot(cart):
     Keep fields stable so frontend render code is simple.
     """
     return {
-        "lines": cart["lines"],
+         "lines": cart["lines"],
         "subtotal_cents": cart["subtotal_cents"],
+        "discount_cents": cart["discount_cents"],
         "tax_cents": cart["tax_cents"],
-        "tax_label": _fmt_cents(cart["tax_cents"]),
+        "total_cents": cart["total_cents"],
         "subtotal_label": _fmt_cents(cart["subtotal_cents"]),
+        "discount_label": "-" + _fmt_cents(cart["discount_cents"]) if cart["discount_cents"] else _fmt_cents(0),
+        "tax_label": _fmt_cents(cart["tax_cents"]),
+        "total_label": _fmt_cents(cart["total_cents"]),
     }
 
 def _fmt_cents(c):
@@ -371,6 +416,27 @@ def cart_remove_line(request):
 
     _save_cart(request.session, cart)
     return JsonResponse({"ok": True, "cart": _cart_snapshot(cart)})
+
+@require_POST
+def cart_discount(request):
+    data = json.loads(request.body.decode("utf-8"))
+    cart = _get_cart(request.session)
+
+    if "discount_code" in data:
+        code = data["discount_code"]
+        if code not in DISCOUNT_BP:
+            return HttpResponseBadRequest("Unknown discount code")
+        cart["discount_code"] = code
+
+    if "payment_method" in data:
+        method = (data["payment_method"] or "").upper()
+        if method not in ("CARD", "CASH"):
+            return HttpResponseBadRequest("Bad payment method")
+        cart["payment_method"] = method
+
+    _save_cart(request.session, cart)
+    return JsonResponse({"ok": True, "cart": _cart_snapshot(cart)})
+
 
 def cart_pay(request):
     pass
