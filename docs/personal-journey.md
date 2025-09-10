@@ -42,3 +42,16 @@ Similar problem with Modifiers: I want them to be different for different item g
 ## Day 7.
 
 Continued working on modifiers: after they were shown in UI almost correctly, I realized that "milk" group was nowhere to be seen, though I attached it to both specific drinks and items categories. Needed to refactor the code a bit and assign each model unique id connected with item$ before that I was using the same ids ( like id="modal") for every one. Ih helped to make the code clearer and render template with correct modifiers. JS is a bit hard for me, I use a lot of help with that, but still learning. Planning to finish the correct price display for the whole modal window today, though my classes have started. 
+
+## Day 8.
+
+Basically spent the whole day trying to make the price look correctly. THought that my decision of making it in cents first was wrong - because now i had to deal with this whole transition from "100" to beautiful "$1.00". Sometimes the program still added just hundreds of cents, sometimes it cut the whole part after the point. I wanted every variant/modifier to show its price in the modal window, so it would be easier to show the same thing in cart (then in orders created). Got a bit tired after classes and work, so that was all I had metal strength to do that day.
+
+## Day 9.
+
+Modals with all the variants/modifiers were working correctly (except resetting the modal), so I decided to prepare for the car integration. Step by step I added helper functions - to get the cart, make a cart snapshot (to have an idea how the cart looks and to use it in the future). The validation of all prices was the hardest one i guess, but the most needed one. Began to create some views for GET and POST and added them to urls. Already thinking of some changes that will be made in the future.
+
+## Day 10.
+
+Feels like Saturdays are the busiest days for me: after work I had to do a lot of stuff, make some calls and just got exhausted after a busy weeks, so I did not feel the mood to program a lot. Still added update/remove line of cart ad I planned before. Overall I see the vision how it is supposed to look on frontend, however, a bit confused how to make variants/modifiers look better. Decided to deal with subtotal/tax/total a bit later.
+
