@@ -29,7 +29,7 @@ def home(request):
     items = (
         MenuItem.objects
         .annotate(price=price_expr)
-        .order_by("name")
+        .order_by("price")
         .select_related("category")
         .prefetch_related("direct_modifier_groups", "category__modifier_groups")
     )
@@ -124,15 +124,23 @@ def _cart_snapshot(cart):
     Keep fields stable so frontend render code is simple.
     """
     return {
-         "lines": cart["lines"],
-        "subtotal_cents": cart["subtotal_cents"],
-        "discount_cents": cart["discount_cents"],
-        "tax_cents": cart["tax_cents"],
-        "total_cents": cart["total_cents"],
-        "subtotal_label": _fmt_cents(cart["subtotal_cents"]),
-        "discount_label": "-" + _fmt_cents(cart["discount_cents"]) if cart["discount_cents"] else _fmt_cents(0),
-        "tax_label": _fmt_cents(cart["tax_cents"]),
-        "total_label": _fmt_cents(cart["total_cents"]),
+        "lines": cart["lines"],
+        "discount_code": cart.get("discount_code", "NONE"),
+        "payment_method": cart.get("payment_method", "CARD"),
+
+        # raw cents
+        "subtotal_cents": cart.get("subtotal_cents", 0),
+        "discount_cents": cart.get("discount_cents", 0),
+        "tax_cents": cart.get("tax_cents", 0),
+        "total_cents": cart.get("total_cents", 0),
+        "rounding_delta_cents": cart.get("rounding_delta_cents", 0),
+
+        # preformatted labels
+        "subtotal_label": _fmt_cents(cart.get("subtotal_cents", 0)),
+        "discount_label": "-" + _fmt_cents(cart.get("discount_cents", 0)) if cart.get("discount_cents") else _fmt_cents(0),
+        "tax_label": _fmt_cents(cart.get("tax_cents", 0)),
+        "total_label": _fmt_cents(cart.get("total_cents", 0)),
+        "rounding_delta_label": _fmt_cents(cart.get("rounding_delta_cents", 0)),
     }
 
 def _fmt_cents(c):

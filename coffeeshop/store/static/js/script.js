@@ -362,12 +362,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ------- RENDERING --------
 function renderCart(cart) {
-  const linesLst = document.getElementById('cart-lines');     // container for all lines
-  const subRow  = document.getElementById('cart-subtotal');  // subtotal
-  const taxRow = document.getElementById("cart-tax"); // tax
-  const sub   = subRow? subRow.querySelector('span:last-child') : null;
-  const tax = taxRow? taxRow.querySelector('span:last-child') : null;
-  if (!linesLst || !subRow) return;
+  // --- Cache DOM references once per render ---
+  const linesLst  = document.getElementById('cart-lines');          // container for all lines
+  const subRow    = document.getElementById('cart-subtotal');       // subtotal
+  const discRow   = document.getElementById('cart-discount');
+  const taxRow    = document.getElementById('cart-tax');            // tax
+  const totalRow  = document.getElementById('cart-total');
+
+  // last <span> in each row (the $ label)
+  const sub   = subRow  ? subRow.querySelector('span:last-child')  : null;
+  const disc  = discRow ? discRow.querySelector('span:last-child') : null;
+  const tax   = taxRow  ? taxRow.querySelector('span:last-child')  : null;
+  const total = totalRow? totalRow.querySelector('span:last-child') : null;
+
+  // cash rounding
+  const roundingPill   = document.getElementById('rounding-pill');
+  const roundingDelta  = document.getElementById('rounding-delta');
+
+   if (!linesLst || !sub || !tax) {
+    // if critical elements are missing
+    console.warn('renderCart: required DOM nodes missing');
+    return;
+  }
 
   // 1) clear current DOM
   linesLst.innerHTML = '';
@@ -380,6 +396,12 @@ function renderCart(cart) {
     linesLst.appendChild(empty);
     sub.textContent = '$0.00'
     tax.textContent='$0.00'
+    if (disc)  disc.textContent  = cart.discount || '$0.00';
+    if (total) total.textContent = cart.total || '$0.00';
+
+    // hide rounding pill when empty or non-cash
+    if (roundingPill) roundingPill.style.display = 'none';
+    // Do not return; still continue in case server gave non-zero totals for some reason
   }
 
   // add each line as a li
@@ -413,11 +435,62 @@ function renderCart(cart) {
     linesLst.appendChild(li);
   });
 
-  // set subtotal label
-  sub.textContent = cart.subtotal_label || centsToLabel(cart.subtotal_cents);
-  tax.textContent = cart.tax_label || centsToLabel(cart.tax_label)
-}
+  // --- Totals
+  sub.textContent   = cart.subtotal_label || centsToLabel(cart.subtotal_cents || 0);
+  if (disc)  disc.textContent  = cart.discount || centsToLabel(cart.discount_cents || 0);
+  tax.textContent   = cart.tax || centsToLabel(cart.tax_cents || 0);
+  if (total) total.textContent = cart.total || centsToLabel(cart.total_cents || 0);
 
+  // --- Rounding(only for CASH) ---
+  if (roundingPill && roundingDelta) {
+    if (cart.payment_method === 'CASH' && typeof cart.rounding_delta_label === 'string') {
+      // If server label is positive but lacks a sign, show explicit "+"
+      const lbl = cart.rounding_delta_label.startsWith('-')
+        ? cart.rounding_delta_label
+        : (cart.rounding_delta_label === '$0.00' ? '$0.00' : '+' + cart.rounding_delta_label);
+      roundingDelta.textContent = lbl;
+      roundingPill.style.display = '';
+    } else {
+      roundingPill.style.display = 'none';
+    }
+  }
+   // (optional) keep radios in sync with server truth
+  if (cart.discount_code) {
+    const d = document.querySelector(`input[name="discount"][value="${cart.discount_code}"]`);
+    if (d) d.checked = true;
+  }
+  if (cart.payment_method) {
+    const p = document.querySelector(`input[name="payment"][value="${cart.payment_method}"]`);
+    if (p) p.checked = true;
+}}
+
+function setupCartRadios() {
+  // Discount radios
+  document.querySelectorAll('input[name="discount"]').forEach(r => {
+    r.addEventListener('change', async (e) => {
+      try {
+        const code = e.target.value; // "NONE" | "STUDENT_10" | "FRIENDS_FAMILY_20"
+        const { cart } = await postJSON('/cart/discount', { discount_code: code });
+        renderCart(cart);
+      } catch (err) {
+        console.error('Discount update failed:', err);
+      }
+    });
+  });
+
+  // Payment radios
+  document.querySelectorAll('input[name="payment"]').forEach(r => {
+    r.addEventListener('change', async (e) => {
+      try {
+        const method = e.target.value; // "CARD" | "CASH"
+        const { cart } = await postJSON('/cart/discount', { payment_method: method });
+        renderCart(cart);
+      } catch (err) {
+        console.error('Payment update failed:', err);
+      }
+    });
+  });
+}
 
 // ------- card buttons handlers ------
 
