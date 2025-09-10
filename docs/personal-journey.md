@@ -53,5 +53,10 @@ Modals with all the variants/modifiers were working correctly (except resetting 
 
 ## Day 10.
 
-Feels like Saturdays are the busiest days for me: after work I had to do a lot of stuff, make some calls and just got exhausted after a busy weeks, so I did not feel the mood to program a lot. Still added update/remove line of cart ad I planned before. Overall I see the vision how it is supposed to look on frontend, however, a bit confused how to make variants/modifiers look better. Decided to deal with subtotal/tax/total a bit later.
+Feels like Saturdays are the busiest days for me: after work I had to do a lot of stuff, make some calls and just got exhausted after a busy weeks, so I did not feel the mood to program a lot. Still added update/remove line of cart ad I planned before. Overall I see the vision how it is supposed to look on frontend, however, a bit confused how to make variants/modifiers look better. Decided to deal 
+with subtotal/tax/total a bit later.
 
+## Day 11.
+
+Workin hard but making progress, Using cart template I created before and the payload, i tried to render cart: it was a complete mess. I even forgot to add moke views in urls.py. Begin to think that i need to break script.js into several files - it becomes too messy and I keep forgetting about the helper functions I created before. In one youtube video I saw an approach to make a cart as a separate directory/app and then attach them (though the video was about online shop e-commerce, not the POS). Might think about this option later as well, after I get the whole working app. For now, I tried to make all the buttons work (+-1, remove, add to cart) and it seemed to make a big step forward.
+Still have problems with variants' prices. All those transitions forward and backward to cents and dollars make them look different, I need to sync them somehow.
