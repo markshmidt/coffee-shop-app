@@ -106,15 +106,22 @@ def _save_cart(session, cart):
     taxable = max(0, subtotal_cents - discount)
     tax_cents = _bp(taxable, POS_TAX_RATE_BPS)
 
-    total = taxable + tax_cents
-
+    pre_total = taxable + tax_cents
+    total = pre_total
+    rounding_delta = 0
     if cart.get("payment_method") == "CASH" and POS_NICKEL_ROUNDING:
-        total = _nickel_round_cents(total)
+        rounded = _nickel_round_cents(pre_total)
+        rounding_delta = rounded - pre_total
+        total = rounded
 
     cart["subtotal_cents"] = subtotal_cents
     cart["discount_cents"] = discount
     cart["tax_cents"] = tax_cents
     cart["total_cents"] = total
+    cart["rounding_delta_cents"] = rounding_delta
+    request_session = session
+    request_session["cart"] = cart
+
     session.modified = True
 
 # ---- convenience function to return a uniform JSON cart snapshot

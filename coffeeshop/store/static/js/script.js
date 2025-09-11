@@ -435,11 +435,13 @@ function renderCart(cart) {
     linesLst.appendChild(li);
   });
 
-  // --- Totals
-  sub.textContent   = cart.subtotal_label || centsToLabel(cart.subtotal_cents || 0);
-  if (disc)  disc.textContent  = cart.discount || centsToLabel(cart.discount_cents || 0);
-  tax.textContent   = cart.tax || centsToLabel(cart.tax_cents || 0);
-  if (total) total.textContent = cart.total || centsToLabel(cart.total_cents || 0);
+      // --- Totals
+    sub.textContent   = cart.subtotal_label ?? centsToLabel(cart.subtotal_cents || 0);
+    if (disc)  disc.textContent  = cart.discount_label ?? centsToLabel(cart.discount_cents || 0);
+    tax.textContent   = cart.tax_label      ?? centsToLabel(cart.tax_cents || 0);
+    if (total) total.textContent = cart.total_label    ?? centsToLabel(cart.total_cents || 0);
+
+
 
   // --- Rounding(only for CASH) ---
   if (roundingPill && roundingDelta) {
@@ -465,32 +467,40 @@ function renderCart(cart) {
 }}
 
 function setupCartRadios() {
-  // Discount radios
+  // Discount radios → PATCH
   document.querySelectorAll('input[name="discount"]').forEach(r => {
     r.addEventListener('change', async (e) => {
       try {
-        const code = e.target.value; // "NONE" | "STUDENT_10" | "FRIENDS_FAMILY_20"
-        const { cart } = await postJSON('/cart/discount', { discount_code: code });
+        const { cart } = await postJSON('/cart/discount/', { discount_code: e.target.value });
         renderCart(cart);
-      } catch (err) {
-        console.error('Discount update failed:', err);
-      }
+      } catch (err) { console.error('Discount update failed:', err); }
     });
   });
 
-  // Payment radios
+  // Payment radios → PATCH
   document.querySelectorAll('input[name="payment"]').forEach(r => {
     r.addEventListener('change', async (e) => {
       try {
-        const method = e.target.value; // "CARD" | "CASH"
-        const { cart } = await postJSON('/cart/discount', { payment_method: method });
+        const { cart } = await postJSON('/cart/discount/', { payment_method: e.target.value });
         renderCart(cart);
-      } catch (err) {
-        console.error('Payment update failed:', err);
-      }
+      } catch (err) { console.error('Payment update failed:', err); }
     });
   });
 }
+
+// call it!
+document.addEventListener('DOMContentLoaded', async () => {
+  setupCartRadios();  // <-- this was missing
+  renderCart({
+    lines: [],
+    subtotal_cents: 0, discount_cents: 0, tax_cents: 0, total_cents: 0,
+    subtotal_label: '$0.00', discount_label: '$0.00', tax_label: '$0.00', total_label: '$0.00',
+    payment_method: 'CARD', discount_code: 'NONE', rounding_delta_label: '$0.00',
+  });
+  try { const { cart } = await getJSON('/cart/'); renderCart(cart); }
+  catch (e) { console.warn('Could not load cart on start:', e.message); }
+});
+
 
 // ------- card buttons handlers ------
 
