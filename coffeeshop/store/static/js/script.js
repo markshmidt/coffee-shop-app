@@ -490,7 +490,7 @@ function setupCartRadios() {
 
 // call it!
 document.addEventListener('DOMContentLoaded', async () => {
-  setupCartRadios();  // <-- this was missing
+  setupCartRadios();
   renderCart({
     lines: [],
     subtotal_cents: 0, discount_cents: 0, tax_cents: 0, total_cents: 0,
@@ -501,7 +501,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   catch (e) { console.warn('Could not load cart on start:', e.message); }
 });
 
+// Discard → POST /cart/clear/ → render snapshot
+document.getElementById('btn-discard')?.addEventListener('click', async (e) => {
+  e.preventDefault();
+  const btn = e.currentTarget;
 
+  btn.disabled = true;
+  try {
+    const { cart } = await postJSON('/cart/clear/', {});
+    renderCart(cart);  // will show empty state, $0.00 totals, radios reset
+  } catch (err) {
+    console.error('Clear cart failed:', err);
+  } finally {
+    btn.disabled = false;
+  }
+});
 // ------- card buttons handlers ------
 
 document.getElementById('cart-lines')?.addEventListener('click', async (e) => {

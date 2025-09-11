@@ -79,15 +79,7 @@ def _get_cart(session):
     """
     cart = session.get("cart")
     if not cart:
-        cart = {
-            "lines": [],
-            "discount_code": "NONE",
-            "subtotal_cents": 0,
-            "discount_cents": 0,
-            "tax_cents": 0,
-            "total_cents": 0,
-            "payment_method": "CARD",  # or "CASH"
-        }
+        cart = _empty_cart()
         session["cart"] = cart
     return cart
 
@@ -123,6 +115,18 @@ def _save_cart(session, cart):
     request_session["cart"] = cart
 
     session.modified = True
+
+def _empty_cart():
+    return {
+        "lines": [],
+        "discount_code": "NONE",
+        "payment_method": "CARD",
+        "subtotal_cents": 0,
+        "discount_cents": 0,
+        "tax_cents": 0,
+        "total_cents": 0,
+        "rounding_delta_cents": 0,
+    }
 
 # ---- convenience function to return a uniform JSON cart snapshot
 def _cart_snapshot(cart):
@@ -372,10 +376,19 @@ def cart_get(request):
 # Empty the cart
 @require_POST
 def cart_clear(request):
-    request.session["cart"] = {"lines": [], "subtotal_cents": 0, "tax_cents": 0,}
-    request.session.modified = True
-    return JsonResponse({"ok": True, "cart": request.session["cart"]})
-
+    request.session["cart"] = {
+        "lines": [],
+        "discount_code": "NONE",
+        "payment_method": "CARD",
+        "subtotal_cents": 0,
+        "discount_cents": 0,
+        "tax_cents": 0,
+        "total_cents": 0,
+        "rounding_delta_cents": 0,
+    }
+    # Recompute and persist (keeps pipeline consistent)
+    _save_cart(request.session, request.session["cart"])
+    return JsonResponse({"ok": True, "cart": _cart_snapshot(request.session["cart"])})
 @require_POST
 # Update quantity
 def cart_update_line(request):
