@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from django.contrib.auth.decorators import login_required
 from django.db.models import ExpressionWrapper, DecimalField, F, Value
 from django.shortcuts import render
 import json
@@ -8,7 +9,9 @@ from django.contrib import messages
 from decimal import Decimal
 from django.http import JsonResponse, HttpResponseBadRequest
 from django.views.decorators.http import require_POST, require_GET
-from flask import redirect
+# store/views.py
+from django.shortcuts import render, redirect
+
 
 from .models import Category, MenuItem, Variant, ModifierGroup, ModifierOption
 from .apps import (
@@ -19,6 +22,8 @@ from .apps import (
 
 
 # ----- POS home page -------
+
+@login_required
 def home(request):
 
     price_expr = ExpressionWrapper(
