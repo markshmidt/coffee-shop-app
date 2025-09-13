@@ -468,3 +468,11 @@ def cart_discount(request):
 
 def cart_pay(request):
     pass
+
+
+# ==== LOGIN VIEWS =====
+
+def login(request):
+    return render(request, "login.html")
+def logout(request):
+    return render(request, "logout.html")
