@@ -1,0 +1,58 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="{% static 'css/login.css' %}">
+</head>
+<body>
+<div class="content">
+  <div class="split-container ht--fullscreen">
+    <div class="left-half d-flex al-hv-center">
+
+      <div class="wrapper al-txt-center">
+        <h2>Welcome</h2>
+        <form method="POST" action="{% url 'login' %}" class="login-form">
+            {% csrf_token %}
+          <div class="form__group">
+            <input type="text" name="username" class="form__input" placeholder="username">
+          </div><!-- form-group -->
+
+          <div class="form__group">
+            <input type="password" name="password" class="form__input" placeholder="password">
+          </div><!-- form-group -->
+
+          <div class="form__group">
+            <input type="submit" class="form__input form__submit" value="Log in">
+
+          </div>
+            {% if messages %}
+                {% for message in messages %}
+            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                {{message}}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+            {% endif %}
+            {% block content %}
+            {% endblock %}
+        </form>
+      </div>
+
+    </div><!--left half -->
+
+    <div class="right-half d-flex al-hv-center">
+
+      <div class="wrapper al-txt-center">
+        <h2 class="logo">Coffee Island POS</h2>
+        <p>"Our mission is to ensure that the products we obtain express the loving effort and care which ensures our excellence"</p>
+      </div><!-- wrapper -->
+
+      <p class="copyright">All Rights Reserved © <span>Coffee Island</span></p>
+    </div><!-- right half -->
+  </div>
+</div>
+</body>
+</html>
