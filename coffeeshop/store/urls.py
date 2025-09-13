@@ -1,3 +1,4 @@
+from django.contrib.auth.views import LoginView, LogoutView
 from django.urls import path
 from . import views
 
@@ -12,7 +13,7 @@ path("cart/remove-line/", views.cart_remove_line, name="api_delete"),
     path("cart/discount/", views.cart_discount, name="api_discount"),
 
     # login/logout
-    path('login/', views.login, name='login'),
-    path('logout/', views.logout, name='logout'),
+    path("login/", LoginView.as_view(template_name="login.html"), name="login"),
+    path("logout/", LogoutView.as_view(), name="logout"),
 
 ]

@@ -3,12 +3,12 @@ from decimal import Decimal
 from django.db.models import ExpressionWrapper, DecimalField, F, Value
 from django.shortcuts import render
 import json
-import uuid
+from django.contrib.auth import authenticate, login, logout
+from django.contrib import messages
 from decimal import Decimal
 from django.http import JsonResponse, HttpResponseBadRequest
 from django.views.decorators.http import require_POST, require_GET
-from django.views.decorators.csrf import csrf_exempt, csrf_protect
-from django.db.models import Sum, Q
+from flask import redirect
 
 from .models import Category, MenuItem, Variant, ModifierGroup, ModifierOption
 from .apps import (
@@ -472,7 +472,21 @@ def cart_pay(request):
 
 # ==== LOGIN VIEWS =====
 
-def login(request):
+def login_user(request):
+    if request.method == "POST":
+        username = request.POST.get("username")
+        password = request.POST.get("password")
+        user = authenticate(request, username=username, password=password)
+        if user is not None:
+            login(request, user)
+            messages.success(request, "You are now logged in.")
+            return redirect("/")
+        else:
+            messages.error(request, "Invalid username or password. Try again")
     return render(request, "login.html")
-def logout(request):
-    return render(request, "logout.html")
+
+
+def logout_user(request):
+    logout(request)
+    messages.success(request, "You have been logged out.")
+    return redirect('login')
