@@ -14,7 +14,11 @@ path("cart/remove-line/", views.cart_remove_line, name="api_delete"),
 
     # login/logout
     path("login/", LoginView.as_view(template_name="login.html"), name="login"),
-    path("logout/", LogoutView.as_view(), name="logout"),
+    path(
+        "logout/",
+        LogoutView.as_view(next_page="login"),  # always redirect here after logout
+        name="logout",
+    ),
 
 
 

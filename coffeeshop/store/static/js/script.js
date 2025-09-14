@@ -462,7 +462,7 @@ function renderCart(cart) {
     if (d) d.checked = true;
   }
   if (cart.payment_method) {
-    const p = document.querySelector(`input[name="payment"][value="${cart.payment_method}"]`);
+    const p = document.querySelector(`input[name="pm"][value="${cart.payment_method}"]`);
     if (p) p.checked = true;
 }}
 
@@ -478,7 +478,7 @@ function setupCartRadios() {
   });
 
   // Payment radios → PATCH
-  document.querySelectorAll('input[name="payment"]').forEach(r => {
+  document.querySelectorAll('input[name="pm"]').forEach(r => {
     r.addEventListener('change', async (e) => {
       try {
         const { cart } = await postJSON('/cart/discount/', { payment_method: e.target.value });
