@@ -289,7 +289,7 @@ def _price_item_validate(item: MenuItem, variant_id, selections):
 #   "tax_cents": 1120*0.13
 # }
 
-
+@login_required
 @require_POST
 def cart_add_line(request):
     # 1) Parse JSON safely
@@ -372,6 +372,7 @@ def cart_add_line(request):
     return JsonResponse({"ok": True, "cart": _cart_snapshot(cart)})
 
 # Retrieve full cart snapshot
+@login_required
 @require_GET
 def cart_get(request):
     cart = _get_cart(request.session)
@@ -379,6 +380,7 @@ def cart_get(request):
     })
 
 # Empty the cart
+@login_required
 @require_POST
 def cart_clear(request):
     request.session["cart"] = {
@@ -394,6 +396,8 @@ def cart_clear(request):
     # Recompute and persist (keeps pipeline consistent)
     _save_cart(request.session, request.session["cart"])
     return JsonResponse({"ok": True, "cart": _cart_snapshot(request.session["cart"])})
+
+@login_required
 @require_POST
 # Update quantity
 def cart_update_line(request):
@@ -428,6 +432,7 @@ def cart_update_line(request):
 
     return HttpResponseBadRequest("Line not found")
 
+@login_required
 @require_POST
 def cart_remove_line(request):
     """
