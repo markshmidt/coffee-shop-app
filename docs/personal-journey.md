@@ -60,3 +60,16 @@ with subtotal/tax/total a bit later.
 
 Workin hard but making progress, Using cart template I created before and the payload, i tried to render cart: it was a complete mess. I even forgot to add moke views in urls.py. Begin to think that i need to break script.js into several files - it becomes too messy and I keep forgetting about the helper functions I created before. In one youtube video I saw an approach to make a cart as a separate directory/app and then attach them (though the video was about online shop e-commerce, not the POS). Might think about this option later as well, after I get the whole working app. For now, I tried to make all the buttons work (+-1, remove, add to cart) and it seemed to make a big step forward.
 Still have problems with variants' prices. All those transitions forward and backward to cents and dollars make them look different, I need to sync them somehow.
+
+## Day 12.
+
+Woke up with thought that I need not only to write about progress, but take pictures of it - why didn't i do it earlier? Now it is a bit useless since I am fixing bugs, but later, after I fix them all, I might share it here. For now, I finished debugging price (yey!), now it correctly counts all the modifiers, variants and even tax! Time to add discount and total + rounding cents (for now they are the most difficult part).
+
+## Day 13.
+
+Had so many labs to do and house chors, that decided to take a small rest from the app. Tried to fix the rounding cents, did not workout for now. Updated this journal and a lot of db rows - now we have seasonal beverages, cold drinks, etc.
+
+## Day 14.
+
+Final fix for the total, tax and discount! Rounding cents are not working for now, but I decided to keep it for later. Still proud of myself - I can consider POS homepage ready (with some exceptions) and almost fully functional. Next day will start authorization/permissions, then orders, but for not: here is day 14 ui.
+![Day14](./diagrams/ui-day-14.png)
