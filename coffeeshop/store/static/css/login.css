@@ -1,162 +1,114 @@
-*,
-*::before,
-*::after {
-  box-sizing: inherit;
+/* Typography */
+h2 { font-weight: 700; }
+
+.content { width: 100%; }
+
+/* Split layout */
+.split-container { display: flex; flex-direction: row; }
+
+.split-container .left-half {
+  height: 100%;
+  flex-basis: 50%;
+  background-color: #EBEEF2;
+  text-align: center;
 }
 
-html {
-  font-size: 62.5%;
-  box-sizing: border-box;
+.split-container .left-half h2 {
+  font-size: 3rem;
+  text-transform: uppercase;
+  margin-bottom: 3rem;
+  font-weight: 900;
 }
 
-body {
-  font-family: 'Source Sans Pro', sans-serif;
+.split-container .right-half {
+  height: 100%;
+  flex-basis: 50%;
+  background-image: url(https://media-cdn.tripadvisor.com/media/photo-p/0f/e8/9f/f2/caption.jpg?ixlib=rb-1.2.1&auto=format&fit=crop&w=744&q=80);
+  background-size: cover;
+  position: relative;
+  color: #fff;
 }
 
-/* typography */
-
-h2 {
-  font-weight: 700;
-}
-
-
-.content {
+.split-container .right-half::after {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background-color: rgba(114, 73, 4, 0.69); /* rgba(#724904, .69) */
   width: 100%;
-
+  height: 100%;
+  z-index: 1;
+  content: "";
 }
 
-.split-container {
-  display: flex;
-  flex-direction: row;
+.split-container .right-half .wrapper { z-index: 5; }
 
-
-  .left-half {
-    height: 100%;
-    flex-basis: 50%;
-    background-color: #EBEEF2;
-    text-align: center;
-
-    h2 {
-      font-size: 3rem;
-      text-transform: uppercase;
-      margin-bottom: 3rem;
-      font-weight: 900;
-
-    }
-
-  }
-
-  .right-half {
-    height: 100%;
-    flex-basis: 50%;
-    // background-color: red;
-    background-image: url(https://media-cdn.tripadvisor.com/media/photo-p/0f/e8/9f/f2/caption.jpg?ixlib=rb-1.2.1&auto=format&fit=crop&w=744&q=80);
-    background-size: cover;
-    position: relative;
-    color: #fff;
-
-    &::after {
-      position: absolute;
-      top:0;
-      left: 0;
-      background-color: rgba(#724904, .69);
-      width: 100%;
-      height: 100%;
-      z-index: 1;
-      content: '';
-    }
-    .wrapper {
-      z-index: 5;
-      p {
-        font-size: 1.6rem;
-        font-weight: 400;
-      }
-    }
-
-    .logo {
-      margin-bottom: 3rem;
-    }
-  }
+.split-container .right-half .wrapper p {
+  font-size: 1.6rem;
+  font-weight: 400;
 }
 
+.split-container .right-half .logo { margin-bottom: 3rem; }
 
+/* Footer-ish copyright */
 p.copyright {
   position: absolute;
   bottom: 2rem;
   z-index: 2;
-
-  span {
-    font-weight: 700;
-  }
 }
 
+p.copyright span { font-weight: 700; }
+
+/* Logo title */
 h2.logo {
   font-size: 3rem;
   font-weight: 500;
   font-family: 'Raleway', sans-serif;
 }
 
+/* Login form */
+.login-form .form__group { margin-bottom: .5rem; }
 
-.login-form {
-  .form__group {
-    margin-bottom: .5rem;
-  }
-
-  .form__input {
-    border: 0;
-    padding: 2rem;
-    width: 30rem;
-  }
-
-  input:focus {
-    outline: 0;
-    transform: scale(1.01);
-   }
-
-  input {
-    display: block;
-    font-family: inherit;
-    font-size: 1.6rem;
-    transition: transform .2s ease-in;
-  }
-
-  input[type="text"] {
-    border-top-right-radius: 4px;
-    border-top-left-radius: 4px;
-
-  }
-
-  input[type="submit"] {
-    border-bottom-right-radius: 4px;
-    border-bottom-left-radius: 4px;
-    background-color: #0F4F99;
-    color: #fff;
-    font-weight: 700;
-
-
-    cursor: pointer;
-  }
+.login-form .form__input {
+  border: 0;
+  padding: 2rem;
+  width: 30rem;
 }
 
-
-
-/* utilities */
-
-.ht--fullscreen {
-  height: 100vh;
+.login-form input {
+  display: block;
+  font-family: inherit;
+  font-size: 1.6rem;
+  transition: transform .2s ease-in;
 }
 
-.d-flex {
-  display: flex;
+.login-form input:focus {
+  outline: 0;
+  transform: scale(1.01);
 }
 
+.login-form input[type="text"] {
+  border-top-right-radius: 4px;
+  border-top-left-radius: 4px;
+}
+
+.login-form input[type="submit"] {
+  border-bottom-right-radius: 4px;
+  border-bottom-left-radius: 4px;
+  background-color: #0F4F99;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Utilities */
+.ht--fullscreen { height: 100vh; }
+
+.d-flex { display: flex; }
 
 .al-hv-center {
-   align-items: center;
-    justify-content: center;
-
+  display: flex;           /* ensure centering works standalone */
+  align-items: center;
+  justify-content: center;
 }
 
-.al-txt-center {
-  text-align: center;
-}
+.al-txt-center { text-align: center; }
