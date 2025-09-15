@@ -26,6 +26,11 @@ class Customer(models.Model):
     def can_redeem(self) -> bool:
         return self.points_balance >= 80
 
+    class Meta:
+        permissions = [
+            ("manage_customers", "Can edit customers"),
+        ]
+
 class Category(models.Model):
     name = models.CharField(max_length=100, unique=True)
     position = models.PositiveIntegerField(default=0)
@@ -42,6 +47,10 @@ class Category(models.Model):
 
     class Meta:
         ordering = ["position", "name"]
+        permissions = [
+            ("manage_categories", "Can edit categories"),
+
+        ]
 
     def __str__(self):
         return f"{self.parent} → {self.name}" if self.parent else self.name
@@ -68,6 +77,9 @@ class MenuItem(models.Model):
         ordering = ["category__position", "position", "name"]
         constraints = [
             models.UniqueConstraint(fields=["category", "name"], name="uniq_item_per_category"),
+        ]
+        permissions = [
+            ("manage_menu_items", "Can edit items"),
         ]
 
     def __str__(self):
@@ -122,6 +134,9 @@ class Variant(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["menu_item", "name"], name="uniq_variant_per_item"),
         ]
+        permissions = [
+            ("manage_variant_variants", "Can edit variants"),
+        ]
 
     def __str__(self):
         return f"{self.menu_item.name} – {self.name}"
@@ -149,6 +164,9 @@ class ModifierGroup(models.Model):
     class Meta:
         ordering = ["position", "name"]
         verbose_name = "Modifier group"
+        permissions = [
+            ("manage_modifiers_groups", "Can edit modifier groups"),
+        ]
 
     def __str__(self):
         return self.name
@@ -165,6 +183,9 @@ class ModifierOption(models.Model):
         ordering = ["group__position", "group__name", "position", "name"]
         constraints = [
             models.UniqueConstraint(fields=["group", "name"], name="uniq_option_per_group"),
+        ]
+        permissions = [
+            ("manage_modifiers", "Can edit modifier options"),
         ]
 
     def __str__(self):
@@ -242,6 +263,12 @@ class Order(models.Model):
             models.Index(fields=["customer"]),
         ]
         ordering = ["-paid_at", "-id"]
+        permissions = [
+            ("apply_any_discount", "Can apply any discount"),
+            ("void_order", "Can void order"),
+            ("refund_order", "Can refund order"),
+            ("view_sales_reports", "Can view sales reports"),
+        ]
 
     def mark_completed(self):
             if self.status == self.STATUS_PAID:
@@ -310,6 +337,9 @@ class PaymentRecord(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        permissions = [
+            ("view_sales_reports", "Can view sales reports"),
+        ]
 
     def __str__(self):
         return f"{self.id}"
