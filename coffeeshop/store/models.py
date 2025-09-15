@@ -135,7 +135,7 @@ class Variant(models.Model):
             models.UniqueConstraint(fields=["menu_item", "name"], name="uniq_variant_per_item"),
         ]
         permissions = [
-            ("manage_variant_variants", "Can edit variants"),
+            ("manage_variants", "Can edit variants"),
         ]
 
     def __str__(self):
@@ -268,6 +268,10 @@ class Order(models.Model):
             ("void_order", "Can void order"),
             ("refund_order", "Can refund order"),
             ("view_sales_reports", "Can view sales reports"),
+            ("add order", "Can add order"),
+            ("change order", "Can change order"),
+            ("view order", "Can view order"),
+            ("apply_given_discount", "Can apply given discount"),
         ]
 
     def mark_completed(self):
