@@ -1,0 +1,17 @@
+ M coffeeshop/coffeeshop/__pycache__/settings.cpython-312.pyc
+ M coffeeshop/coffeeshop/__pycache__/urls.cpython-312.pyc
+ M coffeeshop/db.sqlite3
+ M coffeeshop/store/__pycache__/admin.cpython-312.pyc
+ M coffeeshop/store/__pycache__/apps.cpython-312.pyc
+ M coffeeshop/store/__pycache__/models.cpython-312.pyc
+ M coffeeshop/store/__pycache__/urls.cpython-312.pyc
+ M coffeeshop/store/__pycache__/views.cpython-312.pyc
+?? coffeeshop/store/migrations/__pycache__/0001_initial.cpython-312.pyc
+?? coffeeshop/store/migrations/__pycache__/0002_category_image.cpython-312.pyc
+?? coffeeshop/store/migrations/__pycache__/0003_alter_category_options_category_parent_and_more.cpython-312.pyc
+?? coffeeshop/store/migrations/__pycache__/0004_itemmodifiergroup_modifiergroup_modifieroption_and_more.cpython-312.pyc
+?? coffeeshop/store/migrations/__pycache__/0005_remove_category_image.cpython-312.pyc
+?? coffeeshop/store/migrations/__pycache__/0006_rename_base_price_cents_variant_price_cents.cpython-312.pyc
+?? coffeeshop/store/migrations/__pycache__/0007_menuitem_kind_modifiergroup_applies_to_and_more.cpython-312.pyc
+?? coffeeshop/store/migrations/__pycache__/0008_rename_price_delta_cents_modifieroption_price_cents.cpython-312.pyc
+?? coffeeshop_wip_backup/
