@@ -1,19 +1,21 @@
 from decimal import Decimal
 
 from django.contrib.auth.decorators import login_required
-from django.db.models import ExpressionWrapper, DecimalField, F, Value
+from django.db.models import ExpressionWrapper, DecimalField, F, Value, Max
 from django.shortcuts import render
 import json
 from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
 from decimal import Decimal
 from django.http import JsonResponse, HttpResponseBadRequest
+from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST, require_GET
 # store/views.py
 from django.shortcuts import render, redirect
 
 
-from .models import Category, MenuItem, Variant, ModifierGroup, ModifierOption
+from .models import Category, MenuItem, Variant, ModifierGroup, ModifierOption, Order, OrderItem
 from .apps import (
     POS_TAX_RATE_BPS,         # 1300 (13%)
     POS_DISCOUNT_CHOICES,     # ("NONE", ...), ("STUDENT_10", ...), ...
@@ -210,6 +212,7 @@ def _price_item_validate(item: MenuItem, variant_id, selections):
     """
     # base price
     if variant_id:
+        print("[PAY] checking Variant(id=%s) for item %s" % (variant_id, item.id))
         try:
             # We assert the variant belongs to the same item and is active
             variant = Variant.objects.get(id=variant_id, menu_item=item, active=True)
@@ -500,3 +503,208 @@ def logout_user(request):
     logout(request)
     messages.success(request, "You have been logged out.")
     return redirect('login')
+
+# ====== ORDER VIEWS =====
+@csrf_exempt
+@login_required
+@require_POST
+def order_payment(request):
+    """
+    Finalize an order using the client's cart payload, but:
+      - Recompute line prices from DB
+      - Compute tax via basis points and apply nickel rounding for CASH.
+      - Persist Order and OrderItems.
+      - Clear session cart.
+      - Return JSON with order id
+
+    EXPECTED JSON BODY:
+    {
+      {
+      "payment_method": "CARD",
+      "discount_cents": 0,
+      "lines": [
+        {
+          "item_id": 3,
+          "variant_id": 4,
+          "qty": 1,
+          "selections": []
+        }
+      ]
+    }
+    RETURN JSON BODY:
+    {
+        "ok": true,
+        "order_id": 2,
+        "subtotal_cents": 500,
+        "discount_cents": 0,
+        "tax_cents": 65,
+        "total_cents": 565,
+        "rounding_delta_cents": 0,
+        "subtotal_label": "$5.00",
+        "discount_label": "$0.00",
+        "tax_label": "$0.65",
+        "total_label": "$5.65",
+        "chip_label": "5.65 Card"
+    }
+
+    """
+    # ---- parse and validate json ----
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Invalid JSON."}, status=400)
+
+    # validate payment method
+    method_raw = (payload.get("payment_method") or "").upper().strip()
+    if method_raw not in ("CARD", "CASH"):
+        return JsonResponse({"ok": False, "error": "payment_method must be 'CARD' or 'CASH'."}, status=400)
+    payment_method = method_raw
+
+    #  discount in cents negative -> 0
+    try:
+        requested_discount_cents = int(payload.get("discount_cents") or 0)
+    except Exception:
+        requested_discount_cents = 0
+    if requested_discount_cents < 0:
+        requested_discount_cents = 0
+
+    # validate lines structure
+    lines = payload.get("lines")
+    if not isinstance(lines, list) or not lines:
+        return JsonResponse({"ok": False, "error": "Cart is empty or malformed."}, status=400)
+
+    # Optional client totals
+    def _safe_int(x):
+        try:
+            return int(x)
+        except Exception:
+            return None
+    client_subtotal_cents = _safe_int(payload.get("client_subtotal_cents"))
+    client_tax_cents      = _safe_int(payload.get("client_tax_cents"))
+    client_total_cents    = _safe_int(payload.get("client_total_cents"))
+
+    # ---- Recompute from DB ----
+    # Using _price_item_validate to ensure variants belong to items and selections belong to allowed groups
+    recomputed_subtotal_cents = 0
+    staged_items = []
+
+    for idx, line in enumerate(lines, start=1):
+        try:
+            item_id = int(line["item_id"])
+            variant_id = line.get("variant_id")
+            if variant_id is not None:
+                variant_id = int(variant_id)
+            qty = int(line.get("qty", 1))
+            selections = line.get("selections") or []
+        except Exception:
+            return JsonResponse({"ok": False, "error": f"Line {idx}: bad payload."}, status=400)
+
+        if qty < 1:
+            return JsonResponse({"ok": False, "error": f"Line {idx}: qty must be >= 1."}, status=400)
+
+        try:
+            item = MenuItem.objects.get(id=item_id, active=True)
+        except MenuItem.DoesNotExist:
+            return JsonResponse({"ok": False, "error": f"Line {idx}: item not found."}, status=404)
+
+        #validate unit price
+        try:
+            print(f"[PAY] item_id={item_id} variant_id={variant_id} qty={qty}")
+            print("[PAY] allowed groups:", list(item.applicable_modifier_groups().values_list("id", flat=True)))
+
+            base_cents, options_cents, unit_total_cents, normalized, _variant_name = _price_item_validate(
+                item=item,
+                variant_id=variant_id,
+                selections=selections,
+            )
+        except ValueError as e:
+            return JsonResponse({"ok": False, "error": f"Line {idx}: {str(e)}"}, status=400)
+        except Exception:
+            return JsonResponse({"ok": False, "error": f"Line {idx}: server error."}, status=500)
+
+        line_subtotal_cents = unit_total_cents * qty
+        recomputed_subtotal_cents += line_subtotal_cents
+
+        # Resolve Variant (nullable for items without variants)
+        variant_obj = None
+        if variant_id is not None:
+            try:
+                variant_obj = Variant.objects.only("id").get(id=variant_id, menu_item=item, active=True)
+            except Variant.DoesNotExist:
+                return JsonResponse({"ok": False, "error": f"Line {idx}: variant not found for this item."}, status=400)
+
+        staged_items.append({
+            "item": item,
+            "variant": variant_obj,
+            "quantity": qty,
+            "unit_price_cents": unit_total_cents,    # base + modifiers
+            "line_subtotal_cents": line_subtotal_cents,
+            "normalized": normalized,
+        })
+
+    # ----- Discount, Tax,rounding -----
+    # apply discount in cents;
+    discount_cents = min(requested_discount_cents, recomputed_subtotal_cents)
+
+    taxable_cents = max(0, recomputed_subtotal_cents - discount_cents) #avoid negative
+    tax_cents = _bp(taxable_cents, POS_TAX_RATE_BPS)
+
+    pre_total_cents = taxable_cents + tax_cents
+    total_cents = pre_total_cents
+    rounding_delta_cents = 0
+    if payment_method == "CASH" and POS_NICKEL_ROUNDING:
+        rounded = _nickel_round_cents(pre_total_cents)
+        rounding_delta_cents = rounded - pre_total_cents
+        total_cents = rounded
+
+
+    # ----Order & Items -------
+    # generate a new receipt number
+    next_receipt = (Order.objects.aggregate(m=Max("receipt_number"))["m"] or 0) + 1
+    order = Order.objects.create(
+        created_by=request.user,
+        payment_method=payment_method,  # 'CARD' | 'CASH'
+        subtotal_cents=recomputed_subtotal_cents,
+        tax_cents=tax_cents,
+        total_cents=total_cents,
+        discount_cents=discount_cents,
+        rounding_delta_cents=rounding_delta_cents,
+        paid_at=timezone.now(),
+        receipt_number=next_receipt,
+    )
+
+    OrderItem.objects.bulk_create([
+        OrderItem(
+            order=order,
+            menu_item=si["item"],
+            name_snapshot=si["item"].name,
+            variant_name_snapshot=(Variant.objects.get(id=variant_id).name if si["variant"] else ""),
+            base_unit_price_cents=base_cents,
+            unit_price_cents=si["unit_price_cents"],  # base + modifiers
+            qty=si["quantity"],
+        )
+        for si in staged_items
+    ])
+
+    # ----- clear session cart -----
+    request.session["cart"] = _empty_cart()
+    _save_cart(request.session, request.session["cart"])  # keep pipeline consistent
+
+    # --- response payload ---
+    chip_method = "Cash" if payment_method == "CASH" else "Card"
+    resp = {
+        "ok": True,
+        "order_id": order.id,
+        "subtotal_cents": recomputed_subtotal_cents,
+        "discount_cents": discount_cents,
+        "tax_cents": tax_cents,
+        "total_cents": total_cents,
+        "rounding_delta_cents": rounding_delta_cents,
+        "subtotal_label": _fmt_cents(recomputed_subtotal_cents),
+        "discount_label": "-" + _fmt_cents(discount_cents) if discount_cents else _fmt_cents(0),
+        "tax_label": _fmt_cents(tax_cents),
+        "total_label": _fmt_cents(total_cents),
+        "chip_label": f"{_fmt_cents(total_cents)[1:]} {chip_method}",  # e.g., "6.22 Card"
+    }
+
+    return JsonResponse(resp, status=201)

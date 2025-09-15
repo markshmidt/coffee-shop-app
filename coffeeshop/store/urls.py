@@ -20,6 +20,9 @@ path("cart/remove-line/", views.cart_remove_line, name="api_delete"),
         name="logout",
     ),
 
+    # orders
+    path("order/pay/", views.order_payment, name="api_payment"),
+
 
 
 ]

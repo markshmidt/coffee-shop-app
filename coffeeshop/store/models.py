@@ -1,5 +1,5 @@
-from decimal import Decimal
 
+from django.utils import timezone
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.conf import settings
@@ -240,13 +240,15 @@ class Order(models.Model):
     tax_cents = models.IntegerField()
     tip_cents = models.IntegerField(default=0)
     total_cents = models.IntegerField()
+    discount_cents = models.IntegerField(default=0)  # optional
+    rounding_delta_cents = models.IntegerField(default=0)  # optional
 
     # loyalty
     points_earned = models.IntegerField(default=0)
     redeemed_points = models.IntegerField(default=0)  # 0 or 80
 
-    # ops / receipts
-    paid_at = models.DateTimeField()
+    paid_at = models.DateTimeField(null=True, blank=True)  # allow null for old rows
+
     receipt_number = models.IntegerField()
     payment_method = models.CharField(
         max_length=8, choices=[("CASH", "Cash"), ("CARD", "Card"), ("COMP", "Comp")]
@@ -338,6 +340,9 @@ class PaymentRecord(models.Model):
     rounding_cents = models.IntegerField(default=0)  # CASH only: −2..+2; 0 for CARD/COMP
     reference = models.CharField(max_length=80, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+
+    # or models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["-created_at"]
