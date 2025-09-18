@@ -82,8 +82,8 @@
 
           <div class="paybar">
             <div class="pay-group">
-              <label class="pill"><input type="radio" name="pm" checked /> Card</label>
-              <label class="pill"><input type="radio" name="pm" /> Cash</label>
+              <label class="pill"><input type="radio" name="pm" value="CARD" checked /> Card</label>
+              <label class="pill"><input type="radio" name="pm" value="CASH" /> Cash</label>
               <span id="rounding-pill" class="pill" title="Cash rounding preview" style="display:none;">
                   Rounding: <span id="rounding-delta">+$0.00</span>
                 </span>
@@ -91,7 +91,7 @@
 
             <div>
               <button id="btn-discard" class="btn warn">Discard</button>
-              <button class="btn primary">Pay</button>
+              <button class="btn primary" id="pay-btn">Pay</button>
             </div>
           </div>
 

@@ -133,7 +133,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   return data;
 }
-
   // Calculate total for one modal
   function total_modal(modal) {
     let total = 0;
@@ -304,6 +303,44 @@ document.addEventListener('DOMContentLoaded', () => {
 })();
 
 // === HELPERS ====
+
+// Cart casche
+let CART_CACHE = null;
+function getCurrentCart() { return CART_CACHE; }
+
+// Simple toast helper to show errors in ui
+function showToast(message, opts = {}) {
+  const { type = 'info', duration = 3000 } = opts;
+
+  // container
+  let container = document.getElementById('toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toast-container';
+    document.body.appendChild(container);
+  }
+
+  // toast element
+  const t = document.createElement('div');
+  t.className = `toast toast-${type}`;
+  t.textContent = message;
+
+  // close on click
+  t.addEventListener('click', () => t.remove());
+
+  container.appendChild(t);
+
+  // animate in
+  requestAnimationFrame(() => t.classList.add('show'));
+
+  // auto-remove
+  setTimeout(() => {
+    t.classList.remove('show');
+    t.addEventListener('transitionend', () => t.remove(), { once: true });
+  }, duration);
+}
+
+
 
 // ---- GET JSON helper
 function getJSON(url) {
@@ -501,7 +538,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   catch (e) { console.warn('Could not load cart on start:', e.message); }
 });
 
-// Discard → POST /cart/clear/ → render snapshot
+// Discard → POST /cart/clear/ -> render snapshot
 document.getElementById('btn-discard')?.addEventListener('click', async (e) => {
   e.preventDefault();
   const btn = e.currentTarget;
@@ -553,15 +590,134 @@ document.getElementById('cart-lines')?.addEventListener('click', async (e) => {
 
 // prerender the cart
 document.addEventListener('DOMContentLoaded', async () => {
-  // Show a quick empty placeholder while we fetch
   renderCart({ lines: [], subtotal_cents: 0, subtotal_label: '$0.00', subtotal_tax: '$0.00'});
 
   try {
-    // This hits your Django view that returns the current cart snapshot
     const { cart } = await getJSON('/cart/');
     renderCart(cart);
   } catch (e) {
     console.warn('Could not load cart on start:', e.message);
-    // keep the placeholder we just rendered
   }
 });
+
+
+// ---- PAY BUTTON ---
+document.addEventListener('DOMContentLoaded', () => {
+  if (!window.__payHandlerBound) {
+    window.__payHandlerBound = true;
+    document.getElementById('pay-btn')?.addEventListener('click', onPayClick);
+  }
+});
+
+// Always return a valid 'CARD' or 'CASH'. If nothing is selected, pick CARD by default.
+function getSelectedPaymentMethod({ allowRandom = false } = {}) {
+  const checked = document.querySelector('input[name="pm"]:checked');
+  let val = (checked?.value || '').toString().trim().toUpperCase();
+
+  if (val !== 'CARD' && val !== 'CASH') {
+    // Pick a valid value if missing
+    val = allowRandom ? (Math.random() < 0.5 ? 'CARD' : 'CASH') : 'CARD';
+
+    //show in ui
+    const radio = document.querySelector(`input[name="pm"][value="${val}"]`);
+    if (radio) radio.checked = true;
+
+    // sync server-side cart (
+    try { postJSON('/cart/discount/', { payment_method: val }).then(({cart}) => renderCart(cart)); } catch {}
+  }
+
+  return val;
+}
+
+function getCSRFToken() {
+  return getCookie('csrftoken');
+}
+
+async function onPayClick(e) {
+  e.preventDefault();
+  const btn = e.currentTarget;
+
+  // Always fetch authoritative cart
+  let cart;
+  try {
+    ({ cart } = await getJSON('/cart/'));
+  } catch {
+    showToast?.('Could not load cart. Try again.', { type: 'error' });
+    return;
+  }
+
+  console.debug('Cart before pay:', cart?.lines?.length, cart);
+
+  // If empty
+  if (!cart?.lines?.length) return;
+
+  // Double-click prevention
+  if (btn.disabled) return;
+  btn.disabled = true;
+  btn.setAttribute('aria-busy', 'true');
+
+  // random payment method selection
+  const pmRaw = getSelectedPaymentMethod({ allowRandom: true });
+
+  const paymentMethod = (pmRaw || '').toString().trim().toUpperCase();
+  if (paymentMethod !== 'CARD' && paymentMethod !== 'CASH') {
+    console.warn('Fixing invalid payment_method:', pmRaw);
+    // Force to CARD if somehow still invalid
+    const fallback = 'CARD';
+    const radio = document.querySelector(`input[name="pm"][value="${fallback}"]`);
+    if (radio) radio.checked = true;
+    try { postJSON('/cart/discount/', { payment_method: fallback }).then(({cart}) => renderCart(cart)); } catch {}
+  }
+  try {
+    const payload = {
+      payment_method: (paymentMethod === 'CARD' || paymentMethod === 'CASH') ? paymentMethod : 'CARD',
+      discount_cents: cart.discount_cents || 0,
+      lines: cart.lines.map(l => ({
+        item_id: l.item_id,
+        variant_id: l.variant_id ?? null,
+        qty: l.qty,
+        selections: l.selections || [],
+      })),
+      // Diagnostics
+      client_subtotal_cents: cart.subtotal_cents,
+      client_tax_cents: cart.tax_cents,
+      client_total_cents: cart.total_cents,
+    };
+
+    const res = await fetch('/order/pay/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.ok === false) {
+      throw new Error(data?.error || `Payment failed (${res.status})`);
+    }
+
+    //  clear cart
+    try {
+      const fresh = await getJSON('/cart/');
+      renderCart(fresh.cart);
+    } catch {
+      renderCart({
+        lines: [],
+        subtotal_cents: 0, discount_cents: 0, tax_cents: 0, total_cents: 0,
+        subtotal_label: '$0.00', discount_label: '$0.00', tax_label: '$0.00', total_label: '$0.00',
+        payment_method: 'CARD', rounding_delta_label: '$0.00',
+      });
+    }
+
+//    addInvoiceChip?.(data.chip_label, data.order_id);
+    if (data.diagnostics) console.warn('Server re-priced:', data.diagnostics);
+    showToast?.(`Order #${data.order_id} created — ${data.total_label || data.chip_label}`, { type: 'success' });
+
+  } catch (err) {
+    console.error(err);
+    showToast?.(err.message || 'Something went wrong while paying', { type: 'error' });
+  } finally {
+    btn.disabled = false;
+    btn.removeAttribute('aria-busy');
+  }
+}
+;

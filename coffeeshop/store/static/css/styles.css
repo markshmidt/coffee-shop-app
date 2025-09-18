@@ -136,3 +136,34 @@
     .group{ margin:10px 0; padding:10px; border:1px dashed #334155; border-radius:12px; }
     .group h6{ margin:0 0 8px; font-size:13px; color:#cbd5e1; }
     .modal-footer{ display:flex; justify-content:space-between; align-items:center; margin-top:12px; }
+/* Toasts */
+#toast-container {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 9999;
+}
+
+.toast {
+  min-width: 180px;
+  max-width: 320px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #fff;
+  background: #333;
+  box-shadow: 0 6px 20px rgba(0,0,0,.2);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity .2s ease, transform .2s ease;
+  cursor: pointer; /* click to dismiss */
+}
+
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.toast-error   { background: #d93025; }
+.toast.toast-success { background: #188038; }
+.toast.toast-info    { background: #3b82f6; }
+.toast.toast-warn    { background: #d97706; }
