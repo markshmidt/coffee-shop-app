@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from django.contrib.auth.decorators import login_required
-from django.db.models import ExpressionWrapper, DecimalField, F, Value, Max
+from django.db.models import ExpressionWrapper, DecimalField, F, Value, Max, Prefetch
 from django.shortcuts import render
 import json
 from django.contrib.auth import authenticate, login, logout
@@ -534,6 +534,7 @@ def order_payment(request):
     RETURN JSON BODY:
     {
         "ok": true,
+        "created_by": user id,
         "order_id": 2,
         "subtotal_cents": 500,
         "discount_cents": 0,
@@ -694,6 +695,7 @@ def order_payment(request):
     chip_method = "Cash" if payment_method == "CASH" else "Card"
     resp = {
         "ok": True,
+        "created_by": request.get_user().username,
         "order_id": order.id,
         "subtotal_cents": recomputed_subtotal_cents,
         "discount_cents": discount_cents,
@@ -708,3 +710,76 @@ def order_payment(request):
     }
 
     return JsonResponse(resp, status=201)
+
+
+@login_required
+@require_GET
+def orders_list(request):
+    """
+    Return the most recent orders, newest first.
+    """
+    try:
+        limit = max(1, min(50, int(request.GET.get("limit", 20))))
+    except Exception:
+        limit = 20
+
+    cursor = request.GET.get("cursor")
+    qs = (
+        Order.objects
+        .select_related("created_by")
+        .prefetch_related(
+            Prefetch(
+                "items",
+                queryset=OrderItem.objects.only(
+                    "order_id",
+                    "name_snapshot",
+                    "variant_name_snapshot",
+                    "qty",
+                    "unit_price_cents",
+                ),
+            )
+        )
+        .order_by("-id")
+    )
+    if cursor:
+        try:
+            qs = qs.filter(id__lt=int(cursor))
+        except Exception:
+            pass
+
+    out = []
+    for o in qs[:limit]:
+        when_dt = o.paid_at or o.created_at
+        when_dt = timezone.localtime(when_dt)  # show local time
+        when_label = when_dt.strftime("%Y-%m-%d %H:%M")
+
+        out.append({
+            "id": o.id,
+            "when_iso": when_dt.isoformat(),
+            "when_label": when_label,  # <-- use this on the UI
+            "payment_method": o.payment_method,  # 'CARD' | 'CASH'
+            "total_cents": o.total_cents,
+            "total_label": _fmt_cents(o.total_cents),
+            "created_by": o.created_by.get_username(),
+            "items": [
+                {
+                    "label": f"{it.name_snapshot}{(' ' + it.variant_name_snapshot) if it.variant_name_snapshot else ''}",
+                    "qty": it.qty,
+                    "unit_cents": it.unit_price_cents,
+                    "unit_label": _fmt_cents(it.unit_price_cents),
+                    "line_cents": it.unit_price_cents * it.qty,
+                    "line_label": _fmt_cents(it.unit_price_cents * it.qty),
+                }
+                for it in o.items.all()
+            ],
+        })
+
+    next_cursor = out[-1]["id"] if len(out) == limit else None
+    return JsonResponse({"ok": True, "orders": out, "next_cursor": next_cursor})
+
+
+@login_required
+def orders_page(request):
+    return render(request, "orders_page.html")
+
+

@@ -167,3 +167,34 @@
 .toast.toast-success { background: #188038; }
 .toast.toast-info    { background: #3b82f6; }
 .toast.toast-warn    { background: #d97706; }
+.orders-page__bar {
+  display:flex; align-items:center; gap:12px; margin-bottom:16px;
+}
+.orders-feed {
+  display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+.order-card {
+  background: #10141c;  /* dark theme vibe */
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: 0 8px 20px rgba(0,0,0,.25);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; /* receipt feel */
+}
+.order-card header {
+  display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px;
+}
+.order-card .muted { color: #9aa4b2; font-size: .9em; }
+.order-card .items { list-style:none; margin:8px 0; padding:0; border-top:1px dashed #2a3140; border-bottom:1px dashed #2a3140; }
+.order-card .items li {
+  display:flex; justify-content:space-between; gap:8px; padding:6px 0;
+}
+.order-card .items .left { display:flex; gap:6px; align-items:center; }
+.order-card footer { display:flex; justify-content:space-between; margin-top:8px; font-weight:600; }
+.order-badge {
+  padding:2px 6px; border-radius: 6px; background:#1f2937; color:#e5e7eb; font-size:.75rem;
+}
+.pm-badge { font-weight:600; }
+.pm-badge.CARD { color:#60a5fa; }
+.pm-badge.CASH { color:#34d399; }

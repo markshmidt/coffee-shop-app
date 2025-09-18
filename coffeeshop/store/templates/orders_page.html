@@ -1,0 +1,17 @@
+
+{% load static %}
+<link rel="stylesheet" href="{% static 'css/styles.css' %}">
+<div class="orders-page">
+  <div class="orders-page__bar">
+    <a href="{% url 'home' %}" class="btn">← Back to Cart</a>
+    <h2>Recent Orders</h2>
+  </div>
+
+  <div id="orders-feed" class="orders-feed"></div>
+
+  <div class="orders-page__more">
+    <button id="orders-load-more" class="btn ghost" style="display:none;">Load more</button>
+  </div>
+</div>
+
+<script src="{% static 'js/script.js' %}"></script>

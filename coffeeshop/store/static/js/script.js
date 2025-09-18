@@ -1,3 +1,108 @@
+document.addEventListener('DOMContentLoaded', () => {
+  const feed = document.getElementById('orders-feed');
+  if (!feed) return; // not on /orders/ page
+
+  const loadMoreBtn = document.getElementById('orders-load-more');
+  let cursor = null;
+  let loading = false;
+
+  function esc(s) {
+    return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+
+  function renderOrderCard(o) {
+    const card = document.createElement('article');
+    card.className = 'order-card';
+
+    // header
+    const header = document.createElement('header');
+    const hLeft = document.createElement('div');
+    const hRight = document.createElement('div');
+
+    const title = document.createElement('h3');
+    title.textContent = `#${o.id}`;
+    hLeft.appendChild(title);
+
+    const meta = document.createElement('div');
+    meta.className = 'muted';
+    meta.textContent = `${o.when_label} · by ${o.created_by}`;
+    hRight.appendChild(meta);
+
+    header.appendChild(hLeft);
+    header.appendChild(hRight);
+    card.appendChild(header);
+
+    // items
+    const ul = document.createElement('ul');
+    ul.className = 'items';
+
+    (o.items || []).forEach(it => {
+      const li = document.createElement('li');
+
+      const left = document.createElement('div');
+      left.className = 'left';
+      const badge = document.createElement('span');
+      badge.className = 'order-badge';
+      badge.textContent = `×${it.qty}`;
+      const label = document.createElement('span');
+      label.textContent = it.label;
+      left.appendChild(badge);
+      left.appendChild(label);
+
+      const amt = document.createElement('span');
+      amt.textContent = it.line_label;
+
+      li.appendChild(left);
+      li.appendChild(amt);
+      ul.appendChild(li);
+    });
+    card.appendChild(ul);
+
+    // footer
+    const footer = document.createElement('footer');
+    const total = document.createElement('div');
+    total.textContent = `Total ${o.total_label}`;
+    const pm = document.createElement('div');
+    pm.className = `pm-badge ${o.payment_method}`;
+    pm.textContent = o.payment_method;  // CARD/CASH
+    footer.appendChild(total);
+    footer.appendChild(pm);
+    card.appendChild(footer);
+
+    return card;
+  }
+
+  async function fetchPage({ reset=false } = {}) {
+    if (loading) return;
+    loading = true;
+
+    try {
+      if (reset) {
+        cursor = null;
+        feed.innerHTML = '';
+      }
+
+      const params = new URLSearchParams({ limit: '12' });
+      if (cursor) params.set('cursor', String(cursor));
+
+      const data = await getJSON(`/orders/list/?${params.toString()}`);
+      (data.orders || []).forEach(o => feed.appendChild(renderOrderCard(o)));
+
+      cursor = data.next_cursor || null;
+      loadMoreBtn.style.display = cursor ? '' : 'none';
+    } catch (e) {
+      console.error(e);
+      showToast?.('Could not load orders', { type: 'error' });
+    } finally {
+      loading = false;
+    }
+  }
+
+  // initial load + load more
+  fetchPage({ reset: true });
+  loadMoreBtn?.addEventListener('click', () => fetchPage({ reset: false }));
+});
+
 
 // ------- Category filter -------
   const barTop   = document.getElementById('cat-bar');   // the top-level category bar
@@ -632,6 +737,24 @@ function getSelectedPaymentMethod({ allowRandom = false } = {}) {
 function getCSRFToken() {
   return getCookie('csrftoken');
 }
+function addInvoiceChip(label, orderId, containerId = 'recent-orders', createdBy = null) {
+  const box = document.getElementById(containerId);
+  if (!box) return;
+
+  const chip = document.createElement('button');
+  chip.type = 'button';
+  chip.className = 'pill';
+  chip.dataset.orderId = String(orderId);
+  if (createdBy) chip.title = `Taken by: ${createdBy}`;
+  chip.textContent = label || `Order #${orderId}`;
+
+  chip.addEventListener('click', () => {
+    // could open detail later
+    console.debug('Open order detail for', orderId);
+  });
+
+  box.prepend(chip);
+}
 
 async function onPayClick(e) {
   e.preventDefault();
@@ -708,7 +831,7 @@ async function onPayClick(e) {
       });
     }
 
-//    addInvoiceChip?.(data.chip_label, data.order_id);
+    addInvoiceChip(data.chip_label, data.order_id, 'recent-orders', data.created_by);
     if (data.diagnostics) console.warn('Server re-priced:', data.diagnostics);
     showToast?.(`Order #${data.order_id} created — ${data.total_label || data.chip_label}`, { type: 'success' });
 

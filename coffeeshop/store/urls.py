@@ -22,6 +22,9 @@ path("cart/remove-line/", views.cart_remove_line, name="api_delete"),
 
     # orders
     path("order/pay/", views.order_payment, name="api_payment"),
+    path("orders/list/", views.orders_list, name="orders_list"),
+    path("orders/", views.orders_page, name="orders"),
+
 
 
 

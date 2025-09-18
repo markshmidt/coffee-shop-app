@@ -42,11 +42,32 @@
           <section class="panel" id="prevInv">
               <h3> Previous invoices</h3>
               <div class="invoice"> <!-- by clicking each you can see whole order / list of all orders-->
-                  <span class="pill">7.35 Cash <strong id="pts">—</strong></span>
+                  <span class="pill" >7.35 Cash <strong id="pts">—</strong></span>
                   <span class="pill">6.22 Visa <strong id="pts1">—</strong></span>
-                  <span class="pill">More... <strong id="pts2">—</strong></span>
+                  <a href="{% url 'orders' %}" id="orders-more-chip" class="chip ghost">More…</a>
+
               </div>
           </section>
+          <!-- Orders modal -->
+<div id="orders-modal" class="modal-backdrop" style="display:none;">
+  <div class="modal">
+    <div class="modal-header">
+      <h4>Recent Orders</h4>
+      <button class="close-modal" data-modal-id="orders-modal">×</button>
+    </div>
+    <div class="modal-body">
+      <table class="orders-table">
+        <thead>
+          <tr><th>ID</th><th>When</th><th>Total</th><th>PM</th><th>By</th></tr>
+        </thead>
+        <tbody id="orders-tbody"></tbody>
+      </table>
+      <div style="margin-top:8px;">
+        <button id="orders-load-more" class="btn ghost">Load more</button>
+      </div>
+    </div>
+  </div>
+</div>
 
         <section class="panel" style="flex:1; min-height:220px;">
           <h3 class="section-title">Cart</h3>
