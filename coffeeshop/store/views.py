@@ -695,7 +695,7 @@ def order_payment(request):
     chip_method = "Cash" if payment_method == "CASH" else "Card"
     resp = {
         "ok": True,
-        "created_by": request.get_user().username,
+        "created_by": (request.user.get_full_name() or request.user.get_username()),
         "order_id": order.id,
         "subtotal_cents": recomputed_subtotal_cents,
         "discount_cents": discount_cents,
@@ -756,7 +756,7 @@ def orders_list(request):
         out.append({
             "id": o.id,
             "when_iso": when_dt.isoformat(),
-            "when_label": when_label,  # <-- use this on the UI
+            "when_label": when_label,
             "payment_method": o.payment_method,  # 'CARD' | 'CASH'
             "total_cents": o.total_cents,
             "total_label": _fmt_cents(o.total_cents),

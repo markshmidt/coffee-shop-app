@@ -1,19 +1,10 @@
-{% load static %}
-<!DOCTYPE html>
+{% extends "pos-base.html" %}
+{% block title %}POS — Cart{% endblock %}
 
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <title>Coffee Island POS</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="stylesheet" href="{% static 'css/styles.css' %}">
-
-
-</head>
-<body>
-  <div class="app">
-
-    <!-- Top bar -->
+{% block content %}
+  {# everything you currently show on the POS page: previous invoices chips, cart, radios, grid, modals, etc. #}
+  <div id="pos-root">
+     <!-- Top bar -->
     <header class="topbar">
       <div class="brand">
         <strong>Coffee Island POS</strong>
@@ -227,7 +218,9 @@
   </div>
   {% endfor%}
 
-<script src="{% static 'js/script.js' %}" defer></script>
+
 {{ cats|json_script:"cats-data" }}
-</body>
-</html>
+  </div>
+{% endblock %}
+
+
