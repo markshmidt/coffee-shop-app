@@ -12,16 +12,25 @@
 </head>
 <body class="theme-dark">
   <header class="topbar">
-    <div>Coffee Island POS</div>
-    <nav>
-      {% if request.user.is_authenticated %}
-        <span>User: {{ request.user.username }}</span>
-        <a class="btn" href="{% url 'logout' %}">Logout</a>
-      {% else %}
-        <a class="btn" href="{% url 'login' %}">Login</a>
+      <div class="brand">
+        <strong>Coffee Island POS</strong>
+        <span class="chip">Register A</span>
+        {% if user.is_authenticated %}
+        <span class="chip">User: <span id="who">{{user}}</span></span> <!-- user logged in-->
+        {% endif %}
+      </div>
+      <div class="clock" id="clock">--:--</div>
+
+      {% if user.is_authenticated %}
+        <form action="{% url 'logout' %}" method="post" style="display:inline">
+             {% if perms.orders.view_sales_reports %}
+          <button class="btn">Manage</button>
+        {% endif %}
+    {% csrf_token %}<button class="btn">Logout</button>
+
+  </form>
       {% endif %}
-    </nav>
-  </header>
+    </header>
 
   <main class="container">
     {% block content %}{% endblock %}

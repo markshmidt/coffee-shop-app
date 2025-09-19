@@ -4,28 +4,6 @@
 {% block content %}
   {# everything you currently show on the POS page: previous invoices chips, cart, radios, grid, modals, etc. #}
   <div id="pos-root">
-     <!-- Top bar -->
-    <header class="topbar">
-      <div class="brand">
-        <strong>Coffee Island POS</strong>
-        <span class="chip">Register A</span>
-        {% if user.is_authenticated %}
-        <span class="chip">User: <span id="who">{{user}}</span></span> <!-- user logged in-->
-        {% endif %}
-      </div>
-      <div class="clock" id="clock">--:--</div>
-
-      {% if user.is_authenticated %}
-        <form action="{% url 'logout' %}" method="post" style="display:inline">
-             {% if perms.orders.view_sales_reports %}
-          <button class="btn">Manage</button>
-        {% endif %}
-    {% csrf_token %}<button class="btn">Logout</button>
-
-  </form>
-      {% endif %}
-    </header>
-
     <main class="main">
       <!-- LEFT: Cart -->
       <aside class="cart">
