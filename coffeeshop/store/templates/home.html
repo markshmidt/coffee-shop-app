@@ -10,12 +10,11 @@
 
           <section class="panel" id="prevInv">
               <h3> Previous invoices</h3>
-              <div class="invoice"> <!-- by clicking each you can see whole order / list of all orders-->
-                  <span class="pill" >7.35 Cash <strong id="pts">—</strong></span>
-                  <span class="pill">6.22 Visa <strong id="pts1">—</strong></span>
-                  <a href="{% url 'orders' %}" id="orders-more-chip" class="chip ghost">More…</a>
-
+              <div class="invoice" id="prev-invoices-list"> <!-- by clicking each you can see whole order / list of all orders-->
+<!--                  <span class="pill" >7.35 Cash <strong id="pts">—</strong></span>-->
+<!--                  <span class="pill">6.22 Visa <strong id="pts1">—</strong></span>-->
               </div>
+              <a href="{% url 'orders' %}" id="orders-more-chip" class="chip ghost">More…</a>
           </section>
           <!-- Orders modal -->
 <div id="orders-modal" class="modal-backdrop" style="display:none;">

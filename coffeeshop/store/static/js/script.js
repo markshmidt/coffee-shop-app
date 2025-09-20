@@ -1,114 +1,15 @@
-document.addEventListener('DOMContentLoaded', () => {
-  const feed = document.getElementById('orders-feed');
-  if (!feed) return; // not on /orders/ page
-
-  const loadMoreBtn = document.getElementById('orders-load-more');
-  let cursor = null;
-  let loading = false;
-
-  function esc(s) {
-    return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-  }
-
-  function renderOrderCard(o) {
-    const card = document.createElement('article');
-    card.className = 'order-card';
-
-    // header
-    const header = document.createElement('header');
-    const hLeft = document.createElement('div');
-    const hRight = document.createElement('div');
-
-    const title = document.createElement('h3');
-    title.textContent = `#${o.id}`;
-    hLeft.appendChild(title);
-
-    const meta = document.createElement('div');
-    meta.className = 'muted';
-    meta.textContent = `${o.when_label} · by ${o.created_by}`;
-    hRight.appendChild(meta);
-
-    header.appendChild(hLeft);
-    header.appendChild(hRight);
-    card.appendChild(header);
-
-    // items
-    const ul = document.createElement('ul');
-    ul.className = 'items';
-
-    (o.items || []).forEach(it => {
-      const li = document.createElement('li');
-
-      const left = document.createElement('div');
-      left.className = 'left';
-      const badge = document.createElement('span');
-      badge.className = 'order-badge';
-      badge.textContent = `×${it.qty}`;
-      const label = document.createElement('span');
-      label.textContent = it.label;
-      left.appendChild(badge);
-      left.appendChild(label);
-
-      const amt = document.createElement('span');
-      amt.textContent = it.line_label;
-
-      li.appendChild(left);
-      li.appendChild(amt);
-      ul.appendChild(li);
-    });
-    card.appendChild(ul);
-
-    // footer
-    const footer = document.createElement('footer');
-    const total = document.createElement('div');
-    total.textContent = `Total ${o.total_label}`;
-    const pm = document.createElement('div');
-    pm.className = `pm-badge ${o.payment_method}`;
-    pm.textContent = o.payment_method;  // CARD/CASH
-    footer.appendChild(total);
-    footer.appendChild(pm);
-    card.appendChild(footer);
-
-    return card;
-  }
-
-  async function fetchPage({ reset=false } = {}) {
-    if (loading) return;
-    loading = true;
-
-    try {
-      if (reset) {
-        cursor = null;
-        feed.innerHTML = '';
-      }
-
-      const params = new URLSearchParams({ limit: '12' });
-      if (cursor) params.set('cursor', String(cursor));
-
-      const data = await getJSON(`/orders/list/?${params.toString()}`);
-      (data.orders || []).forEach(o => feed.appendChild(renderOrderCard(o)));
-
-      cursor = data.next_cursor || null;
-      loadMoreBtn.style.display = cursor ? '' : 'none';
-    } catch (e) {
-      console.error(e);
-      showToast?.('Could not load orders', { type: 'error' });
-    } finally {
-      loading = false;
-    }
-  }
-
-  // initial load + load more
-  fetchPage({ reset: true });
-  loadMoreBtn?.addEventListener('click', () => fetchPage({ reset: false }));
-});
-
+const isPOS = () => document.body?.dataset?.page === 'pos';
 
 // ------- Category filter -------
-  const barTop   = document.getElementById('cat-bar');   // the top-level category bar
+document.addEventListener('DOMContentLoaded', () => {
+  if (!isPOS()) return;
+
+   const barTop   = document.getElementById('cat-bar');   // the top-level category bar
+  const grid     = document.getElementById('menu-grid'); // the grid with all items
+  if (!barTop || !grid) return;   // additional safety
   const barSub   = document.getElementById('sub-bar');   // the subcategory bar (starts hidden)
   const pool     = document.getElementById('all-subcats'); // hidden pool with ALL categories
-  const grid     = document.getElementById('menu-grid'); // the grid with all items
+
   const cards    = Array.from(grid.querySelectorAll('.item')); // every item card
 
   const hideAllItems = () => cards.forEach(c => c.style.display = 'none');
@@ -175,6 +76,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const mm = String(d.getMinutes()).padStart(2,'0');
       clock.textContent = `${hh}:${mm}`;
     }, 1000);
+
+});
 
 // === Per-item modal open/close + variant filtering =====
 document.addEventListener('DOMContentLoaded', () => {
@@ -397,7 +300,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       try {
         const {cart} = await postJSON('/cart/add-line/', payload);
-        renderCart(cart);
+       if (isPOS()) renderCart(cart);
         resetModal(modal)// <-- re-render
         modal.style.display = 'none';                             // close modal
       } catch (err) {
@@ -504,6 +407,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ------- RENDERING --------
 function renderCart(cart) {
+  if (!isPOS()) return;
   // --- Cache DOM references once per render ---
   const linesLst  = document.getElementById('cart-lines');          // container for all lines
   const subRow    = document.getElementById('cart-subtotal');       // subtotal
@@ -520,6 +424,7 @@ function renderCart(cart) {
   // cash rounding
   const roundingPill   = document.getElementById('rounding-pill');
   const roundingDelta  = document.getElementById('rounding-delta');
+
 
    if (!linesLst || !sub || !tax) {
     // if critical elements are missing
@@ -614,7 +519,8 @@ function setupCartRadios() {
     r.addEventListener('change', async (e) => {
       try {
         const { cart } = await postJSON('/cart/discount/', { discount_code: e.target.value });
-        renderCart(cart);
+       if (isPOS()) renderCart(cart);
+
       } catch (err) { console.error('Discount update failed:', err); }
     });
   });
@@ -624,7 +530,8 @@ function setupCartRadios() {
     r.addEventListener('change', async (e) => {
       try {
         const { cart } = await postJSON('/cart/discount/', { payment_method: e.target.value });
-        renderCart(cart);
+      if (isPOS()) renderCart(cart);
+;
       } catch (err) { console.error('Payment update failed:', err); }
     });
   });
@@ -671,7 +578,8 @@ document.getElementById('cart-lines')?.addEventListener('click', async (e) => {
   // +1
   if (e.target.closest('.qty-inc')) {
     const { cart } = await postJSON('/cart/update-line/', { line_id: lineId, qty: qty + 1 });
-    renderCart(cart);
+    if (isPOS()) renderCart(cart);
+
     return;
   }
 
@@ -681,14 +589,16 @@ document.getElementById('cart-lines')?.addEventListener('click', async (e) => {
     const url  = newQty > 0 ? '/cart/update-line/' : '/cart/remove-line/';
     const body = newQty > 0 ? { line_id: lineId, qty: newQty } : { line_id: lineId };
     const { cart } = await postJSON(url, body);
-    renderCart(cart);
+    if (isPOS()) renderCart(cart);
+
     return;
   }
 
   // remove explicitly
   if (e.target.closest('.remove-line')) {
     const { cart } = await postJSON('/cart/remove-line/', { line_id: lineId });
-    renderCart(cart);
+    if (isPOS()) renderCart(cart);
+
     return;
   }
 });
@@ -699,7 +609,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   try {
     const { cart } = await getJSON('/cart/');
-    renderCart(cart);
+    if (isPOS()) renderCart(cart);
+
   } catch (e) {
     console.warn('Could not load cart on start:', e.message);
   }
@@ -737,24 +648,67 @@ function getSelectedPaymentMethod({ allowRandom = false } = {}) {
 function getCSRFToken() {
   return getCookie('csrftoken');
 }
-function addInvoiceChip(label, orderId, containerId = 'recent-orders', createdBy = null) {
-  const box = document.getElementById(containerId);
-  if (!box) return;
 
+// adding recent orders to ui
+function addInvoiceChip(
+  label,
+  orderId,
+  containerId = 'prev-invoices-list',
+  createdBy = null,
+  maxChips = 6
+) {
+  // 1) find the row that holds the chips (NOT the entire section)
+  const row = document.getElementById(containerId);
+  if (!row) return;
+
+  // 2) de-duplication: if a chip for this order already exists, do nothing
+  if (row.querySelector(`[data-order-id="${orderId}"]`)) return;
+
+  // 3) create a real <button>; it’s focusable & accessible
   const chip = document.createElement('button');
   chip.type = 'button';
   chip.className = 'pill';
   chip.dataset.orderId = String(orderId);
-  if (createdBy) chip.title = `Taken by: ${createdBy}`;
+  if (createdBy) chip.title = `Taken by: ${createdBy}`; // tooltip on hover
   chip.textContent = label || `Order #${orderId}`;
 
+  // 4) future: open order details (wire when you add a details view)
   chip.addEventListener('click', () => {
-    // could open detail later
+    // For now just log; later navigate to /orders/?focus=<orderId> or open a modal
     console.debug('Open order detail for', orderId);
   });
 
-  box.prepend(chip);
+  // 5) put newest on the left by *prepending*
+  row.prepend(chip);
+
+  // 6) cap the count to avoid overflowing UI
+  const chips = Array.from(row.querySelectorAll('.pill'));
+  if (chips.length > maxChips) {
+    chips.slice(maxChips).forEach(el => el.remove()); // remove oldest extras
+  }
 }
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const row = document.getElementById('prev-invoices-list');
+  if (!row) return; // not on the POS page
+
+  try {
+    // ask only for a couple; tune to your taste
+    const data = await getJSON('/orders/list/?limit=2');
+
+    // render oldest->newest so that PREPEND results in newest on the left
+    const orders = (data.orders || []).slice().reverse();
+
+    for (const o of orders) {
+      // choose a short label that matches your chip style
+      const pm = (o.payment_method === 'CASH') ? 'Cash' : 'Card';
+      const label = `${o.total_label.slice(1)} ${pm}`; // "$5.65" -> "5.65 Card"
+      addInvoiceChip(label, o.id, 'prev-invoices-list', o.created_by, 6);
+    }
+  } catch (e) {
+    console.warn('Could not load previous invoices:', e);
+  }
+});
 
 async function onPayClick(e) {
   e.preventDefault();
@@ -821,7 +775,8 @@ async function onPayClick(e) {
     //  clear cart
     try {
       const fresh = await getJSON('/cart/');
-      renderCart(fresh.cart);
+     if (isPOS()) renderCart(cart);
+
     } catch {
       renderCart({
         lines: [],
@@ -831,7 +786,15 @@ async function onPayClick(e) {
       });
     }
 
-    addInvoiceChip(data.chip_label, data.order_id, 'recent-orders', data.created_by);
+    // inside onPayClick success:
+addInvoiceChip(
+  data.chip_label,       // e.g. "5.65 Card"
+  data.order_id,
+  'prev-invoices-list',
+  data.created_by,       // optional tooltip: cashier
+  6
+);
+
     if (data.diagnostics) console.warn('Server re-priced:', data.diagnostics);
     showToast?.(`Order #${data.order_id} created — ${data.total_label || data.chip_label}`, { type: 'success' });
 
@@ -844,3 +807,109 @@ async function onPayClick(e) {
   }
 }
 ;
+
+document.addEventListener('DOMContentLoaded', () => {
+  const feed = document.getElementById('orders-feed');
+  if (!feed) return; // not on /orders/ page
+
+  const loadMoreBtn = document.getElementById('orders-load-more');
+  let cursor = null;
+  let loading = false;
+
+  function esc(s) {
+    return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+
+  function renderOrderCard(o) {
+    const card = document.createElement('article');
+    card.className = 'order-card';
+
+    // header
+    const header = document.createElement('header');
+    const hLeft = document.createElement('div');
+    const hRight = document.createElement('div');
+
+    const title = document.createElement('h3');
+    title.textContent = `#${o.id}`;
+    hLeft.appendChild(title);
+
+    const meta = document.createElement('div');
+    meta.className = 'muted';
+    meta.textContent = `${o.when_label} · by ${o.created_by}`;
+    hRight.appendChild(meta);
+
+    header.appendChild(hLeft);
+    header.appendChild(hRight);
+    card.appendChild(header);
+
+    // items
+    const ul = document.createElement('ul');
+    ul.className = 'items';
+
+    (o.items || []).forEach(it => {
+      const li = document.createElement('li');
+
+      const left = document.createElement('div');
+      left.className = 'left';
+      const badge = document.createElement('span');
+      badge.className = 'order-badge';
+      badge.textContent = `×${it.qty}`;
+      const label = document.createElement('span');
+      label.textContent = it.label;
+      left.appendChild(badge);
+      left.appendChild(label);
+
+      const amt = document.createElement('span');
+      amt.textContent = it.line_label;
+
+      li.appendChild(left);
+      li.appendChild(amt);
+      ul.appendChild(li);
+    });
+    card.appendChild(ul);
+
+    // footer
+    const footer = document.createElement('footer');
+    const total = document.createElement('div');
+    total.textContent = `Total ${o.total_label}`;
+    const pm = document.createElement('div');
+    pm.className = `pm-badge ${o.payment_method}`;
+    pm.textContent = o.payment_method;  // CARD/CASH
+    footer.appendChild(total);
+    footer.appendChild(pm);
+    card.appendChild(footer);
+
+    return card;
+  }
+
+  async function fetchPage({ reset=false } = {}) {
+    if (loading) return;
+    loading = true;
+
+    try {
+      if (reset) {
+        cursor = null;
+        feed.innerHTML = '';
+      }
+
+      const params = new URLSearchParams({ limit: '12' });
+      if (cursor) params.set('cursor', String(cursor));
+
+      const data = await getJSON(`/orders/list/?${params.toString()}`);
+      (data.orders || []).forEach(o => feed.appendChild(renderOrderCard(o)));
+
+      cursor = data.next_cursor || null;
+      loadMoreBtn.style.display = cursor ? '' : 'none';
+    } catch (e) {
+      console.error(e);
+      showToast?.('Could not load orders', { type: 'error' });
+    } finally {
+      loading = false;
+    }
+  }
+
+  // initial load + load more
+  fetchPage({ reset: true });
+  loadMoreBtn?.addEventListener('click', () => fetchPage({ reset: false }));
+});
+
