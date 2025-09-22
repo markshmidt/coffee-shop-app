@@ -619,32 +619,37 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // ---- PAY BUTTON ---
 document.addEventListener('DOMContentLoaded', () => {
-  if (!window.__payHandlerBound) {
-    window.__payHandlerBound = true;
-    document.getElementById('pay-btn')?.addEventListener('click', onPayClick);
-  }
+ document.getElementById('pay-btn')?.addEventListener('click', onPayClick);
 });
 
-// Always return a valid 'CARD' or 'CASH'. If nothing is selected, pick CARD by default.
-function getSelectedPaymentMethod({ allowRandom = false } = {}) {
+// Always return a 'CARD' or 'CASH'. If nothing is selected, pick random (for learning purposes)
+async function getSelectedPaymentMethod({ allowRandom = false } = {}) {
+  //choose which method is selected
   const checked = document.querySelector('input[name="pm"]:checked');
   let val = (checked?.value || '').toString().trim().toUpperCase();
 
   if (val !== 'CARD' && val !== 'CASH') {
-    // Pick a valid value if missing
+    // Pick a random value if missing
     val = allowRandom ? (Math.random() < 0.5 ? 'CARD' : 'CASH') : 'CARD';
 
     //show in ui
     const radio = document.querySelector(`input[name="pm"][value="${val}"]`);
     if (radio) radio.checked = true;
 
-    // sync server-side cart (
-    try { postJSON('/cart/discount/', { payment_method: val }).then(({cart}) => renderCart(cart)); } catch {}
+    // sync server-side cart (refactored to catch errors asynchronously)
+    try {
+      const { cart } = await postJSON('/cart/discount/', { payment_method: val });
+      renderCart(cart);
+    } catch (err) {
+      console.error('Payment method application failed:', err);
+      showToast?.('Error with payment method .', { type: 'error' });
+    }
   }
 
   return val;
 }
 
+// tiny helper
 function getCSRFToken() {
   return getCookie('csrftoken');
 }
@@ -654,8 +659,7 @@ function addInvoiceChip(
   label,
   orderId,
   containerId = 'prev-invoices-list',
-  createdBy = null,
-  maxChips = 6
+  maxChips = 2
 ) {
   const row = document.getElementById(containerId);
   if (!row) return;
@@ -667,7 +671,6 @@ function addInvoiceChip(
   chip.type = 'button';
   chip.className = 'pill';
   chip.dataset.orderId = String(orderId);
-  if (createdBy) chip.title = `Taken by: ${createdBy}`;
   chip.textContent = label || `Order #${orderId}`;
 
   //  future: open order details
@@ -678,7 +681,7 @@ function addInvoiceChip(
 
   row.prepend(chip);
 
-  const chips = Array.from(row.querySelectorAll('.pill'));
+  const chips = Array.from(row.querySelectorAll('.pill')); //returns a nodeList of elements inside row that match .pill. than converts to array again
   if (chips.length > maxChips) {
     chips.slice(maxChips).forEach(el => el.remove()); // remove oldest extras
   }
@@ -690,12 +693,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   try {
     const data = await getJSON('/orders/list/?limit=2');
+    //safe default to an empty array + reverse because prepend was used
     const orders = (data.orders || []).slice().reverse();
 
     for (const o of orders) {
       const pm = (o.payment_method === 'CASH') ? 'Cash' : 'Card';
-      const label = `${o.total_label.slice(1)} ${pm}`; // "$5.65" -> "5.65 Card"
-      addInvoiceChip(label, o.id, 'prev-invoices-list', o.created_by, 6);
+
+     const label = `${o.total_label} ${pm}`; // "$5.65" -> "5.65 Card"
+      addInvoiceChip(label, o.id, 'prev-invoices-list', o.created_by);
     }
   } catch (e) {
     console.warn('Could not load previous invoices:', e);
@@ -706,7 +711,7 @@ async function onPayClick(e) {
   e.preventDefault();
   const btn = e.currentTarget;
 
-  // Always fetch authoritative cart
+  // fetch newest cart
   let cart;
   try {
     ({ cart } = await getJSON('/cart/'));
@@ -728,15 +733,16 @@ async function onPayClick(e) {
   // random payment method selection
   const pmRaw = getSelectedPaymentMethod({ allowRandom: true });
 
+    //Gets the chosen method
   const paymentMethod = (pmRaw || '').toString().trim().toUpperCase();
-  if (paymentMethod !== 'CARD' && paymentMethod !== 'CASH') {
-    console.warn('Fixing invalid payment_method:', pmRaw);
-    // Force to CARD if somehow still invalid
-    const fallback = 'CARD';
-    const radio = document.querySelector(`input[name="pm"][value="${fallback}"]`);
-    if (radio) radio.checked = true;
-    try { postJSON('/cart/discount/', { payment_method: fallback }).then(({cart}) => renderCart(cart)); } catch {}
-  }
+//  if (paymentMethod !== 'CARD' && paymentMethod !== 'CASH') {
+//    console.warn('Fixing invalid payment_method:', pmRaw);
+//    //  if somehow still invalid force card
+//    const fallback = 'CARD';
+//    const radio = document.querySelector(`input[name="pm"][value="${fallback}"]`);
+//    if (radio) radio.checked = true;
+//    try { postJSON('/cart/discount/', { payment_method: fallback }).then(({cart}) => renderCart(cart)); } catch {}
+//  }
   try {
     const payload = {
       payment_method: (paymentMethod === 'CARD' || paymentMethod === 'CASH') ? paymentMethod : 'CARD',
@@ -780,13 +786,13 @@ async function onPayClick(e) {
 
     // inside onPayClick success:
     addInvoiceChip(
-      data.chip_label,       // e.g. "5.65 Card"
+      data.chip_label,       // e.g. "$5.65 Card"
       data.order_id,
       'prev-invoices-list',
-      data.created_by,
-      6
+      data.created_by
     );
 
+    // for debug
     showToast?.(`Order #${data.order_id} created — ${data.total_label || data.chip_label}`, { type: 'success' });
 
   } catch (err) {
@@ -870,7 +876,7 @@ document.addEventListener('DOMContentLoaded', () => {
   try {
     const { ok, order } = await getJSON(`/orders/${orderId}/`);
     if (!ok) throw new Error('Load failed');
-//    renderOrderModal(order); for future clickable card
+    renderOrderModal(order); //for future clickable card
   } catch (e) {
     console.error('openOrderModal failed:', e);
     showToast?.(e.message || 'Failed to load order', { type: 'error' });
@@ -917,3 +923,4 @@ document.addEventListener('DOMContentLoaded', () => {
   fetchPage({ reset: true });
   loadMoreBtn?.addEventListener('click', () => fetchPage({ reset: false }));
 });
+
