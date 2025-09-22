@@ -24,6 +24,7 @@ path("cart/remove-line/", views.cart_remove_line, name="api_delete"),
     path("order/pay/", views.order_payment, name="api_payment"),
     path("orders/list/", views.orders_list, name="orders_list"),
     path("orders/", views.orders_page, name="orders"),
+    path("orders/<int:pk>/", views.order_detail, name="order_detail"),  # JSON detail
 
 
 

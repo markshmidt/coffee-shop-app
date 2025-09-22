@@ -657,31 +657,27 @@ function addInvoiceChip(
   createdBy = null,
   maxChips = 6
 ) {
-  // 1) find the row that holds the chips (NOT the entire section)
   const row = document.getElementById(containerId);
   if (!row) return;
 
-  // 2) de-duplication: if a chip for this order already exists, do nothing
+  //  if a chip for this order already exists, do nothing
   if (row.querySelector(`[data-order-id="${orderId}"]`)) return;
 
-  // 3) create a real <button>; it’s focusable & accessible
   const chip = document.createElement('button');
   chip.type = 'button';
   chip.className = 'pill';
   chip.dataset.orderId = String(orderId);
-  if (createdBy) chip.title = `Taken by: ${createdBy}`; // tooltip on hover
+  if (createdBy) chip.title = `Taken by: ${createdBy}`;
   chip.textContent = label || `Order #${orderId}`;
 
-  // 4) future: open order details (wire when you add a details view)
+  //  future: open order details
   chip.addEventListener('click', () => {
-    // For now just log; later navigate to /orders/?focus=<orderId> or open a modal
+    // For now just log
     console.debug('Open order detail for', orderId);
   });
 
-  // 5) put newest on the left by *prepending*
   row.prepend(chip);
 
-  // 6) cap the count to avoid overflowing UI
   const chips = Array.from(row.querySelectorAll('.pill'));
   if (chips.length > maxChips) {
     chips.slice(maxChips).forEach(el => el.remove()); // remove oldest extras
@@ -693,14 +689,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!row) return; // not on the POS page
 
   try {
-    // ask only for a couple; tune to your taste
     const data = await getJSON('/orders/list/?limit=2');
-
-    // render oldest->newest so that PREPEND results in newest on the left
     const orders = (data.orders || []).slice().reverse();
 
     for (const o of orders) {
-      // choose a short label that matches your chip style
       const pm = (o.payment_method === 'CASH') ? 'Cash' : 'Card';
       const label = `${o.total_label.slice(1)} ${pm}`; // "$5.65" -> "5.65 Card"
       addInvoiceChip(label, o.id, 'prev-invoices-list', o.created_by, 6);
@@ -787,15 +779,14 @@ async function onPayClick(e) {
     }
 
     // inside onPayClick success:
-addInvoiceChip(
-  data.chip_label,       // e.g. "5.65 Card"
-  data.order_id,
-  'prev-invoices-list',
-  data.created_by,       // optional tooltip: cashier
-  6
-);
+    addInvoiceChip(
+      data.chip_label,       // e.g. "5.65 Card"
+      data.order_id,
+      'prev-invoices-list',
+      data.created_by,
+      6
+    );
 
-    if (data.diagnostics) console.warn('Server re-priced:', data.diagnostics);
     showToast?.(`Order #${data.order_id} created — ${data.total_label || data.chip_label}`, { type: 'success' });
 
   } catch (err) {
@@ -807,48 +798,44 @@ addInvoiceChip(
   }
 }
 ;
-
+// ---- ORDERS PAGE ----
 document.addEventListener('DOMContentLoaded', () => {
   const feed = document.getElementById('orders-feed');
-  if (!feed) return; // not on /orders/ page
+  if (!feed) return;
 
   const loadMoreBtn = document.getElementById('orders-load-more');
   let cursor = null;
   let loading = false;
 
-  function esc(s) {
-    return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-  }
-
+// RENDER ORDER
   function renderOrderCard(o) {
     const card = document.createElement('article');
     card.className = 'order-card';
+    card.dataset.orderId = o.id;
+    card.setAttribute('role', 'button');
+    card.setAttribute('tabindex', '0');
+    card.setAttribute('aria-label', `Open order #${o.id}`);
 
     // header
     const header = document.createElement('header');
     const hLeft = document.createElement('div');
     const hRight = document.createElement('div');
-
     const title = document.createElement('h3');
     title.textContent = `#${o.id}`;
-    hLeft.appendChild(title);
-
     const meta = document.createElement('div');
     meta.className = 'muted';
     meta.textContent = `${o.when_label} · by ${o.created_by}`;
+    hLeft.appendChild(title);
     hRight.appendChild(meta);
-
     header.appendChild(hLeft);
     header.appendChild(hRight);
     card.appendChild(header);
 
-    // items
+    // items preview
     const ul = document.createElement('ul');
     ul.className = 'items';
-
     (o.items || []).forEach(it => {
       const li = document.createElement('li');
-
       const left = document.createElement('div');
       left.className = 'left';
       const badge = document.createElement('span');
@@ -858,48 +845,66 @@ document.addEventListener('DOMContentLoaded', () => {
       label.textContent = it.label;
       left.appendChild(badge);
       left.appendChild(label);
-
       const amt = document.createElement('span');
       amt.textContent = it.line_label;
-
       li.appendChild(left);
       li.appendChild(amt);
       ul.appendChild(li);
     });
     card.appendChild(ul);
 
-    // footer
+    // footer (TOTAL + STATUS PILL)
     const footer = document.createElement('footer');
     const total = document.createElement('div');
     total.textContent = `Total ${o.total_label}`;
-    const pm = document.createElement('div');
-    pm.className = `pm-badge ${o.payment_method}`;
-    pm.textContent = o.payment_method;  // CARD/CASH
+    const statusPill = document.createElement('div');
+    statusPill.className = `status-pill status--${o.status.toLowerCase()}`;
+    statusPill.textContent = o.status;
     footer.appendChild(total);
-    footer.appendChild(pm);
+    footer.appendChild(statusPill);
     card.appendChild(footer);
 
     return card;
   }
+  async function openOrderModal(orderId) {
+  try {
+    const { ok, order } = await getJSON(`/orders/${orderId}/`);
+    if (!ok) throw new Error('Load failed');
+//    renderOrderModal(order); for future clickable card
+  } catch (e) {
+    console.error('openOrderModal failed:', e);
+    showToast?.(e.message || 'Failed to load order', { type: 'error' });
+  }
+}
+
+  feed.addEventListener('click', (e) => {
+    const card = e.target.closest('.order-card');
+    if (!card || !feed.contains(card)) return;
+    openOrderModal(card.dataset.orderId);
+  });
+
+  feed.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const card = e.target.closest('.order-card');
+    if (!card || !feed.contains(card)) return;
+    e.preventDefault();
+    openOrderModal(card.dataset.orderId);
+  });
 
   async function fetchPage({ reset=false } = {}) {
     if (loading) return;
     loading = true;
-
     try {
       if (reset) {
         cursor = null;
         feed.innerHTML = '';
       }
-
       const params = new URLSearchParams({ limit: '12' });
       if (cursor) params.set('cursor', String(cursor));
-
-      const data = await getJSON(`/orders/list/?${params.toString()}`);
+      const data = await getJSON(`/orders/list/?${params}`);
       (data.orders || []).forEach(o => feed.appendChild(renderOrderCard(o)));
-
       cursor = data.next_cursor || null;
-      loadMoreBtn.style.display = cursor ? '' : 'none';
+      if (loadMoreBtn) loadMoreBtn.style.display = cursor ? '' : 'none';
     } catch (e) {
       console.error(e);
       showToast?.('Could not load orders', { type: 'error' });
@@ -912,4 +917,3 @@ document.addEventListener('DOMContentLoaded', () => {
   fetchPage({ reset: true });
   loadMoreBtn?.addEventListener('click', () => fetchPage({ reset: false }));
 });
-

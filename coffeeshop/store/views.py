@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from django.contrib.auth.decorators import login_required
 from django.db.models import ExpressionWrapper, DecimalField, F, Value, Max, Prefetch
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404, redirect
 import json
 from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
@@ -12,8 +12,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST, require_GET
 # store/views.py
-from django.shortcuts import render, redirect
-
+from django.shortcuts import render
 
 from .models import Category, MenuItem, Variant, ModifierGroup, ModifierOption, Order, OrderItem
 from .apps import (
@@ -21,6 +20,7 @@ from .apps import (
     POS_DISCOUNT_CHOICES,     # ("NONE", ...), ("STUDENT_10", ...), ...
     POS_NICKEL_ROUNDING,      # True/False
 )
+from .permissions import compute_order_permissions
 
 
 # ----- POS home page -------
@@ -755,6 +755,7 @@ def orders_list(request):
 
         out.append({
             "id": o.id,
+            "status": o.status,
             "when_iso": when_dt.isoformat(),
             "when_label": when_label,
             "payment_method": o.payment_method,  # 'CARD' | 'CASH'
@@ -777,7 +778,133 @@ def orders_list(request):
     next_cursor = out[-1]["id"] if len(out) == limit else None
     return JsonResponse({"ok": True, "orders": out, "next_cursor": next_cursor})
 
+def serialize_order_for_modal(order):
+    """
+    Return a dict with everything the modal needs.
+    """
 
+    when_dt = timezone.localtime(order.paid_at or order.created_at)
+
+    # ---- Items with variants + modifiers ----
+    items_out = []
+    for it in order.items.all():
+        # if related name differs, fall back safely
+        try:
+            mods_qs = it.modifiers.all()
+        except Exception:
+            try:
+                mods_qs = it.orderitemmodifier_set.all()
+            except Exception:
+                mods_qs = []
+
+        modifiers_out = []
+        for m in mods_qs:
+            gname = getattr(m, "group_name_snapshot", "")
+            oname = getattr(m, "option_name_snapshot", "")
+            delta = getattr(m, "price_delta_cents", 0) or 0
+            modifiers_out.append({
+                "group": gname,
+                "choice": oname,
+                "price_cents": delta,
+                "price_label": _fmt_cents(delta),
+            })
+
+        unit = it.unit_price_cents
+        qty  = it.qty
+        line = unit * qty
+
+        items_out.append({
+            "line_id": it.id,
+            "name": it.name_snapshot,
+            "variant": it.variant_name_snapshot or "",
+            "qty": qty,
+            "unit_cents": unit,
+            "unit_label": _fmt_cents(unit),
+            "line_cents": line,
+            "line_label": _fmt_cents(line),
+            "modifiers": modifiers_out,
+            "note": getattr(it, "note", ""),
+        })
+
+    # ---- Totals (prefer stored fields; compute as fallback) ----
+    subtotal_cents = getattr(order, "subtotal_cents", None)
+    if subtotal_cents is None:
+        subtotal_cents = sum(i["line_cents"] for i in items_out)
+
+    discount_cents = getattr(order, "discount_cents", 0) or 0
+    tax_cents      = getattr(order, "tax_cents", 0) or 0
+    rounding_cents = getattr(order, "rounding_delta_cents", 0) or 0
+    grand_cents    = getattr(order, "total_cents", subtotal_cents - discount_cents + tax_cents + rounding_cents)
+
+    totals = {
+        "subtotal_cents": subtotal_cents, "subtotal_label": _fmt_cents(subtotal_cents),
+        "discount_cents": discount_cents, "discount_label": _fmt_cents(discount_cents),
+        "tax_cents":      tax_cents,      "tax_label":      _fmt_cents(tax_cents),
+        "rounding_cents": rounding_cents, "rounding_label": _fmt_cents(rounding_cents),
+        "grand_total_cents": grand_cents, "grand_total_label": _fmt_cents(grand_cents),
+    }
+
+    # ---- Payments----
+    payments_out = []
+    if hasattr(order, "payments"):
+        for p in order.payments.all():
+            amt = getattr(p, "amount_cents", 0) or 0
+            payments_out.append({
+                "id": p.id,
+                "method": (getattr(p, "method", getattr(p, "type", "")) or "").upper(),
+                "amount_cents": amt,
+                "amount_label": _fmt_cents(amt),
+                "ref": getattr(p, "reference", ""),
+                "at": timezone.localtime(getattr(p, "created_at", order.created_at)).isoformat(),
+            })
+
+    # ---- Customer (for future) ----
+    customer = None
+    if getattr(order, "customer_id", None):
+        c = order.customer
+        customer = {
+            "id": c.id,
+            "name": getattr(c, "name", ""),
+            "phone": getattr(c, "phone", ""),
+            "email": getattr(c, "email", ""),
+        }
+
+    return {
+        "id": order.id,
+        "number": getattr(order, "receipt_number", order.id),
+        "status": order.status,
+        "payment_method": (getattr(order, "payment_method", "") or "").upper(),  # CARD/CASH
+        "created_by": order.created_by.get_username(),
+        "when_iso": when_dt.isoformat(),
+        "when_label": when_dt.strftime("%Y-%m-%d %H:%M"),
+        "items": items_out,
+        "totals": totals,
+        "payments": payments_out,
+        "customer": customer,
+        "notes": getattr(order, "internal_notes", ""),
+    }
+@login_required
+@require_GET
+def order_detail(request, pk):
+    """
+    JSON payload for the modal.
+    """
+    #prefetch order items + their modifiers
+    items_qs = OrderItem.objects.all().prefetch_related("modifiers")
+
+    order = get_object_or_404(
+        Order.objects
+        .select_related("customer", "created_by")
+        .prefetch_related(
+            Prefetch("items", queryset=items_qs),
+            # "payments",
+        ),
+        pk=pk,
+    )
+
+    data = serialize_order_for_modal(order)
+    data["permissions"] = compute_order_permissions(order, request.user)
+    return JsonResponse({"ok": True, "order": data})
 @login_required
 def orders_page(request):
     return render(request, "orders_page.html")
