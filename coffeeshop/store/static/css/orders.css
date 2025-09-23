@@ -42,3 +42,15 @@
 .status-pill.status--refunded { color:#f59e0b; background:rgba(245,158,11,.12);  border-color:rgba(245,158,11,.25); }
 .status-pill.status--void     { color:#ef4444; background:rgba(239,68,68,.12);   border-color:rgba(239,68,68,.25); }
 .status-pill.status--open     { color:#a78bfa; background:rgba(167,139,250,.12); border-color:rgba(167,139,250,.25); }
+
+
+.status-pill { padding: 2px 8px; border-radius: 9999px; font-weight: 600; }
+.status--completed { background: #eaffea; }
+.status--void { background: #ffeaea; }
+.section { margin: 12px 0; }
+.section .list { list-style: none; padding: 0; margin: 6px 0; }
+.section .list li { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; }
+.section .list li.grand { border-top: 1px solid #eee; margin-top: 6px; padding-top: 6px; font-weight: 700; }
+.li-line .left .qty { display:inline-block; min-width: 2.2em; }
+.muted { opacity: .7; }
+.small { font-size: .9em; }

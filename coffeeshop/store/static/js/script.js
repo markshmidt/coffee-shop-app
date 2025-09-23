@@ -870,7 +870,7 @@ document.addEventListener('DOMContentLoaded', () => {
   try {
     const { ok, order } = await getJSON(`/orders/${orderId}/`);
     if (!ok) throw new Error('Load failed');
-//    renderOrderModal(order); //for future clickable card
+    renderOrderModal(order); //for future clickable card
   } catch (e) {
     console.error('openOrderModal failed:', e);
     showToast?.(e.message || 'Failed to load order', { type: 'error' });
@@ -926,3 +926,146 @@ document.addEventListener('DOMContentLoaded', () => {
   loadMoreBtn?.addEventListener('click', () => fetchPage({ reset: false }));
 });
 
+// ---- Order Modal: shell + helpers ------------------------------------------
+function ensureOrderModal() {
+//checks if the backdrop already exists and creates it
+  let el = document.getElementById('order-modal-backdrop');
+  if (el) return el;
+
+  el = document.createElement('div');
+  el.id = 'order-modal-backdrop';
+  el.className = 'modal-backdrop';
+  el.style.display = 'none';
+  el.innerHTML = `
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="order-modal-title">
+      <div class="modal-header">
+        <h4 id="order-modal-title">Order</h4>
+        <button class="close-modal" aria-label="Close">✕</button>
+      </div>
+
+      <div class="modal-toolbar">
+        <button id="order-btn-print">Print receipt (save CSV fr now)</button>
+        <button id="order-btn-refund">Refund</button>
+        <button id="order-btn-assign">Assign customer</button>
+      </div>
+
+      <div class="modal-body" id="order-modal-content"></div>
+    </div>
+  `;
+  document.body.appendChild(el);
+
+  // Close handlers
+  el.addEventListener('click', (e) => { if (e.target === el) hideOrderModal(); });
+  el.querySelector('.close-modal').addEventListener('click', hideOrderModal);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && el.style.display !== 'none') hideOrderModal();
+  });
+
+  return el;
+}
+
+function showOrderModal() {
+//sets a loading placeholder in the body
+  const m = ensureOrderModal();
+  m.style.display = 'flex';
+  document.body.style.overflow = 'hidden'; //prevent scroll
+  const body = document.getElementById('order-modal-content');
+  body.innerHTML = `<div class="muted">Loading order…</div>`;
+}
+
+function hideOrderModal() {
+  const m = document.getElementById('order-modal-backdrop');
+  document.body.style.overflow = '';
+  if (m) m.style.display = 'none';
+}
+
+function renderOrderModal(order) {
+  const m = ensureOrderModal();
+  m.style.display = 'flex';
+
+  // Header title + status
+  const titleEl = document.getElementById('order-modal-title');
+  titleEl.textContent = `Order #${order.number || order.id}`;
+
+  // Build Items
+  const itemsHtml = (order.items || []).map(it => {
+    const mods = (it.modifiers || [])
+      .map(mm => `${mm.group}: ${mm.choice}${mm.price_cents ? ` (+${mm.price_label})` : ''}`)
+      .join(' ; ');
+    return `
+      <li class="li-line">
+        <div class="left">
+          <span class="qty">×${it.qty}</span> ${(it.name)}
+          ${it.variant ? `<span class="muted">· ${(it.variant)}</span>` : ''}
+          ${mods ? `<div class="muted small">${(mods)}</div>` : ''}
+        </div>
+        <div class="right">${it.line_label}</div>
+      </li>`;
+  }).join('');
+
+  const t = order.totals || {};
+  const paymentsHtml = (order.payments || []).map(p =>
+    `<li>${(p.method || order.payment_method || '')} — ${p.amount_label || ''} ${p.ref ? `<span class="muted">(${(p.ref)})</span>` : ''}</li>`
+  ).join('') || `<li>${(order.payment_method || '')}</li>`;
+
+  const customerHtml = order.customer
+    ? `${(order.customer.name)} ${order.customer.phone ? `• ${(order.customer.phone)}` : ''}`
+    : '<span class="muted">Guest customer</span>';
+
+  const body = document.getElementById('order-modal-content');
+  body.innerHTML = `
+    <section class="section summary">
+      <div class="row"><strong>Status:</strong> <span class="status-pill status--${String(order.status || '').toLowerCase()}">${(order.status || '')}</span></div>
+      <div class="row"><strong>When:</strong> ${(order.when_label || '')}</div>
+      <div class="row"><strong>Customer:</strong> ${customerHtml}</div>
+    </section>
+
+    <section class="section items">
+      <h5>Items</h5>
+      <ul class="list">${itemsHtml}</ul>
+    </section>
+
+    <section class="section totals">
+      <h5>Totals</h5>
+      <ul class="list">
+        <li><span>Subtotal</span><span>${t.subtotal_label || ''}</span></li>
+        <li><span>Discount</span><span>${t.discount_label || '$0.00'}</span></li>
+        <li><span>Tax</span><span>${t.tax_label || ''}</span></li>
+        <li><span>Rounding</span><span>${t.rounding_label || '$0.00'}</span></li>
+        <li class="grand"><span>Total</span><span>${t.grand_total_label || ''}</span></li>
+      </ul>
+    </section>
+
+    <section class="section payments">
+      <h5>Payment</h5>
+      <ul class="list">${paymentsHtml}</ul>
+    </section>
+
+    <section class="section notes">
+      <h5>Notes</h5>
+      <textarea id="order-note-input" rows="3" placeholder="Add a note to the order." ${order.permissions?.can_add_note ? '' : 'disabled'}></textarea>
+      <div><button id="order-note-save" ${order.permissions?.can_add_note ? '' : 'disabled'}>Save note</button></div>
+    </section>
+  `;
+
+  // buttons according to permissions
+  const perms = order.permissions || {};
+  const btnPrint  = document.getElementById('order-btn-print');
+  const btnRefund = document.getElementById('order-btn-refund');
+  const btnAssign = document.getElementById('order-btn-assign');
+
+  btnRefund.disabled = !perms.can_refund;
+  btnAssign.disabled = !perms.can_assign_customer;
+
+//  btnPrint.onclick  = () => downloadOrderCSV(order);
+  btnRefund.onclick = () => showToast?.('Refund endpoint not implemented yet', { type: 'info' });
+  btnAssign.onclick = () => showToast?.('Assign customer flow coming soon', { type: 'info' });
+
+  const saveNoteBtn = document.getElementById('order-note-save');
+  saveNoteBtn.onclick = async () => {
+    const txt = (document.getElementById('order-note-input').value || '').trim();
+    if (!txt) return;
+    // add endpoint for adding nores to order in thefture
+    showToast?.('Note saved (stub)', { type: 'success' });
+  };
+}
