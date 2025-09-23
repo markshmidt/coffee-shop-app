@@ -989,9 +989,18 @@ function renderOrderModal(order) {
 
   // Build Items
   const itemsHtml = (order.items || []).map(it => {
-    const mods = (it.modifiers || [])
-      .map(mm => `${mm.group}: ${mm.choice}${mm.price_cents ? ` (+${mm.price_label})` : ''}`)
-      .join(' ; ');
+  console.log('raw modifiers array →', it.modifiers);
+console.log('is array?', Array.isArray(it.modifiers), 'len=', it.modifiers?.length);
+console.log('choices →', (it.modifiers || []).map(m => m.choice));
+
+   const mods = (it.modifiers || []).map(m => {
+        const name = String(m.choice || '').toLowerCase();
+    const amt  = (m.price_label || '');
+    return (m.price_cents && amt !== '0.00') ? `${name} (${amt})` : name;
+   })
+  .join(' ');
+  console.log(mods)
+
     return `
       <li class="li-line">
         <div class="left">

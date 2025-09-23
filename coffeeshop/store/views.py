@@ -14,7 +14,7 @@ from django.views.decorators.http import require_POST, require_GET
 # store/views.py
 from django.shortcuts import render
 
-from .models import Category, MenuItem, Variant, ModifierGroup, ModifierOption, Order, OrderItem
+from .models import Category, MenuItem, Variant, ModifierGroup, ModifierOption, Order, OrderItem, OrderItemModifier
 from .apps import (
     POS_TAX_RATE_BPS,         # 1300 (13%)
     POS_DISCOUNT_CHOICES,     # ("NONE", ...), ("STUDENT_10", ...), ...
@@ -574,16 +574,6 @@ def order_payment(request):
     if not isinstance(lines, list) or not lines:
         return JsonResponse({"ok": False, "error": "Cart is empty or malformed."}, status=400)
 
-    # Optional client totals
-    def _safe_int(x):
-        try:
-            return int(x)
-        except Exception:
-            return None
-    client_subtotal_cents = _safe_int(payload.get("client_subtotal_cents"))
-    client_tax_cents      = _safe_int(payload.get("client_tax_cents"))
-    client_total_cents    = _safe_int(payload.get("client_total_cents"))
-
     # ---- Recompute from DB ----
     # Using _price_item_validate to ensure variants belong to items and selections belong to allowed groups
     recomputed_subtotal_cents = 0
@@ -633,13 +623,16 @@ def order_payment(request):
                 variant_obj = Variant.objects.only("id").get(id=variant_id, menu_item=item, active=True)
             except Variant.DoesNotExist:
                 return JsonResponse({"ok": False, "error": f"Line {idx}: variant not found for this item."}, status=400)
-
+        variant_name = _variant_name or ""
         staged_items.append({
             "item": item,
             "variant": variant_obj,
             "quantity": qty,
-            "unit_price_cents": unit_total_cents,    # base + modifiers
+            "options_cents": options_cents,          # per-unit modifiers delta (optional, for reporting)
+            "base_cents": base_cents,
+            "unit_cents": unit_total_cents,
             "line_subtotal_cents": line_subtotal_cents,
+            "variant_name": variant_name,  # string label like "Americano 12oz" or ""
             "normalized": normalized,
         })
 
@@ -674,19 +667,46 @@ def order_payment(request):
         receipt_number=next_receipt,
     )
 
-    OrderItem.objects.bulk_create([
+    items_to_create = [
         OrderItem(
             order=order,
             menu_item=si["item"],
             name_snapshot=si["item"].name,
-            variant_name_snapshot=(Variant.objects.get(id=variant_id).name if si["variant"] else ""),
-            base_unit_price_cents=base_cents,
-            unit_price_cents=si["unit_price_cents"],  # base + modifiers
+            variant_name_snapshot=si["variant_name"],  # no extra DB hit
+            base_unit_price_cents=si["base_cents"],
+            unit_price_cents=si["unit_cents"],
             qty=si["quantity"],
         )
         for si in staged_items
-    ])
+    ]
+    created_items = OrderItem.objects.bulk_create(items_to_create)
+    #lookups for groups/modifiers options
+    group_ids, option_ids = set(), set()
+    for si in staged_items:
+        for sel in si["normalized"]:
+            group_ids.add(sel["group_id"])
+            option_ids.update(sel["option_ids"])
 
+    groups = {g.id: g.name for g in ModifierGroup.objects.filter(id__in=group_ids).only("id", "name")}
+    options = {o.id: (o.name, o.price_cents) for o in
+               ModifierOption.objects.filter(id__in=option_ids).only("id", "name", "price_cents")}
+
+    mods_to_create = []
+    for oi, si in zip(created_items, staged_items):
+        for sel in si["normalized"]:
+            gname = groups.get(sel["group_id"], "")
+            for oid in sel["option_ids"]:
+                oname, delta = options.get(oid, ("", 0))
+                mods_to_create.append(OrderItemModifier(
+                    order_item=oi,
+                    group_name_snapshot=gname,  # e.g. "Syrups"
+                    option_name_snapshot=oname,  # e.g. "Caramel"
+                    price_delta_cents_snapshot=delta,  # per-unit delta
+                ))
+    print("[PAY] will create modifier snapshots:", len(mods_to_create))
+    if mods_to_create:
+        print("[PAY] saved modifier snapshots in DB:",
+        OrderItemModifier.objects.bulk_create(mods_to_create))
     # ----- clear session cart -----
     request.session["cart"] = _empty_cart()
     _save_cart(request.session, request.session["cart"])  # keep pipeline consistent
@@ -711,7 +731,7 @@ def order_payment(request):
 
     return JsonResponse(resp, status=201)
 
-
+@csrf_exempt
 @login_required
 @require_GET
 def orders_list(request):
@@ -721,7 +741,7 @@ def orders_list(request):
     try:
         limit = max(1, min(50, int(request.GET.get("limit", 20))))
     except Exception:
-        limit = 20
+        limit = 1
 
     cursor = request.GET.get("cursor")
     qs = (
@@ -801,7 +821,7 @@ def serialize_order_for_modal(order):
         for m in mods_qs:
             gname = getattr(m, "group_name_snapshot", "")
             oname = getattr(m, "option_name_snapshot", "")
-            delta = getattr(m, "price_delta_cents", 0) or 0
+            delta = getattr(m, "price_delta_cents_snapshot", 0) or 0
             modifiers_out.append({
                 "group": gname,
                 "choice": oname,
@@ -883,6 +903,7 @@ def serialize_order_for_modal(order):
         "customer": customer,
         "notes": getattr(order, "internal_notes", ""),
     }
+@csrf_exempt
 @login_required
 @require_GET
 def order_detail(request, pk):
