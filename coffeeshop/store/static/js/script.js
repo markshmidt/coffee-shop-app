@@ -623,7 +623,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Always return a 'CARD' or 'CASH'. If nothing is selected, pick random (for learning purposes)
-async function getSelectedPaymentMethod({ allowRandom = false } = {}) {
+ function getSelectedPaymentMethod({ allowRandom = false } = {}) {
   //choose which method is selected
   const checked = document.querySelector('input[name="pm"]:checked');
   let val = (checked?.value || '').toString().trim().toUpperCase();
@@ -638,7 +638,7 @@ async function getSelectedPaymentMethod({ allowRandom = false } = {}) {
 
     // sync server-side cart (refactored to catch errors asynchronously)
     try {
-      const { cart } = await postJSON('/cart/discount/', { payment_method: val });
+      const { cart } = postJSON('/cart/discount/', { payment_method: val });
       renderCart(cart);
     } catch (err) {
       console.error('Payment method application failed:', err);
@@ -700,7 +700,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const pm = (o.payment_method === 'CASH') ? 'Cash' : 'Card';
 
      const label = `${o.total_label} ${pm}`; // "$5.65" -> "5.65 Card"
-      addInvoiceChip(label, o.id, 'prev-invoices-list', o.created_by);
+      addInvoiceChip(label, o.id, 'prev-invoices-list', o.created_by, 2);
     }
   } catch (e) {
     console.warn('Could not load previous invoices:', e);
@@ -722,7 +722,7 @@ async function onPayClick(e) {
 
   console.debug('Cart before pay:', cart?.lines?.length, cart);
 
-  // If empty
+  // empty cart prevention
   if (!cart?.lines?.length) return;
 
   // Double-click prevention
@@ -731,21 +731,13 @@ async function onPayClick(e) {
   btn.setAttribute('aria-busy', 'true');
 
   // random payment method selection
-  const pmRaw = getSelectedPaymentMethod({ allowRandom: true });
+  const paymentMethod = getSelectedPaymentMethod({ allowRandom: true });
+  console.log("Payment method is: ", paymentMethod)
 
-    //Gets the chosen method
-  const paymentMethod = (pmRaw || '').toString().trim().toUpperCase();
-//  if (paymentMethod !== 'CARD' && paymentMethod !== 'CASH') {
-//    console.warn('Fixing invalid payment_method:', pmRaw);
-//    //  if somehow still invalid force card
-//    const fallback = 'CARD';
-//    const radio = document.querySelector(`input[name="pm"][value="${fallback}"]`);
-//    if (radio) radio.checked = true;
-//    try { postJSON('/cart/discount/', { payment_method: fallback }).then(({cart}) => renderCart(cart)); } catch {}
-//  }
   try {
+  //build payload
     const payload = {
-      payment_method: (paymentMethod === 'CARD' || paymentMethod === 'CASH') ? paymentMethod : 'CARD',
+      payment_method: paymentMethod,
       discount_cents: cart.discount_cents || 0,
       lines: cart.lines.map(l => ({
         item_id: l.item_id,
@@ -753,12 +745,9 @@ async function onPayClick(e) {
         qty: l.qty,
         selections: l.selections || [],
       })),
-      // Diagnostics
-      client_subtotal_cents: cart.subtotal_cents,
-      client_tax_cents: cart.tax_cents,
-      client_total_cents: cart.total_cents,
     };
 
+    // pay
     const res = await fetch('/order/pay/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
@@ -773,7 +762,7 @@ async function onPayClick(e) {
     //  clear cart
     try {
       const fresh = await getJSON('/cart/');
-     if (isPOS()) renderCart(cart);
+     if (isPOS()) renderCart(fresh.cart);
 
     } catch {
       renderCart({
@@ -792,7 +781,7 @@ async function onPayClick(e) {
       data.created_by
     );
 
-    // for debug
+    // toast for debug
     showToast?.(`Order #${data.order_id} created — ${data.total_label || data.chip_label}`, { type: 'success' });
 
   } catch (err) {
@@ -809,6 +798,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const feed = document.getElementById('orders-feed');
   if (!feed) return;
 
+// pagination
   const loadMoreBtn = document.getElementById('orders-load-more');
   let cursor = null;
   let loading = false;
@@ -863,11 +853,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const footer = document.createElement('footer');
     const total = document.createElement('div');
     total.textContent = `Total ${o.total_label}`;
+    const paymentPill = document.createElement('div')
     const statusPill = document.createElement('div');
+    paymentPill.className = `payment-pill payment--${o.payment_method.toLowerCase()}`;
+    paymentPill.textContent = o.payment_method;
     statusPill.className = `status-pill status--${o.status.toLowerCase()}`;
     statusPill.textContent = o.status;
     footer.appendChild(total);
     footer.appendChild(statusPill);
+    footer.appendChild(paymentPill)
     card.appendChild(footer);
 
     return card;
@@ -876,13 +870,14 @@ document.addEventListener('DOMContentLoaded', () => {
   try {
     const { ok, order } = await getJSON(`/orders/${orderId}/`);
     if (!ok) throw new Error('Load failed');
-    renderOrderModal(order); //for future clickable card
+//    renderOrderModal(order); //for future clickable card
   } catch (e) {
     console.error('openOrderModal failed:', e);
     showToast?.(e.message || 'Failed to load order', { type: 'error' });
   }
 }
 
+    // one listener on the container
   feed.addEventListener('click', (e) => {
     const card = e.target.closest('.order-card');
     if (!card || !feed.contains(card)) return;
@@ -898,18 +893,25 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   async function fetchPage({ reset=false } = {}) {
+
+  //from overlapping fetches
     if (loading) return;
     loading = true;
+
     try {
       if (reset) {
+      //manual “refresh
         cursor = null;
         feed.innerHTML = '';
       }
-      const params = new URLSearchParams({ limit: '12' });
+      const params = new URLSearchParams({ limit: '16' }); //how many shon on page
       if (cursor) params.set('cursor', String(cursor));
+
       const data = await getJSON(`/orders/list/?${params}`);
-      (data.orders || []).forEach(o => feed.appendChild(renderOrderCard(o)));
+
+      (data.orders || []).forEach(o => feed.appendChild(renderOrderCard(o))); //defensive default
       cursor = data.next_cursor || null;
+    // null/undefined means no more pages
       if (loadMoreBtn) loadMoreBtn.style.display = cursor ? '' : 'none';
     } catch (e) {
       console.error(e);

@@ -24,6 +24,21 @@
 .order-badge {
   padding:2px 6px; border-radius: 6px; background:#1f2937; color:#e5e7eb; font-size:.75rem;
 }
-.pm-badge { font-weight:600; }
-.pm-badge.CARD { color:#60a5fa; }
-.pm-badge.CASH { color:#34d399; }
+.payment-pill,
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: .2rem;
+  padding: .55rem .12rem;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 1rem;
+  line-height: 1;
+  border: 1px solid transparent;
+}
+.payment-pill.payment--card   { color:#2563eb; background:rgba(37,99,235,.12);  border-color:rgba(37,99,235,.25); }
+.payment-pill.payment--cash   { color:#059669; background:rgba(5,150,105,.12);  border-color:rgba(5,150,105,.25); }
+.status-pill.status--paid     { color:#10b981; background:rgba(16,185,129,.12); border-color:rgba(16,185,129,.25); }
+.status-pill.status--refunded { color:#f59e0b; background:rgba(245,158,11,.12);  border-color:rgba(245,158,11,.25); }
+.status-pill.status--void     { color:#ef4444; background:rgba(239,68,68,.12);   border-color:rgba(239,68,68,.25); }
+.status-pill.status--open     { color:#a78bfa; background:rgba(167,139,250,.12); border-color:rgba(167,139,250,.25); }
