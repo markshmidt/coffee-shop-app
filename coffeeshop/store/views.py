@@ -505,7 +505,6 @@ def logout_user(request):
     return redirect('login')
 
 # ====== ORDER VIEWS =====
-@csrf_exempt
 @login_required
 @require_POST
 def order_payment(request):
@@ -561,7 +560,7 @@ def order_payment(request):
         return JsonResponse({"ok": False, "error": "payment_method must be 'CARD' or 'CASH'."}, status=400)
     payment_method = method_raw
 
-    #  discount in cents negative -> 0
+    #  converts to integer cents discount, negative -> 0 to prevent negative totals
     try:
         requested_discount_cents = int(payload.get("discount_cents") or 0)
     except Exception:
@@ -593,6 +592,7 @@ def order_payment(request):
         if qty < 1:
             return JsonResponse({"ok": False, "error": f"Line {idx}: qty must be >= 1."}, status=400)
 
+        #ensure menuitem exists
         try:
             item = MenuItem.objects.get(id=item_id, active=True)
         except MenuItem.DoesNotExist:
@@ -600,9 +600,11 @@ def order_payment(request):
 
         #validate unit price
         try:
+            # logs for debug
             print(f"[PAY] item_id={item_id} variant_id={variant_id} qty={qty}")
             print("[PAY] allowed groups:", list(item.applicable_modifier_groups().values_list("id", flat=True)))
 
+            #verify variants belong to item and groups are allowed
             base_cents, options_cents, unit_total_cents, normalized, _variant_name = _price_item_validate(
                 item=item,
                 variant_id=variant_id,
@@ -620,6 +622,7 @@ def order_payment(request):
         variant_obj = None
         if variant_id is not None:
             try:
+                # defer loading all fields except "id" with only
                 variant_obj = Variant.objects.only("id").get(id=variant_id, menu_item=item, active=True)
             except Variant.DoesNotExist:
                 return JsonResponse({"ok": False, "error": f"Line {idx}: variant not found for this item."}, status=400)
@@ -681,17 +684,20 @@ def order_payment(request):
     ]
     created_items = OrderItem.objects.bulk_create(items_to_create)
     #lookups for groups/modifiers options
+    # builds two sets from  precomputed staged_items structure
     group_ids, option_ids = set(), set()
     for si in staged_items:
         for sel in si["normalized"]:
-            group_ids.add(sel["group_id"])
-            option_ids.update(sel["option_ids"])
+            group_ids.add(sel["group_id"]) #(e.g., “Syrups”, “Milk”).
+            option_ids.update(sel["option_ids"])#(e.g., “Caramel”, “Oat Milk”).
 
+    #maps ids -> names/prices
     groups = {g.id: g.name for g in ModifierGroup.objects.filter(id__in=group_ids).only("id", "name")}
     options = {o.id: (o.name, o.price_cents) for o in
                ModifierOption.objects.filter(id__in=option_ids).only("id", "name", "price_cents")}
 
     mods_to_create = []
+    #build modifier snapshot rows
     for oi, si in zip(created_items, staged_items):
         for sel in si["normalized"]:
             gname = groups.get(sel["group_id"], "")
@@ -802,13 +808,12 @@ def serialize_order_for_modal(order):
     """
     Return a dict with everything the modal needs.
     """
-
     when_dt = timezone.localtime(order.paid_at or order.created_at)
 
     # ---- Items with variants + modifiers ----
     items_out = []
     for it in order.items.all():
-        # if related name differs, fall back safely
+        # fetch modifier snapshots for this order item (already prefetched by order_detail)
         try:
             mods_qs = it.modifiers.all()
         except Exception:
@@ -817,36 +822,86 @@ def serialize_order_for_modal(order):
             except Exception:
                 mods_qs = []
 
+        # flat list of modifiers + per-unit modifier sum
         modifiers_out = []
+        per_unit_mod_sum = 0
         for m in mods_qs:
-            gname = getattr(m, "group_name_snapshot", "")
-            oname = getattr(m, "option_name_snapshot", "")
             delta = getattr(m, "price_delta_cents_snapshot", 0) or 0
+            per_unit_mod_sum += delta
             modifiers_out.append({
-                "group": gname,
-                "choice": oname,
+                "group": getattr(m, "group_name_snapshot", ""),
+                "choice": getattr(m, "option_name_snapshot", ""),
                 "price_cents": delta,
                 "price_label": _fmt_cents(delta),
             })
 
-        unit = it.unit_price_cents
+        # unit & qty
         qty  = it.qty
-        line = unit * qty
+        u_c  = it.unit_price_cents or 0                 # base + modifiers (per unit)
 
+        # base may be missing on legacy rows -> derive safely
+        base = getattr(it, "base_unit_price_cents", None)
+        if base is None:
+            base = max(0, u_c - per_unit_mod_sum)
+
+        mods = max(0, per_unit_mod_sum)
+
+        # extended amounts
+        base_total_cents = base * qty
+        mods_total_cents = mods * qty
+
+        # group modifiers for a printable look (group totals + extended totals)
+        from collections import defaultdict
+        grouped = defaultdict(lambda: {"group": "", "options": [], "group_total_cents": 0})
+        for mm in modifiers_out:
+            g = mm["group"] or "Modifiers"
+            box = grouped[g]
+            box["group"] = g
+            box["options"].append(mm)
+            box["group_total_cents"] += (mm["price_cents"] or 0)
+
+        modifier_groups = []
+        for box in grouped.values():
+            ext = (box["group_total_cents"] or 0) * qty
+            modifier_groups.append({
+                **box,
+                "group_total_label": _fmt_cents(box["group_total_cents"]),
+                "group_total_ext_cents": ext,
+                "group_total_ext_label": _fmt_cents(ext),
+            })
+
+        # final per-item dict
         items_out.append({
             "line_id": it.id,
             "name": it.name_snapshot,
             "variant": it.variant_name_snapshot or "",
             "qty": qty,
-            "unit_cents": unit,
-            "unit_label": _fmt_cents(unit),
-            "line_cents": line,
-            "line_label": _fmt_cents(line),
+
+            # original totals
+            "unit_cents": u_c,
+            "unit_label": _fmt_cents(u_c),
+            "line_cents": u_c * qty,
+            "line_label": _fmt_cents(u_c * qty),
+
+            # base vs mods (unit + extended)
+            "base_unit_cents": base,
+            "base_unit_label": _fmt_cents(base),
+            "base_total_cents": base_total_cents,
+            "base_total_label": _fmt_cents(base_total_cents),
+
+            "mods_unit_cents": mods,
+            "mods_unit_label": _fmt_cents(mods),
+            "mods_total_cents": mods_total_cents,
+            "mods_total_label": _fmt_cents(mods_total_cents),
+
+            # modifiers (both flat + grouped for UI)
             "modifiers": modifiers_out,
+            "modifier_groups": modifier_groups,
+
             "note": getattr(it, "note", ""),
         })
 
-    # ---- Totals (prefer stored fields; compute as fallback) ----
+    # ---- Totals (use stored, compute if missing) ----
     subtotal_cents = getattr(order, "subtotal_cents", None)
     if subtotal_cents is None:
         subtotal_cents = sum(i["line_cents"] for i in items_out)
@@ -864,7 +919,7 @@ def serialize_order_for_modal(order):
         "grand_total_cents": grand_cents, "grand_total_label": _fmt_cents(grand_cents),
     }
 
-    # ---- Payments----
+    # ---- Payments (if you have a relation) ----
     payments_out = []
     if hasattr(order, "payments"):
         for p in order.payments.all():
@@ -878,7 +933,6 @@ def serialize_order_for_modal(order):
                 "at": timezone.localtime(getattr(p, "created_at", order.created_at)).isoformat(),
             })
 
-    # ---- Customer (for future) ----
     customer = None
     if getattr(order, "customer_id", None):
         c = order.customer
@@ -893,7 +947,7 @@ def serialize_order_for_modal(order):
         "id": order.id,
         "number": getattr(order, "receipt_number", order.id),
         "status": order.status,
-        "payment_method": (getattr(order, "payment_method", "") or "").upper(),  # CARD/CASH
+        "payment_method": (getattr(order, "payment_method", "") or "").upper(),
         "created_by": order.created_by.get_username(),
         "when_iso": when_dt.isoformat(),
         "when_label": when_dt.strftime("%Y-%m-%d %H:%M"),
@@ -903,6 +957,7 @@ def serialize_order_for_modal(order):
         "customer": customer,
         "notes": getattr(order, "internal_notes", ""),
     }
+
 @csrf_exempt
 @login_required
 @require_GET

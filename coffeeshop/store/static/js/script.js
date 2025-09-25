@@ -982,57 +982,44 @@ function hideOrderModal() {
 function renderOrderModal(order) {
   const m = ensureOrderModal();
   m.style.display = 'flex';
-
-  const toLabel = window.centsToLabel || (c => '$' + (c / 100).toFixed(2));
-
-  // Fallback if server only returns flat modifiers:
-  const groupFromFlat = (flat, qty) => {
-    const map = new Map();
-    (flat || []).forEach(o => {
-      const g = o.group || 'Modifiers';
-      const curr = map.get(g) || { group: g, options: [], group_total_cents: 0 };
-      curr.options.push(o);
-      curr.group_total_cents += (o.price_cents || 0);
-      map.set(g, curr);
-    });
-    return Array.from(map.values()).map(g => ({
-      ...g,
-      group_total_label: toLabel(g.group_total_cents),
-      group_total_ext_cents: g.group_total_cents * (qty || 1),
-      group_total_ext_label: toLabel(g.group_total_cents * (qty || 1)),
-    }));
-  };
-
-  // Title
   document.getElementById('order-modal-title').textContent =
     `Order #${order.number || order.id}`;
 
-  // Items
+  const centsTo = c => '$' + ((c || 0) / 100).toFixed(2);
+
   const itemsHtml = (order.items || []).map(it => {
-    const qty = parseInt(it.qty || 0, 10);
+    // fallbacks so we never print "undefined"
+    const qty = it.qty || 1;
 
-    // Prefer grouped modifiers coming from the API; otherwise build from flat list
-    const groups = (it.modifier_groups && it.modifier_groups.length)
-      ? it.modifier_groups
-      : groupFromFlat(it.modifiers || [], qty);
+    const baseUnit = Number.isFinite(it.base_unit_cents)
+      ? it.base_unit_cents
+      : Math.max(0, (it.unit_cents || 0) - (it.mods_unit_cents || 0));
 
-    const groupsHtml = groups.map(g => {
+    const baseUnitLabel  = it.base_unit_label  || centsTo(baseUnit);
+    const baseTotalLabel = it.base_total_label || centsTo(baseUnit * qty);
+
+    const modsUnit       = Number.isFinite(it.mods_unit_cents) ? it.mods_unit_cents : 0;
+    const modsUnitLabel  = it.mods_unit_label  || centsTo(modsUnit);
+    const modsTotalLabel = it.mods_total_label || centsTo(modsUnit * qty);
+
+    // grouped modifiers (if present)
+    const groupsHtml = (it.modifier_groups || []).map(g => {
       const opts = (g.options || []).map(o =>
-        `${o.choice}${(o.price_cents || 0) > 0 ? ` (+${o.price_label})` : ''}`
+        `${o.choice}${o.price_cents ? ` (+${o.price_label})` : ''}`
       ).join(', ');
-      const totalBit = (g.group_total_cents || 0) > 0
+      const totalLine = g.group_total_ext_cents
         ? ` — ${g.group_total_ext_label}`
         : '';
-      return `<div class="muted small">${g.group}: ${opts}${totalBit}</div>`;
+      return `<div class="muted small">${g.group}: ${opts}${totalLine}</div>`;
     }).join('');
 
-    // Base vs modifiers breakdown (unit & extended)
-    const baseUnitCents = parseInt(it.base_unit_cents || 0, 10);
-    const modsUnitCents = parseInt(it.mods_unit_cents || 0, 10);
-    const baseHtml = `base ${it.base_unit_label} ×${qty} = ${it.base_total_label}`;
-    const modsHtml = modsUnitCents > 0
-      ? `<br>mods ${it.mods_unit_label} ×${qty} = ${it.mods_total_label}`
-      : '';
+    // base vs mods breakdown
+    const breakdown = `
+      <div class="muted small">
+        base ${baseUnitLabel} ×${qty} = ${baseTotalLabel}
+        ${modsUnit > 0 ? `<br>mods ${modsUnitLabel} ×${qty} = ${modsTotalLabel}` : ''}
+      </div>
+    `;
 
     return `
       <li class="li-line">
@@ -1040,28 +1027,27 @@ function renderOrderModal(order) {
           <span class="qty">×${qty}</span> ${it.name}
           ${it.variant ? `<span class="muted">· ${it.variant}</span>` : ''}
           ${groupsHtml}
-          <div class="muted small">${baseHtml}${modsHtml}</div>
+          ${breakdown}
         </div>
         <div class="right">${it.line_label}</div>
       </li>
     `;
   }).join('');
 
+  // ...leave your totals/payments/notes code as-is, just replace <ul class="list">${itemsHtml}</ul>
   const t = order.totals || {};
   const paymentsHtml = (order.payments || []).map(p =>
-    `<li>${(p.method || order.payment_method || '')} — ${p.amount_label || ''} ${p.ref ? `<span class="muted">(${p.ref})</span>` : ''}</li>`
+    `<li>${(p.method || order.payment_method || '')} — ${p.amount_label || ''} ${p.ref ? `<span class="muted">(${(p.ref)})</span>` : ''}</li>`
   ).join('') || `<li>${(order.payment_method || '')}</li>`;
 
   const customerHtml = order.customer
-    ? `${order.customer.name}${order.customer.phone ? ` • ${order.customer.phone}` : ''}`
+    ? `${order.customer.name} ${order.customer.phone ? `• ${order.customer.phone}` : ''}`
     : '<span class="muted">Guest customer</span>';
 
-  // Render modal
-  const body = document.getElementById('order-modal-content');
-  body.innerHTML = `
+  document.getElementById('order-modal-content').innerHTML = `
     <section class="section summary">
-      <div class="row"><strong>Status:</strong> <span class="status-pill status--${String(order.status || '').toLowerCase()}">${order.status || ''}</span></div>
-      <div class="row"><strong>When:</strong> ${order.when_label || ''}</div>
+      <div class="row"><strong>Status:</strong> <span class="status-pill status--${String(order.status || '').toLowerCase()}">${(order.status || '')}</span></div>
+      <div class="row"><strong>When:</strong> ${(order.when_label || '')}</div>
       <div class="row"><strong>Customer:</strong> ${customerHtml}</div>
     </section>
 
@@ -1092,6 +1078,7 @@ function renderOrderModal(order) {
       <div><button id="order-note-save" ${order.permissions?.can_add_note ? '' : 'disabled'}>Save note</button></div>
     </section>
   `;
+
 
   // Toolbar buttons
   const perms = order.permissions || {};
