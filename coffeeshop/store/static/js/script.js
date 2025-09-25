@@ -983,49 +983,85 @@ function renderOrderModal(order) {
   const m = ensureOrderModal();
   m.style.display = 'flex';
 
-  // Header title + status
-  const titleEl = document.getElementById('order-modal-title');
-  titleEl.textContent = `Order #${order.number || order.id}`;
+  const toLabel = window.centsToLabel || (c => '$' + (c / 100).toFixed(2));
 
-  // Build Items
+  // Fallback if server only returns flat modifiers:
+  const groupFromFlat = (flat, qty) => {
+    const map = new Map();
+    (flat || []).forEach(o => {
+      const g = o.group || 'Modifiers';
+      const curr = map.get(g) || { group: g, options: [], group_total_cents: 0 };
+      curr.options.push(o);
+      curr.group_total_cents += (o.price_cents || 0);
+      map.set(g, curr);
+    });
+    return Array.from(map.values()).map(g => ({
+      ...g,
+      group_total_label: toLabel(g.group_total_cents),
+      group_total_ext_cents: g.group_total_cents * (qty || 1),
+      group_total_ext_label: toLabel(g.group_total_cents * (qty || 1)),
+    }));
+  };
+
+  // Title
+  document.getElementById('order-modal-title').textContent =
+    `Order #${order.number || order.id}`;
+
+  // Items
   const itemsHtml = (order.items || []).map(it => {
-  console.log('raw modifiers array →', it.modifiers);
-console.log('is array?', Array.isArray(it.modifiers), 'len=', it.modifiers?.length);
-console.log('choices →', (it.modifiers || []).map(m => m.choice));
+    const qty = parseInt(it.qty || 0, 10);
 
-   const mods = (it.modifiers || []).map(m => {
-        const name = String(m.choice || '').toLowerCase();
-    const amt  = (m.price_label || '');
-    return (m.price_cents && amt !== '0.00') ? `${name} (${amt})` : name;
-   })
-  .join(' ');
-  console.log(mods)
+    // Prefer grouped modifiers coming from the API; otherwise build from flat list
+    const groups = (it.modifier_groups && it.modifier_groups.length)
+      ? it.modifier_groups
+      : groupFromFlat(it.modifiers || [], qty);
+
+    const groupsHtml = groups.map(g => {
+      const opts = (g.options || []).map(o =>
+        `${o.choice}${(o.price_cents || 0) > 0 ? ` (+${o.price_label})` : ''}`
+      ).join(', ');
+      const totalBit = (g.group_total_cents || 0) > 0
+        ? ` — ${g.group_total_ext_label}`
+        : '';
+      return `<div class="muted small">${g.group}: ${opts}${totalBit}</div>`;
+    }).join('');
+
+    // Base vs modifiers breakdown (unit & extended)
+    const baseUnitCents = parseInt(it.base_unit_cents || 0, 10);
+    const modsUnitCents = parseInt(it.mods_unit_cents || 0, 10);
+    const baseHtml = `base ${it.base_unit_label} ×${qty} = ${it.base_total_label}`;
+    const modsHtml = modsUnitCents > 0
+      ? `<br>mods ${it.mods_unit_label} ×${qty} = ${it.mods_total_label}`
+      : '';
 
     return `
       <li class="li-line">
         <div class="left">
-          <span class="qty">×${it.qty}</span> ${(it.name)}
-          ${it.variant ? `<span class="muted">· ${(it.variant)}</span>` : ''}
-          ${mods ? `<div class="muted small">${(mods)}</div>` : ''}
+          <span class="qty">×${qty}</span> ${it.name}
+          ${it.variant ? `<span class="muted">· ${it.variant}</span>` : ''}
+          ${groupsHtml}
+          <div class="muted small">${baseHtml}${modsHtml}</div>
         </div>
         <div class="right">${it.line_label}</div>
-      </li>`;
+      </li>
+    `;
   }).join('');
 
   const t = order.totals || {};
   const paymentsHtml = (order.payments || []).map(p =>
-    `<li>${(p.method || order.payment_method || '')} — ${p.amount_label || ''} ${p.ref ? `<span class="muted">(${(p.ref)})</span>` : ''}</li>`
+    `<li>${(p.method || order.payment_method || '')} — ${p.amount_label || ''} ${p.ref ? `<span class="muted">(${p.ref})</span>` : ''}</li>`
   ).join('') || `<li>${(order.payment_method || '')}</li>`;
 
   const customerHtml = order.customer
-    ? `${(order.customer.name)} ${order.customer.phone ? `• ${(order.customer.phone)}` : ''}`
+    ? `${order.customer.name}${order.customer.phone ? ` • ${order.customer.phone}` : ''}`
     : '<span class="muted">Guest customer</span>';
 
+  // Render modal
   const body = document.getElementById('order-modal-content');
   body.innerHTML = `
     <section class="section summary">
-      <div class="row"><strong>Status:</strong> <span class="status-pill status--${String(order.status || '').toLowerCase()}">${(order.status || '')}</span></div>
-      <div class="row"><strong>When:</strong> ${(order.when_label || '')}</div>
+      <div class="row"><strong>Status:</strong> <span class="status-pill status--${String(order.status || '').toLowerCase()}">${order.status || ''}</span></div>
+      <div class="row"><strong>When:</strong> ${order.when_label || ''}</div>
       <div class="row"><strong>Customer:</strong> ${customerHtml}</div>
     </section>
 
@@ -1057,24 +1093,21 @@ console.log('choices →', (it.modifiers || []).map(m => m.choice));
     </section>
   `;
 
-  // buttons according to permissions
+  // Toolbar buttons
   const perms = order.permissions || {};
-  const btnPrint  = document.getElementById('order-btn-print');
   const btnRefund = document.getElementById('order-btn-refund');
   const btnAssign = document.getElementById('order-btn-assign');
+  const btnPrint  = document.getElementById('order-btn-print');
 
   btnRefund.disabled = !perms.can_refund;
   btnAssign.disabled = !perms.can_assign_customer;
-
-//  btnPrint.onclick  = () => downloadOrderCSV(order);
   btnRefund.onclick = () => showToast?.('Refund endpoint not implemented yet', { type: 'info' });
   btnAssign.onclick = () => showToast?.('Assign customer flow coming soon', { type: 'info' });
+  btnPrint.onclick  = () => showToast?.('CSV receipt coming soon', { type: 'info' });
 
-  const saveNoteBtn = document.getElementById('order-note-save');
-  saveNoteBtn.onclick = async () => {
+  document.getElementById('order-note-save').onclick = () => {
     const txt = (document.getElementById('order-note-input').value || '').trim();
     if (!txt) return;
-    // add endpoint for adding nores to order in thefture
     showToast?.('Note saved (stub)', { type: 'success' });
   };
 }
