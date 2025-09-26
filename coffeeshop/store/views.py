@@ -11,6 +11,7 @@ from django.http import JsonResponse, HttpResponseBadRequest
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST, require_GET
+from collections import defaultdict
 # store/views.py
 from django.shortcuts import render
 
@@ -816,17 +817,16 @@ def serialize_order_for_modal(order):
 
     # ---- Items with variants + modifiers ----
     items_out = []
+
+    #loop through all OrderItems for the current order
     for it in order.items.all():
         # fetch modifier snapshots for this order item (already prefetched by order_detail)
         try:
             mods_qs = it.modifiers.all()
         except Exception:
-            try:
-                mods_qs = it.orderitemmodifier_set.all()
-            except Exception:
-                mods_qs = []
+            mods_qs = []
 
-        # flat list of modifiers + per-unit modifier sum
+        # flat list of modifier dicts + per-unit modifier sum
         modifiers_out = []
         per_unit_mod_sum = 0
         for m in mods_qs:
@@ -854,18 +854,19 @@ def serialize_order_for_modal(order):
         base_total_cents = base * qty
         mods_total_cents = mods * qty
 
-        # group modifiers for a printable look (group totals + extended totals)
-        from collections import defaultdict
+        # group modifiers for a future cheque ui (group totals + extended totals)
         grouped = defaultdict(lambda: {"group": "", "options": [], "group_total_cents": 0})
-        for mm in modifiers_out:
-            g = mm["group"] or "Modifiers"
+        for modifier in modifiers_out:
+            #sum per-unit deltas per group
+            g = modifier["group"] or "Modifiers"
             box = grouped[g]
             box["group"] = g
-            box["options"].append(mm)
-            box["group_total_cents"] += (mm["price_cents"] or 0)
+            box["options"].append(modifier)
+            box["group_total_cents"] += (modifier["price_cents"] or 0)
 
         modifier_groups = []
         for box in grouped.values():
+            # for each group per-unit sum × qty
             ext = (box["group_total_cents"] or 0) * qty
             modifier_groups.append({
                 **box,
@@ -982,6 +983,7 @@ def order_detail(request, pk):
         pk=pk,
     )
 
+    #modal payload and attaching user-specific permissions.
     data = serialize_order_for_modal(order)
     data["permissions"] = compute_order_permissions(order, request.user)
     return JsonResponse({"ok": True, "order": data})
