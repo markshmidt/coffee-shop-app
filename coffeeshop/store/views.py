@@ -745,16 +745,16 @@ def orders_list(request):
     Return the most recent orders, newest first.
     """
     try:
-        limit = max(1, min(50, int(request.GET.get("limit", 20))))
+        limit = max(1, min(50, int(request.GET.get("limit", 16))))
     except Exception:
         limit = 1
 
     cursor = request.GET.get("cursor")
     qs = (
         Order.objects
-        .select_related("created_by")
-        .prefetch_related(
-            Prefetch(
+        .select_related("created_by") #joins the user table
+        .prefetch_related( #pulls only the columns needed for the list ui
+            Prefetch( #fetch all items for the slice of orders
                 "items",
                 queryset=OrderItem.objects.only(
                     "order_id",
@@ -765,16 +765,20 @@ def orders_list(request):
                 ),
             )
         )
-        .order_by("-id")
+        .order_by("-id") #newest first
     )
     if cursor:
         try:
-            qs = qs.filter(id__lt=int(cursor))
+            qs = qs.filter(id__lt=int(cursor)) #ilter by id < cursor
         except Exception:
             pass
 
     out = []
-    for o in qs[:limit]:
+    page = list(qs[:limit + 1])  # ask for one more than we plan to return
+    has_more = len(page) > limit  # true if the +1 existed
+    orders = page[:limit]  # trim the extra before serializing
+
+    for o in orders: #materializes only page in settled limit with prefetched orders
         when_dt = o.paid_at or o.created_at
         when_dt = timezone.localtime(when_dt)  # show local time
         when_label = when_dt.strftime("%Y-%m-%d %H:%M")
@@ -801,7 +805,7 @@ def orders_list(request):
             ],
         })
 
-    next_cursor = out[-1]["id"] if len(out) == limit else None
+    next_cursor = orders[-1].id if has_more else None
     return JsonResponse({"ok": True, "orders": out, "next_cursor": next_cursor})
 
 def serialize_order_for_modal(order):
