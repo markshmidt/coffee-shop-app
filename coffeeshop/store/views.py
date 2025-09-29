@@ -988,6 +988,21 @@ def order_detail(request, pk):
     data["permissions"] = compute_order_permissions(order, request.user)
     return JsonResponse({"ok": True, "order": data})
 @login_required
+def order_note(request, pk):
+    order = get_object_or_404(Order, pk=pk)
+    pass
+
+@login_required
+def order_receipt(request, pk):
+    """
+        Render an HTML receipt for printing/downloading.
+        Query params:
+          - download=1 -> prompt download as .html file
+          - save=1     -> persist the rendered HTML into order.receipt_file
+        """
+    order = get_object_or_404(Order, pk=pk)
+    pass
+@login_required
 def orders_page(request):
     return render(request, "orders_page.html")
 

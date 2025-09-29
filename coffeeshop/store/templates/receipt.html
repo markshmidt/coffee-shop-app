@@ -1,0 +1,155 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Receipt #{{ o.number }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    /* 80mm receipt-friendly + looks fine on A4 too */
+    :root { --ink:#222; --muted:#666; --border:#e7e7e7; --accent:#000; }
+    * { box-sizing: border-box; }
+    body {
+      font: 14px/1.35 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+      color: var(--ink); margin: 0; padding: 0; background: #fff;
+    }
+    .page {
+      width: 80mm; max-width: 100%; margin: 0 auto; padding: 16px 14px 24px;
+    }
+    .brand { text-align:center; margin-bottom: 8px; }
+    .brand img { max-width: 140px; height: auto; display:block; margin: 0 auto 6px; }
+    .brand h1 { font-size: 16px; margin: 6px 0 0; letter-spacing: .5px; }
+    .meta, .totals, .items, .footer { width:100%; }
+    .muted { color: var(--muted); }
+    .rule { border-top: 1px dashed var(--border); margin: 10px 0; }
+
+    .meta-grid { display:grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; }
+    .meta-grid div span { display:block; }
+    .meta-grid .label { font-size:12px; color: var(--muted); }
+    .meta-grid .val   { font-weight: 600; }
+
+    .items ul { list-style:none; padding:0; margin:0; }
+    .li-line { display:flex; justify-content:space-between; gap: 12px; padding:6px 0; }
+    .li-line .name { flex:1; }
+    .qty { font-weight:700; margin-right:6px; }
+    .variant { color: var(--muted); margin-left:4px; }
+    .price { white-space:nowrap; font-variant-numeric: tabular-nums; }
+
+    .mods { margin: 3px 0 0 22px; font-size:12px; color: var(--muted); }
+    .mods .group { margin: 0; }
+    .mods .group .ghead { font-weight:600; }
+    .breakdown { margin: 2px 0 0 22px; font-size:12px; color: var(--muted); }
+
+    .totals table { width:100%; border-collapse:collapse; }
+    .totals td { padding:4px 0; }
+    .totals .label { color: var(--muted); }
+    .totals .grand { font-weight:800; border-top: 1px dashed var(--border); padding-top:8px; }
+
+    .footer { text-align:center; margin-top: 12px; font-size:12px; color: var(--muted); }
+
+    @media print {
+      @page { margin: 6mm; }
+      .page { width: auto; padding:0; }
+      .rule { margin: 8px 0; }
+      .no-print { display:none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="brand">
+      <!-- Put your logo file under static/img/ -->
+      <img src="{% static 'pics/coffee-island-logo.png' %}" alt="Cafe Logo">
+      <h1>Coffee Island</h1>
+    </div>
+
+    <!-- Header / Meta -->
+    <div class="meta">
+      <div class="meta-grid">
+        <div>
+          <span class="label">Receipt #</span>
+          <span class="val">#{{ o.number }}</span>
+        </div>
+        <div>
+          <span class="label">Date</span>
+          <span class="val">{{ o.when_label }}</span>
+        </div>
+        <div>
+          <span class="label">Cashier</span>
+          <span class="val">{{ o.created_by }}</span>
+        </div>
+        <div>
+          <span class="label">Payment</span>
+          <span class="val">{{ o.payment_method }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="rule"></div>
+
+    <!-- Items -->
+    <div class="items">
+      <ul>
+        {% for it in o.items %}
+          <li class="li-line">
+            <div class="name">
+              <span class="qty">×{{ it.qty }}</span>
+              {{ it.name }}
+              {% if it.variant %}<span class="variant">· {{ it.variant }}</span>{% endif %}
+              {% if it.modifier_groups %}
+                <div class="mods">
+                  {% for g in it.modifier_groups %}
+                    <p class="group">
+                      <span class="ghead">{{ g.group }}:</span>
+                      {% for opt in g.options %}
+                        {{ opt.choice }}{% if opt.price_cents %} (+{{ opt.price_label }}){% endif %}{% if not forloop.last %}, {% endif %}
+                      {% endfor %}
+                      {% if g.group_total_cents %}
+                        — per unit: {{ g.group_total_label }}{% if it.qty and it.qty|add:0 > 1 %}, total: {{ g.group_total_ext_label }}{% endif %}
+                      {% endif %}
+                    </p>
+                  {% endfor %}
+                </div>
+              {% endif %}
+              <div class="breakdown">
+                base {{ it.base_unit_label }} ×{{ it.qty }} = {{ it.base_total_label }}
+                {% if it.mods_unit_cents %}
+                  <br>mods {{ it.mods_unit_label }} ×{{ it.qty }} = {{ it.mods_total_label }}
+                {% endif %}
+              </div>
+            </div>
+            <div class="price">{{ it.line_label }}</div>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="rule"></div>
+
+    <!-- Totals -->
+    <div class="totals">
+      <table>
+        <tr><td class="label">Subtotal</td><td style="text-align:right">{{ o.totals.subtotal_label }}</td></tr>
+        <tr><td class="label">Discount</td><td style="text-align:right">{{ o.totals.discount_label }}</td></tr>
+        <tr><td class="label">Tax</td><td style="text-align:right">{{ o.totals.tax_label }}</td></tr>
+        <tr><td class="label">Rounding</td><td style="text-align:right">{{ o.totals.rounding_label }}</td></tr>
+        <tr><td class="grand">Total</td><td class="grand" style="text-align:right">{{ o.totals.grand_total_label }}</td></tr>
+      </table>
+    </div>
+
+    <!-- Notes (optional) -->
+    {% if o.notes %}
+      <div class="rule"></div>
+      <div class="muted">Note: {{ o.notes }}</div>
+    {% endif %}
+
+    <div class="footer">
+      Thanks for visiting!
+    </div>
+
+    <p class="no-print" style="text-align:center;margin-top:10px;">
+      <button onclick="window.print()">Print</button>
+    </p>
+  </div>
+</body>
+</html>

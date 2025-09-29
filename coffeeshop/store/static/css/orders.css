@@ -56,7 +56,7 @@
 .small { font-size: .9em; }
 
 
-#order-btn-refund, #order-btn-assign, #order-btn-print, #order-btn-email{
+#order-btn-refund, #order-btn-assign, #order-btn-print, #order-btn-email, #order-note-save{
 appearance:none;
   border:0;
   padding:6px 10px;
@@ -68,3 +68,4 @@ appearance:none;
   }
   .is-disabled { opacity: .5; cursor: not-allowed; }
 
+.close-modal{ background:transparent; border:0; color:#93a2b8; font-size:20px; }

@@ -256,6 +256,9 @@ class Order(models.Model):
     refund_reason = models.CharField(max_length=200, blank=True)
     register_id = models.CharField(max_length=40, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    receipt_file = models.FileField(upload_to="static/receipts/", blank=True, null=True)
+    internal_notes = models.TextField(blank=True, default="")
+
 
     class Meta:
         indexes = [

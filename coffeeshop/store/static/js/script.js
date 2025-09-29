@@ -1037,9 +1037,7 @@ function renderOrderModal(order) {
 
   // ...leave your totals/payments/notes code as-is, just replace <ul class="list">${itemsHtml}</ul>
   const t = order.totals || {};
-  const paymentsHtml = (order.payments || []).map(p =>
-    `<li>${(p.method || order.payment_method || '')} — ${p.amount_label || ''} ${p.ref ? `<span class="muted">(${(p.ref)})</span>` : ''}</li>`
-  ).join('') || `<li>${(order.payment_method || '')}</li>`;
+  const paymentHtml = order.payment_method || '';
 
   const customerHtml = order.customer
     ? `${order.customer.name} ${order.customer.phone ? `• ${order.customer.phone}` : ''}`
@@ -1053,12 +1051,11 @@ function renderOrderModal(order) {
     </section>
 
     <section class="section items">
-      <h5>Items</h5>
+      <h4>Items: </h5>
       <ul class="list">${itemsHtml}</ul>
     </section>
 
     <section class="section totals">
-      <h5>Totals</h5>
       <ul class="list">
         <li><span>Subtotal</span><span>${t.subtotal_label || ''}</span></li>
         <li><span>Discount</span><span>${t.discount_label || '$0.00'}</span></li>
@@ -1069,8 +1066,7 @@ function renderOrderModal(order) {
     </section>
 
     <section class="section payments">
-      <h5>Payment</h5>
-      <ul class="list">${paymentsHtml}</ul>
+      <h4>Payment: ${paymentHtml} </h5>
     </section>
 
     <section class="section notes">
