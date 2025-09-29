@@ -54,3 +54,17 @@
 .li-line .left .qty { display:inline-block; min-width: 2.2em; }
 .muted { opacity: .7; }
 .small { font-size: .9em; }
+
+
+#order-btn-refund, #order-btn-assign, #order-btn-print, #order-btn-email{
+appearance:none;
+  border:0;
+  padding:6px 10px;
+  border-radius:999px;
+  background: #1f2937;
+  color:#e5e7eb;
+  font: inherit;
+  cursor:pointer;
+  }
+  .is-disabled { opacity: .5; cursor: not-allowed; }
+

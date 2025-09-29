@@ -947,6 +947,7 @@ function ensureOrderModal() {
         <button id="order-btn-print">Print receipt (save CSV fr now)</button>
         <button id="order-btn-refund">Refund</button>
         <button id="order-btn-assign">Assign customer</button>
+        <button id="order-btn-email"> Email receipt </button>
       </div>
 
       <div class="modal-body" id="order-modal-content"></div>
@@ -1085,12 +1086,21 @@ function renderOrderModal(order) {
   const btnRefund = document.getElementById('order-btn-refund');
   const btnAssign = document.getElementById('order-btn-assign');
   const btnPrint  = document.getElementById('order-btn-print');
+  const btnEmail = document.getElementById('order-btn-email')
 
-  btnRefund.disabled = !perms.can_refund;
+  btnRefund.classList.toggle('is-disabled', !perms.can_refund); // purely visual
+  btnRefund.setAttribute('aria-disabled', String(!perms.can_refund))
   btnAssign.disabled = !perms.can_assign_customer;
-  btnRefund.onclick = () => showToast?.('Refund endpoint not implemented yet', { type: 'info' });
+  btnRefund.onclick = () => {
+  if (btnRefund.getAttribute('aria-disabled') === 'true') {
+    showToast?.('You do not have permission to refund this order.', { type: 'warning' });
+    return;
+  }
+  showToast?.('Not implemented yet', { type: 'info' });
+  };
   btnAssign.onclick = () => showToast?.('Assign customer flow coming soon', { type: 'info' });
   btnPrint.onclick  = () => showToast?.('CSV receipt coming soon', { type: 'info' });
+  btnEmail.onclick  = () => showToast?.('Receipt would be sent to customer soon.', { type: 'info' });
 
   document.getElementById('order-note-save').onclick = () => {
     const txt = (document.getElementById('order-note-input').value || '').trim();
