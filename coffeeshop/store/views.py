@@ -7,8 +7,10 @@ import json
 from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
 from decimal import Decimal
-from django.http import JsonResponse, HttpResponseBadRequest
+from django.http import JsonResponse, HttpResponseBadRequest, HttpResponse
+from django.template.loader import render_to_string
 from django.utils import timezone
+from django.utils.encoding import iri_to_uri
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST, require_GET
 from collections import defaultdict
@@ -738,7 +740,7 @@ def order_payment(request):
 
     return JsonResponse(resp, status=201)
 
-@csrf_exempt
+
 @login_required
 @require_GET
 def orders_list(request):
@@ -963,7 +965,7 @@ def serialize_order_for_modal(order):
         "notes": getattr(order, "internal_notes", ""),
     }
 
-@csrf_exempt
+
 @login_required
 @require_GET
 def order_detail(request, pk):
@@ -991,7 +993,7 @@ def order_detail(request, pk):
 def order_note(request, pk):
     order = get_object_or_404(Order, pk=pk)
     pass
-
+@csrf_exempt
 @login_required
 def order_receipt(request, pk):
     """
@@ -999,9 +1001,38 @@ def order_receipt(request, pk):
         Query params:
           - download=1 -> prompt download as .html file
           - save=1     -> persist the rendered HTML into order.receipt_file
+        e.g. /orders/5/receipt/?download=1
         """
-    order = get_object_or_404(Order, pk=pk)
-    pass
+
+    items_qs = OrderItem.objects.all().prefetch_related("modifiers")
+
+    order = get_object_or_404(Order.objects
+        .select_related("customer", "created_by")
+        .prefetch_related(Prefetch("items", queryset=items_qs)), pk=pk)
+
+    # reuse exact structure we use for the modal
+    data = serialize_order_for_modal(order)
+
+    # render template, return a string format
+    html = render_to_string("receipt.html", {"o": data})
+
+    # save html receipt to db field for audit trails and sending receipt to customer (later)
+    #GET - json dict, get - dicts method to retrieve value
+    if request.GET.get("save") == "1" and hasattr(order, "receipt_file"):
+        from django.core.files.base import ContentFile
+        filename = f"receipt-{order.number or order.id}.html"
+        order.receipt_file.save(filename, ContentFile(html), save=True)
+
+    # force a “download” dialog instead of inline display
+    if request.GET.get("download") == "1":
+        #handle spaces in cafe name
+        filename = iri_to_uri(f"receipt-{order.id}.html")
+        resp = HttpResponse(html, content_type="text/html; charset=utf-8")
+        resp["Content-Disposition"] = f'attachment; filename="{filename}"' #attachment prompts the browser not to show inline save as dialog
+        return resp
+
+    #return inline for future preview
+    return HttpResponse(html)
 @login_required
 def orders_page(request):
     return render(request, "orders_page.html")
