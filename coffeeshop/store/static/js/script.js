@@ -980,6 +980,7 @@ function hideOrderModal() {
   if (m) m.style.display = 'none';
 }
 
+
 function renderOrderModal(order) {
   const m = ensureOrderModal();
   m.style.display = 'flex';
@@ -1095,7 +1096,12 @@ function renderOrderModal(order) {
   showToast?.('Not implemented yet', { type: 'info' });
   };
   btnAssign.onclick = () => showToast?.('Assign customer flow coming soon', { type: 'info' });
-  btnPrint.onclick  = () => showToast?.('CSV receipt coming soon', { type: 'info' });
+  btnPrint.onclick  = () => {
+//      if (!order?.id) return;
+      openReceipt(`${order.id}`);
+      showToast?.('CSV receipt opened in new tab', { type: 'success' });
+      }
+
   btnEmail.onclick  = () => showToast?.('Receipt would be sent to customer soon.', { type: 'info' });
 
   document.getElementById('order-note-save').onclick = () => {
@@ -1103,4 +1109,12 @@ function renderOrderModal(order) {
     if (!txt) return;
     showToast?.('Note saved (stub)', { type: 'success' });
   };
+}
+
+// RECEIPT HANDLING
+function openReceipt(orderId) {
+  const id = orderId;
+  if (!id) { showToast?.('Missing order id for receipt', { type: 'error' }); return; }
+  // open in a new tab
+  window.open(`/orders/${encodeURIComponent(id)}/receipt/`, '_blank', 'noopener,noreferrer');
 }

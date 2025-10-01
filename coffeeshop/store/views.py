@@ -1,4 +1,3 @@
-from decimal import Decimal
 
 from django.contrib.auth.decorators import login_required
 from django.db.models import ExpressionWrapper, DecimalField, F, Value, Max, Prefetch
@@ -14,8 +13,7 @@ from django.utils.encoding import iri_to_uri
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST, require_GET
 from collections import defaultdict
-# store/views.py
-from django.shortcuts import render
+from django.core.files.base import ContentFile
 
 from .models import Category, MenuItem, Variant, ModifierGroup, ModifierOption, Order, OrderItem, OrderItemModifier
 from .apps import (
@@ -997,11 +995,10 @@ def order_note(request, pk):
 @login_required
 def order_receipt(request, pk):
     """
-        Render an HTML receipt for printing/downloading.
+        Render an HTML receipt for printing.
         Query params:
-          - download=1 -> prompt download as .html file
-          - save=1     -> persist the rendered HTML into order.receipt_file
-        e.g. /orders/5/receipt/?download=1
+          - save=1     -> persist the rendered HTML into order.receipt_file also persist the HTML to FileField.
+        e.g. /orders/5/receipt/?save=1
         """
 
     items_qs = OrderItem.objects.all().prefetch_related("modifiers")
@@ -1019,17 +1016,10 @@ def order_receipt(request, pk):
     # save html receipt to db field for audit trails and sending receipt to customer (later)
     #GET - json dict, get - dicts method to retrieve value
     if request.GET.get("save") == "1" and hasattr(order, "receipt_file"):
-        from django.core.files.base import ContentFile
-        filename = f"receipt-{order.number or order.id}.html"
+        filename = f"receipt-{order.id}.html"
+        # contentFile - wraps html string as a file-like object
+        #order.receipt_file.url - url to fetch, order.receipt_filename - name of file .
         order.receipt_file.save(filename, ContentFile(html), save=True)
-
-    # force a “download” dialog instead of inline display
-    if request.GET.get("download") == "1":
-        #handle spaces in cafe name
-        filename = iri_to_uri(f"receipt-{order.id}.html")
-        resp = HttpResponse(html, content_type="text/html; charset=utf-8")
-        resp["Content-Disposition"] = f'attachment; filename="{filename}"' #attachment prompts the browser not to show inline save as dialog
-        return resp
 
     #return inline for future preview
     return HttpResponse(html)
