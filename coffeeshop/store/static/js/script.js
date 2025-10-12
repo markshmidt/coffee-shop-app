@@ -653,6 +653,16 @@ document.addEventListener('DOMContentLoaded', () => {
 function getCSRFToken() {
   return getCookie('csrftoken');
 }
+  async function openOrderModal(orderId) {
+  try {
+    const { ok, order } = await getJSON(`/orders/${orderId}/`);
+    if (!ok) throw new Error('Load failed');
+    renderOrderModal(order); //for future clickable card
+  } catch (e) {
+    console.error('openOrderModal failed:', e);
+    showToast?.(e.message || 'Failed to load order', { type: 'error' });
+  }
+}
 
 // adding recent orders to ui
 function addInvoiceChip(
@@ -675,8 +685,14 @@ function addInvoiceChip(
 
   //  future: open order details
   chip.addEventListener('click', () => {
-    // For now just log
-    console.debug('Open order detail for', orderId);
+   openOrderModal(orderId)
+  });
+  //keyboard support
+  chip.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      openOrderModal(orderId);
+    }
   });
 
   row.prepend(chip);
@@ -866,16 +882,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     return card;
   }
-  async function openOrderModal(orderId) {
-  try {
-    const { ok, order } = await getJSON(`/orders/${orderId}/`);
-    if (!ok) throw new Error('Load failed');
-    renderOrderModal(order); //for future clickable card
-  } catch (e) {
-    console.error('openOrderModal failed:', e);
-    showToast?.(e.message || 'Failed to load order', { type: 'error' });
-  }
-}
 
     // one listener on the container
   feed.addEventListener('click', (e) => {
@@ -944,10 +950,11 @@ function ensureOrderModal() {
       </div>
 
       <div class="modal-toolbar">
-        <button id="order-btn-print">Print receipt (save CSV fr now)</button>
+        <button id="order-btn-print">Print receipt</button>
+         <button id="order-btn-email"> Email receipt </button>
         <button id="order-btn-refund">Refund</button>
         <button id="order-btn-assign">Assign customer</button>
-        <button id="order-btn-email"> Email receipt </button>
+
       </div>
 
       <div class="modal-body" id="order-modal-content"></div>
