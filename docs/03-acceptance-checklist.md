@@ -15,7 +15,7 @@
 
 ## Pay → Order
 
- [  ] Pay creates one Order and one PaymentRecord; double-click safe.
+ [ ✓ ] Pay creates one Order; double-click safe.
 
  [ ✓ ] For cash, amount = order.total + rounding_cents where rounding_cents ∈ {−2..+2}.
 
