@@ -27,9 +27,11 @@ path("cart/remove-line/", views.cart_remove_line, name="api_delete"),
     path("orders/<int:pk>/", views.order_detail, name="order_detail"),
     path("orders/<int:id>/note/", views.order_note, name="order_note"),
     path("orders/<int:pk>/receipt/", views.order_receipt, name="order_receipt"),
+    path("orders/<int:id>/assign_customer/", views.assign_customer, name="assign_customer"),
 
-
-
-
+    #customers
+    path("customers/list/", views.customers_list, name="customers_list"),
+    path("customers/add/", views.customer_add, name="customer_add"),
+    path("customers/<int:pk>/", views.customer_detail, name="customer_detail"),
 
 ]

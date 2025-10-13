@@ -1,6 +1,10 @@
+import datetime
+from sqlite3 import IntegrityError
 
 from django.contrib.auth.decorators import login_required
-from django.db.models import ExpressionWrapper, DecimalField, F, Value, Max, Prefetch
+from django.db import models, transaction
+from django.db.models import ExpressionWrapper, DecimalField, F, Value, Max, Prefetch, Q
+from django.db.models.functions import Coalesce
 from django.shortcuts import render, get_object_or_404, redirect
 import json
 from django.contrib.auth import authenticate, login, logout
@@ -15,7 +19,8 @@ from django.views.decorators.http import require_POST, require_GET
 from collections import defaultdict
 from django.core.files.base import ContentFile
 
-from .models import Category, MenuItem, Variant, ModifierGroup, ModifierOption, Order, OrderItem, OrderItemModifier
+from .models import Category, MenuItem, Variant, ModifierGroup, ModifierOption, Order, OrderItem, OrderItemModifier, \
+    Customer
 from .apps import (
     POS_TAX_RATE_BPS,         # 1300 (13%)
     POS_DISCOUNT_CHOICES,     # ("NONE", ...), ("STUDENT_10", ...), ...
@@ -314,7 +319,6 @@ def cart_add_line(request):
         return JsonResponse({"ok": False, "error": "Bad payload"}, status=400)
 
     # 3) Fetch item
-    from .models import MenuItem, Variant
     try:
         item = MenuItem.objects.get(id=item_id, active=True)
     except MenuItem.DoesNotExist:
@@ -1028,3 +1032,108 @@ def orders_page(request):
     return render(request, "orders_page.html")
 
 
+#------ CUSTOMERS ------
+
+@csrf_exempt
+@require_GET
+def customers_list(request):
+    """
+       Return customers only, newest first.
+       Supports:
+         - ?limit=20          page size (1..50)
+         - ?cursor=<id>       pagination cursor (return ids < cursor)
+         - ?q=...             search by name/phone/email (case-insensitive)
+       """
+    qs = Customer.objects.all().order_by("-id")
+
+    # search
+    q = (request.GET.get("q") or "").strip()
+    if q:
+        qs = qs.filter(
+            Q(fname__icontains=q) |
+            Q(lname__icontains=q) |
+            Q(email__icontains=q) |
+            Q(phone__icontains=q)
+        )
+
+
+    # simple pagination
+    limit = max(1, min(50, int(request.GET.get("limit", 20))))
+    cursor = request.GET.get("cursor")
+    if cursor:
+        try: qs = qs.filter(id__lt=int(cursor))
+        except: pass
+
+    slice_ = list(qs[:limit])
+    out = []
+    for c in slice_:
+        row = {
+            "id": c.id,
+            "name": f"{(c.fname or '').strip()} {(c.lname or '').strip()}".strip(),
+            "phone": c.phone, "email": c.email,
+            "point_balance": getattr(c, "point_balance", 0),
+        }
+        out.append(row)
+
+    next_cursor = out[-1]["id"] if len(out) == limit else None
+    return JsonResponse({"ok": True, "customers": out, "next_cursor": next_cursor})
+
+
+@require_POST
+def customer_add(request):
+    """
+        Create a customer from a JSON or form POST.
+        Returns: {ok, id, fname, lname, phone, email}
+        """
+    if request.content_type and "application/json" in request.content_type:
+        try:
+            payload = json.loads(request.body.decode("utf-8"))
+        except Exception:
+            return JsonResponse({"ok": False, "error": "Invalid JSON"}, status=400)
+        fname = (payload.get("fname"))
+        lname = (payload.get("lname"))
+        email = (payload.get("email"))
+        phone = (payload.get("phone"))
+    else:
+        fname = (request.POST.get("fname"))
+        lname = (request.POST.get("lname"))
+        email = (request.POST.get("email"))
+        phone = (request.POST.get("phone"))
+    if not (phone):
+        return JsonResponse({"ok": False, "error": "Phone is required"}, status=400)
+    try:
+        with transaction.atomic():
+            customer = Customer.objects.create(
+                fname=fname,
+                lname = lname,
+                phone=phone,
+                email=email,
+            )
+    except IntegrityError as e:
+        # unique phone conflict
+        return JsonResponse({"ok": False, "error": "Customer already exists"}, status=409)
+
+    return JsonResponse(
+            {
+                "ok": True,
+                "id": customer.id,
+                "first_name": customer.fname,
+                "last_name": customer.lname,
+                "phone": customer.phone,
+                "email": customer.email,
+            },
+            status=201,
+        )
+
+def customer_detail(request, pk):
+    pass
+def customer_edit(request, pk):
+    pass
+
+def assign_customer(request, pk):
+    pass
+#
+# def customer_edit(request, pk):
+#     pass
+# def customer_delete(request, pk):
+#     pass
