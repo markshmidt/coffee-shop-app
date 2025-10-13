@@ -3,7 +3,7 @@ from sqlite3 import IntegrityError
 
 from django.contrib.auth.decorators import login_required
 from django.db import models, transaction
-from django.db.models import ExpressionWrapper, DecimalField, F, Value, Max, Prefetch, Q
+from django.db.models import ExpressionWrapper, DecimalField, F, Value, Max, Prefetch, Q, Count, OuterRef, Subquery
 from django.db.models.functions import Coalesce
 from django.shortcuts import render, get_object_or_404, redirect
 import json
@@ -1056,7 +1056,6 @@ def customers_list(request):
             Q(phone__icontains=q)
         )
 
-
     # simple pagination
     limit = max(1, min(50, int(request.GET.get("limit", 20))))
     cursor = request.GET.get("cursor")
@@ -1073,11 +1072,44 @@ def customers_list(request):
             "phone": c.phone, "email": c.email,
             "point_balance": getattr(c, "point_balance", 0),
         }
+
         out.append(row)
 
     next_cursor = out[-1]["id"] if len(out) == limit else None
     return JsonResponse({"ok": True, "customers": out, "next_cursor": next_cursor})
 
+
+@csrf_exempt
+@require_GET
+def customer_orders(request, pk):
+    # base orders for this customer
+    orders_qs = (
+        Order.objects
+        .filter(customer_id=pk)
+        .select_related("created_by")             # 1 extra join for creator
+        .prefetch_related(
+            Prefetch(
+                "items",
+                queryset=OrderItem.objects
+                    .only("order_id","name_snapshot","variant_name_snapshot","qty","unit_price_cents")
+                    .prefetch_related("modifiers")
+            )
+        )
+        .order_by("-id")
+    )
+
+    # pagination
+    limit = max(1, min(50, int(request.GET.get("limit", 20))))
+    cursor = request.GET.get("cursor")
+    if cursor:
+        try: orders_qs = orders_qs.filter(id__lt=int(cursor))
+        except: pass
+
+    orders = list(orders_qs[:limit])
+
+    out = [serialize_order_for_modal(o) for o in orders]
+    next_cursor = out[-1]["id"] if len(out) == limit else None
+    return JsonResponse({"ok": True, "orders": out, "next_cursor": next_cursor})
 
 @require_POST
 def customer_add(request):

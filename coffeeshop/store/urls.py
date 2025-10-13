@@ -33,5 +33,6 @@ path("cart/remove-line/", views.cart_remove_line, name="api_delete"),
     path("customers/list/", views.customers_list, name="customers_list"),
     path("customers/add/", views.customer_add, name="customer_add"),
     path("customers/<int:pk>/", views.customer_detail, name="customer_detail"),
+    path("customers/<int:pk>/orders/", views.customer_orders, name="customer_orders"),
 
 ]
