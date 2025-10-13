@@ -1,0 +1,292 @@
+{
+  "info": {
+    "name": "Coffee Island POS (Local Django)",
+    "_postman_id": "2cafe-babe-0001-0002-0003deadbeef",
+    "description": "Postman collection for Coffee Island POS (Django). Handles session login, CSRF, cart, orders, receipts, and notes.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "1) Get Login Page (set csrftoken cookie)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/login/"
+          },
+          "response": []
+        },
+        {
+          "name": "2) Login (session auth)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" },
+              { "key": "X-CSRFToken", "value": "{{csrf_from_cookie}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "username", "value": "{{username}}", "type": "text" },
+                { "key": "password", "value": "{{password}}", "type": "text" }
+              ]
+            },
+            "url": "{{baseUrl}}/login/"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Save the csrftoken cookie value into an env var (optional – collection script also handles it)",
+                  "const tok = pm.cookies.get('csrftoken');",
+                  "if (tok) pm.environment.set('csrf_from_cookie', tok);",
+                  "",
+                  "pm.test('Login status is 200/302', function () {",
+                  "  pm.expect([200,302]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Cart",
+      "item": [
+        {
+          "name": "Cart: Get Snapshot",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/cart/"
+          },
+          "response": []
+        },
+        {
+          "name": "Cart: Add Line",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"item_id\": {{item_id}},\n  \"variant_id\": {{variant_id}},\n  \"qty\": 1,\n  \"selections\": [\n    { \"group_id\": {{group_id}}, \"option_ids\": [{{option_id_1}}, {{option_id_2}}] }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/cart/add-line/"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.environment.set('last_line_id', json?.cart?.lines?.slice(-1)[0]?.id || '');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Cart: Update Line (qty)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"line_id\": \"{{last_line_id}}\",\n  \"qty\": 2\n}"
+            },
+            "url": "{{baseUrl}}/cart/update-line/"
+          },
+          "response": []
+        },
+        {
+          "name": "Cart: Remove Line",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"line_id\": \"{{last_line_id}}\"\n}"
+            },
+            "url": "{{baseUrl}}/cart/remove-line/"
+          },
+          "response": []
+        },
+        {
+          "name": "Cart: Discount / Payment Method",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"discount_code\": \"NONE\",\n  \"payment_method\": \"CARD\"\n}"
+            },
+            "url": "{{baseUrl}}/cart/discount/"
+          },
+          "response": []
+        },
+        {
+          "name": "Cart: Clear",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/cart/clear/"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "Order: Pay (create order from cart)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payment_method\": \"CARD\",\n  \"discount_cents\": 0,\n  \"lines\": [\n    {\n      \"item_id\": {{item_id}},\n      \"variant_id\": {{variant_id}},\n      \"qty\": 1,\n      \"selections\": [\n        { \"group_id\": {{group_id}}, \"option_ids\": [{{option_id_1}}] }\n      ]\n    }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/order/pay/"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.environment.set('last_order_id', json?.order_id || '');",
+                  "pm.environment.set('last_total_label', json?.total_label || '');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Orders: List (page)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/orders/list/?limit={{limit}}&cursor={{cursor}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders","list",""],
+              "query": [
+                {"key": "limit", "value": "{{limit}}"},
+                {"key": "cursor", "value": "{{cursor}}", "disabled": true}
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "const first = (json.orders||[])[0];",
+                  "if (first) {",
+                  "  pm.environment.set('last_order_id', first.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Order: Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/orders/{{last_order_id}}/"
+          },
+          "response": []
+        },
+        {
+          "name": "Order: Receipt (HTML view)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/orders/{{last_order_id}}/receipt/"
+          },
+          "response": []
+        },
+        {
+          "name": "Order: Receipt (save to FileField)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/orders/{{last_order_id}}/receipt/?save=1"
+          },
+          "response": []
+        },
+        {
+          "name": "Order: Add Note",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Customer likes extra hot.\"\n}"
+            },
+            "url": "{{baseUrl}}/orders/{{last_order_id}}/note/"
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "exec": [
+          "// Collection-level pre-request:",
+          "// 1) If we have a csrftoken cookie, attach it as X-CSRFToken automatically.",
+          "try {",
+          "  const tok = pm.cookies.get('csrftoken');",
+          "  if (tok) {",
+          "    pm.request.headers.upsert({ key: 'X-CSRFToken', value: tok });",
+          "  }",
+          "} catch (e) { /* ignore */ }"
+        ],
+        "type": "text/javascript"
+      }
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://127.0.0.1:8000" },
+    { "key": "username", "value": "admin" },
+    { "key": "password", "value": "admin" },
+    { "key": "limit", "value": "16" },
+    { "key": "cursor", "value": "" },
+
+    { "key": "item_id", "value": "1" },
+    { "key": "variant_id", "value": "null" },
+    { "key": "group_id", "value": "0" },
+    { "key": "option_id_1", "value": "0" },
+    { "key": "option_id_2", "value": "0" },
+
+    { "key": "last_line_id", "value": "" },
+    { "key": "last_order_id", "value": "" },
+    { "key": "last_total_label", "value": "" },
+    { "key": "csrf_from_cookie", "value": "" }
+  ]
+}
+

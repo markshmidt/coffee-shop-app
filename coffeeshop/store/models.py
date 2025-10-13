@@ -247,7 +247,7 @@ class Order(models.Model):
     points_earned = models.IntegerField(default=0)
     redeemed_points = models.IntegerField(default=0)  # 0 or 80
 
-    paid_at = models.DateTimeField(null=True, blank=True)  # allow null for old rows
+    # paid_at = models.DateTimeField(null=True, blank=True)  # allow null for old rows
 
     receipt_number = models.IntegerField()
     payment_method = models.CharField(
@@ -262,12 +262,12 @@ class Order(models.Model):
 
     class Meta:
         indexes = [
-            models.Index(fields=["paid_at"]),
+            models.Index(fields=["created_at"]),
             models.Index(fields=["status"]),
             models.Index(fields=["created_by"]),
             models.Index(fields=["customer"]),
         ]
-        ordering = ["-paid_at", "-id"]
+        ordering = ["-created_at", "-id"]
         permissions = [
             ("apply_any_discount", "Can apply any discount"),
             ("void_order", "Can void order"),
@@ -335,29 +335,29 @@ class OrderItemModifier(models.Model):
         return f"{self.group_name_snapshot}: {self.option_name_snapshot} ({sign}{cents}¢)"
 
 
-class PaymentRecord(models.Model):
-    id = models.AutoField(primary_key=True)
-    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="payments")
-    method = models.CharField(max_length=8, choices=[("CASH", "Cash"), ("CARD", "Card"), ("COMP", "Comp")])
-    amount_cents = models.IntegerField()
-    rounding_cents = models.IntegerField(default=0)  # CASH only: −2..+2; 0 for CARD/COMP
-    reference = models.CharField(max_length=80, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    paid_at = models.DateTimeField(null=True, blank=True)
-
-    # or models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ["-created_at"]
-        permissions = [
-            ("view_sales_reports", "Can view sales reports"),
-        ]
-
-    def __str__(self):
-        return f"{self.id}"
-
-    @property
-    def is_refund(self) -> bool:
-        return self.amount_cents < 0
-
+# class PaymentRecord(models.Model):
+#     id = models.AutoField(primary_key=True)
+#     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="payments")
+#     method = models.CharField(max_length=8, choices=[("CASH", "Cash"), ("CARD", "Card"), ("COMP", "Comp")])
+#     amount_cents = models.IntegerField()
+#     rounding_cents = models.IntegerField(default=0)  # CASH only: −2..+2; 0 for CARD/COMP
+#     reference = models.CharField(max_length=80, blank=True)
+#     created_at = models.DateTimeField(auto_now_add=True)
+#     paid_at = models.DateTimeField(null=True, blank=True)
+#
+#     # or models.DateTimeField(auto_now_add=True)
+#
+#     class Meta:
+#         ordering = ["-created_at"]
+#         permissions = [
+#             ("view_sales_reports", "Can view sales reports"),
+#         ]
+#
+#     def __str__(self):
+#         return f"{self.id}"
+#
+#     @property
+#     def is_refund(self) -> bool:
+#         return self.amount_cents < 0
+#
 

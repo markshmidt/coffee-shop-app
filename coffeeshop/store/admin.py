@@ -1,7 +1,7 @@
 from _ast import Store
 
 from django.contrib import admin
-from .models import Customer, OrderItem, Order, MenuItem, Category, PaymentRecord, Variant, ModifierGroup, \
+from .models import Customer, OrderItem, Order, MenuItem, Category, Variant, ModifierGroup, \
     ModifierOption, ItemModifierGroup, OrderItemModifier
 
 # Register your models here.
@@ -10,7 +10,7 @@ admin.site.register(OrderItem)
 admin.site.register(Order)
 admin.site.register(MenuItem)
 admin.site.register(Category)
-admin.site.register(PaymentRecord)
+# admin.site.register(PaymentRecord)
 admin.site.register(Variant)
 admin.site.register(ModifierGroup)
 admin.site.register(ModifierOption)

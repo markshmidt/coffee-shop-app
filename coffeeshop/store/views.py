@@ -667,7 +667,7 @@ def order_payment(request):
         total_cents=total_cents,
         discount_cents=discount_cents,
         rounding_delta_cents=rounding_delta_cents,
-        paid_at=timezone.now(),
+        created_at=timezone.now(),
         receipt_number=next_receipt,
     )
 
@@ -780,7 +780,7 @@ def orders_list(request):
     orders = page[:limit]  # trim the extra before serializing
 
     for o in orders: #materializes only page in settled limit with prefetched orders
-        when_dt = o.paid_at or o.created_at
+        when_dt = o.created_at
         when_dt = timezone.localtime(when_dt)  # show local time
         when_label = when_dt.strftime("%Y-%m-%d %H:%M")
 
@@ -813,7 +813,7 @@ def serialize_order_for_modal(order):
     """
     Return a dict with everything the modal needs.
     """
-    when_dt = timezone.localtime(order.paid_at or order.created_at)
+    when_dt = timezone.localtime(order.created_at)
 
     # ---- Items with variants + modifiers ----
     items_out = []
