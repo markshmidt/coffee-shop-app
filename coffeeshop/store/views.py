@@ -1043,6 +1043,7 @@ def customers_list(request):
          - ?limit=20          page size (1..50)
          - ?cursor=<id>       pagination cursor (return ids < cursor)
          - ?q=...             search by name/phone/email (case-insensitive)
+         - ?with_orders=brief last 5 orders info
        """
     qs = Customer.objects.all().order_by("-id")
 
@@ -1054,6 +1055,17 @@ def customers_list(request):
             Q(lname__icontains=q) |
             Q(email__icontains=q) |
             Q(phone__icontains=q)
+        )
+    if request.GET.get("with_orders") == "brief":
+        # order_count
+        qs = qs.annotate(order_count=Coalesce(Count("orders"), 0))
+
+        # last_order id/total/when via Subquery
+        last_order = Order.objects.filter(customer_id=OuterRef("pk")).order_by("-id")
+        qs = qs.annotate(
+            last_order_id=Subquery(last_order.values("id")[:1]),
+            last_order_total=Subquery(last_order.values("total_cents")[:5]),
+            last_order_when=Subquery(last_order.values("created_at")[:5]),
         )
 
     # simple pagination
@@ -1072,6 +1084,15 @@ def customers_list(request):
             "phone": c.phone, "email": c.email,
             "point_balance": getattr(c, "point_balance", 0),
         }
+        if request.GET.get("with_orders") == "brief":
+            row["order_count"] = getattr(c, "order_count", 0)
+            if getattr(c, "last_order_id", None):
+                row["last_order"] = {
+                    "id": c.last_order_id,
+                    "total_cents": c.last_order_total,
+                    "total_label": _fmt_cents(c.last_order_total),
+                    "when": timezone.localtime(c.last_order_when).strftime("%Y-%m-%d %H:%M"),
+                }
 
         out.append(row)
 
