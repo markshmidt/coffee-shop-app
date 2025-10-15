@@ -2,7 +2,7 @@
 from sqlite3 import IntegrityError
 
 from django.contrib.auth.decorators import login_required
-from django.db import models, transaction
+from django.db import transaction
 from django.db.models import ExpressionWrapper, DecimalField, F, Value, Max, Prefetch, Q, Count, OuterRef, Subquery
 from django.db.models.functions import Coalesce
 from django.shortcuts import render, get_object_or_404, redirect
