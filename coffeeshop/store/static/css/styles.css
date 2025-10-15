@@ -44,6 +44,7 @@ a, button { cursor:pointer; }
   background:radial-gradient(1000px 500px at 110% -50%, #101938 10%, transparent 40%), var(--panel);
   border:1px solid #1f2937; border-radius:var(--br);
   box-shadow: 0 10px 25px rgba(0,0,0,.25); padding:14px;
+
 }
 .section-title{ font-weight:600; letter-spacing:.2px; margin:0 0 10px; color:#cbd5e1; }
 
@@ -64,10 +65,25 @@ a, button { cursor:pointer; }
 .btn.warn{ background:linear-gradient(180deg, #f59e0b, #d97706); border-color:#92400e; color:#1f1300; }
 .btn.ghost{ background:#0b1222; }
 
-.cart-lines{ display:flex; flex-direction:column; gap:10px; max-height:38vh; overflow:auto; padding-right:2px; }
+.cart-lines{   display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  /* Replace the hardcoded max-height with flexible growth */
+  flex: 1;                             /* fill vertical space */
+  min-height: 160px;                   /* nice empty-state height */
+  overflow-y: auto;                    /* scroll only the list */
+  padding-right: 2px; }
 .line{
-  display:grid; grid-template-columns: 1fr auto; gap:8px; align-items:start;
-  padding:10px; border:1px solid #1f2937; border-radius:12px; background:var(--card);
+   display: flex;
+   flex: 1;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: start;
+  padding: 10px;
+  border: 1px solid #1f2937;
+  border-radius: 12px;
+  background: var(--card);
 }
 .line h4{ margin:0; font-size:15px; font-weight:600; }
 .muted{ color:var(--muted); font-size:13px; }
