@@ -8,6 +8,9 @@ on:
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
 
     steps:
       - uses: actions/checkout@v4
@@ -15,15 +18,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: "pip"
 
       - name: Install deps
+        working-directory: coffeeshop     # 👈 tells runner to work inside that folder
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pytest ruff
 
       - name: Django checks
+        working-directory: coffeeshop     # 👈 run inside your project dir
         env:
           DJANGO_SETTINGS_MODULE: coffeeshop.settings
         run: |
@@ -31,12 +35,14 @@ jobs:
           python manage.py makemigrations --check --dry-run
 
       - name: Lint
+        working-directory: coffeeshop
         run: ruff check .
 
       - name: Run tests (SQLite)
+        working-directory: coffeeshop
         run: pytest -q --maxfail=1
 
-      # Build a production image (no push on PRs)
+      # Optional: build Docker image
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v5
