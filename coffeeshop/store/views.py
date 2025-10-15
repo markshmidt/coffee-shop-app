@@ -1,8 +1,8 @@
-import datetime
+
 from sqlite3 import IntegrityError
 
 from django.contrib.auth.decorators import login_required
-from django.db import models, transaction
+from django.db import transaction
 from django.db.models import ExpressionWrapper, DecimalField, F, Value, Max, Prefetch, Q, Count, OuterRef, Subquery
 from django.db.models.functions import Coalesce
 from django.shortcuts import render, get_object_or_404, redirect
@@ -13,8 +13,8 @@ from decimal import Decimal
 from django.http import JsonResponse, HttpResponseBadRequest, HttpResponse, HttpResponseNotFound
 from django.template.loader import render_to_string
 from django.utils import timezone
-from django.utils.encoding import iri_to_uri
-from django.views.decorators.csrf import csrf_exempt
+
+# from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST, require_GET
 from collections import defaultdict
 from django.core.files.base import ContentFile
@@ -23,7 +23,7 @@ from .models import Category, MenuItem, Variant, ModifierGroup, ModifierOption, 
     Customer
 from .apps import (
     POS_TAX_RATE_BPS,         # 1300 (13%)
-    POS_DISCOUNT_CHOICES,     # ("NONE", ...), ("STUDENT_10", ...), ...
+    # POS_DISCOUNT_CHOICES,     # ("NONE", ...), ("STUDENT_10", ...), ...
     POS_NICKEL_ROUNDING,      # True/False
 )
 from .permissions import compute_order_permissions
@@ -33,7 +33,7 @@ from .permissions import compute_order_permissions
 
 @login_required
 def home(request):
-
+    new_order_count = Order.objects.count() + 1 #for ORDER in templates
     price_expr = ExpressionWrapper(
         F("price_cents") * Value(Decimal("0.01")),
         output_field=DecimalField(max_digits=8, decimal_places=2),
@@ -62,6 +62,7 @@ def home(request):
             "cats": list(cats),
             "variants": variants,
             "modifier_groups": modifier_groups,
+            "new_order_count": new_order_count,
         }
     )
 
@@ -103,7 +104,7 @@ def _save_cart(session, cart):
     :param cart:
     :return: null
     """
-    subtotal_cents = sum(l["qty"] * l["unit_total_cents"] for l in cart["lines"])
+    subtotal_cents = sum(line["qty"] * line["unit_total_cents"] for line in cart["lines"])
     # discount (in basis points from your config)
     disc_bp = DISCOUNT_BP.get(cart.get("discount_code") or "NONE", 0)
     discount = _bp(subtotal_cents, disc_bp)
@@ -355,7 +356,6 @@ def cart_add_line(request):
 
     # 6) Build a user-friendly summary string with option deltas + tax
     summary = _summarize_selections(normalized)  # function shown below
-    tax_cents = unit_total_cents*0.13
 
     # 7) Save into the session cart
     from uuid import uuid4
@@ -456,13 +456,14 @@ def cart_remove_line(request):
 
     # Filter out that line
     before = len(cart["lines"])
-    cart["lines"] = [l for l in cart["lines"] if l["id"] != line_id]
+    cart["lines"] = [line for line in cart["lines"] if line["id"] != line_id]
     if len(cart["lines"]) == before:
         return HttpResponseBadRequest("Line not found")
 
     _save_cart(request.session, cart)
     return JsonResponse({"ok": True, "cart": _cart_snapshot(cart)})
 
+@login_required
 @require_POST
 def cart_discount(request):
     data = json.loads(request.body.decode("utf-8"))
@@ -489,7 +490,7 @@ def cart_pay(request):
 
 
 # ==== LOGIN VIEWS =====
-@csrf_exempt
+@login_required
 def login_user(request):
     if request.method == "POST":
         username = request.POST.get("username")
@@ -510,7 +511,7 @@ def logout_user(request):
     return redirect('login')
 
 # ====== ORDER VIEWS =====
-@csrf_exempt
+@login_required
 @require_POST
 def order_payment(request):
     """
@@ -589,12 +590,20 @@ def order_payment(request):
         data = cart["create"]
         existing = Customer.objects.select_for_update().filter(phone=data["phone"]).first()
         customer = existing or Customer.objects.create(
-            fname=data.get("fname", ""),
-            lname=data.get("lname", ""),
-            phone=data["phone"],
-            email=data.get("email", ""),
+            fname=(data.get("fname") or "").strip(),
+            lname=(data.get("lname") or "").strip(),
+            phone= (data.get("phone") or "").strip(),
+            email=(data.get("email") or "").strip().lower()
         )
-
+    customer_out = None
+    if customer:
+        customer_out = {
+            "id": customer.id,
+            "fname": customer.fname,
+            "lname": customer.lname,
+            "phone": customer.phone,
+            "email": customer.email,
+        }
     # ---- Recompute from DB ----
     # Using _price_item_validate to ensure variants belong to items and selections belong to allowed groups
     recomputed_subtotal_cents = 0
@@ -745,7 +754,7 @@ def order_payment(request):
     resp = {
         "ok": True,
         "created_by": (request.user.get_full_name() or request.user.get_username()),
-        "customer": customer,
+        "customer": customer_out,
         "order_id": order.id,
         "subtotal_cents": recomputed_subtotal_cents,
         "discount_cents": discount_cents,
@@ -761,7 +770,7 @@ def order_payment(request):
 
     return JsonResponse(resp, status=201)
 
-@csrf_exempt
+@login_required
 @require_GET
 def orders_list(request):
     """
@@ -987,7 +996,7 @@ def serialize_order_for_modal(order):
     }
 
 
-@csrf_exempt
+@login_required
 @require_GET
 def order_detail(request, pk):
     """
@@ -1010,11 +1019,12 @@ def order_detail(request, pk):
     data = serialize_order_for_modal(order)
     data["permissions"] = compute_order_permissions(order, request.user)
     return JsonResponse({"ok": True, "order": data})
-@csrf_exempt
+
+@login_required
 def order_note(request, pk):
-    order = get_object_or_404(Order, pk=pk)
+    # order = get_object_or_404(Order, pk=pk)
     pass
-@csrf_exempt
+
 @login_required
 def order_receipt(request, pk):
     """
@@ -1046,14 +1056,14 @@ def order_receipt(request, pk):
 
     #return inline for future preview
     return HttpResponse(html)
-@csrf_exempt
+@login_required
 def orders_page(request):
     return render(request, "orders_page.html")
 
 
 #------ CUSTOMERS ------
 
-@csrf_exempt
+@login_required
 @require_GET
 def customers_list(request):
     """
@@ -1091,8 +1101,8 @@ def customers_list(request):
     limit = max(1, min(50, int(request.GET.get("limit", 20))))
     cursor = request.GET.get("cursor")
     if cursor:
-        try: qs = qs.filter(id__lt=int(cursor))
-        except: pass
+       qs = qs.filter(id__lt=int(cursor))
+
 
     slice_ = list(qs[:limit])
     out = []
@@ -1119,7 +1129,7 @@ def customers_list(request):
     return JsonResponse({"ok": True, "customers": out, "next_cursor": next_cursor})
 
 
-@csrf_exempt
+@login_required
 @require_GET
 def customer_orders(request, pk):
     # base orders for this customer
@@ -1142,8 +1152,7 @@ def customer_orders(request, pk):
     limit = max(1, min(50, int(request.GET.get("limit", 20))))
     cursor = request.GET.get("cursor")
     if cursor:
-        try: orders_qs = orders_qs.filter(id__lt=int(cursor))
-        except: pass
+        orders_qs = orders_qs.filter(id__lt=int(cursor))
 
     orders = list(orders_qs[:limit])
 
@@ -1151,6 +1160,7 @@ def customer_orders(request, pk):
     next_cursor = out[-1]["id"] if len(out) == limit else None
     return JsonResponse({"ok": True, "orders": out, "next_cursor": next_cursor})
 
+@login_required
 @require_POST
 def customer_add(request):
     """
@@ -1181,9 +1191,9 @@ def customer_add(request):
                 phone=phone,
                 email=email,
             )
-    except IntegrityError as e:
+    except IntegrityError:
         # unique phone conflict
-        return JsonResponse({"ok": False, "error": "Customer already exists"}, status=409)
+        return JsonResponse({"ok": False, "error": "Customer already exists:"}, status=409)
 
     return JsonResponse(
             {
@@ -1202,7 +1212,7 @@ def customer_detail(request, pk):
 def customer_edit(request, pk):
     pass
 
-@csrf_exempt
+@login_required
 @require_POST
 def cart_assign_customer(request):
     """
@@ -1254,7 +1264,7 @@ def cart_assign_customer(request):
     _save_cart(request.session, cart)
     return JsonResponse({"ok": True, "cart": {"customer_id": cart.get("customer_id"), "create": cart.get("create")}})
 
-@csrf_exempt
+@login_required
 @require_POST
 @transaction.atomic
 def order_assign_customer(request, pk: int):
@@ -1289,7 +1299,6 @@ def order_assign_customer(request, pk: int):
         # idempotent no-op: all good even if no customer was attached
         if order.customer_id is None:
             return JsonResponse({"ok": True, "order": serialize_order_for_modal(order)})
-        old_id = order.customer_id
         order.customer = None
         order.save(update_fields=["customer"])
         return JsonResponse({"ok": True, "order": serialize_order_for_modal(order)})

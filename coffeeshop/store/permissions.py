@@ -2,7 +2,6 @@
 
 def compute_order_permissions(order, user):
     st = order.status
-    has_payments = bool(order.total_cents)
 
     hp = user.has_perm  # shortcut
     return {
