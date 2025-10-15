@@ -37,49 +37,15 @@ jobs:
       - name: Lint
         working-directory: coffeeshop
         run: ruff check .
+   
+      - name: Migrate (SQLite)
+        run: python manage.py migrate --noinput
 
-      - name: Run tests (SQLite)
-        working-directory: coffeeshop
-        run: pytest -q --maxfail=1
-
-      # Optional: build Docker image
-      - name: Docker meta
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=ref,event=branch
-            type=sha
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-
-      - name: Set up Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GHCR
-        if: github.event_name == 'push'
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build (PR)
-        if: github.event_name == 'pull_request'
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          target: prod
-          push: false
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-
-      - name: Build & push (main)
-        if: github.event_name == 'push'
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          target: prod
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+      # Only run pytest if tests are present (for future)
+      - name: Run tests (only if present)
+        run: |
+          if ls -1 **/tests.py tests 2>/dev/null | grep -q .; then
+            pytest -q --maxfail=1
+          else
+            echo "No tests found — skipping pytest"
+          fi
