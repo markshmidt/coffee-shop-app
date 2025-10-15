@@ -1,4 +1,4 @@
-import datetime
+
 from sqlite3 import IntegrityError
 
 from django.contrib.auth.decorators import login_required
@@ -13,8 +13,8 @@ from decimal import Decimal
 from django.http import JsonResponse, HttpResponseBadRequest, HttpResponse, HttpResponseNotFound
 from django.template.loader import render_to_string
 from django.utils import timezone
-from django.utils.encoding import iri_to_uri
-from django.views.decorators.csrf import csrf_exempt
+
+# from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST, require_GET
 from collections import defaultdict
 from django.core.files.base import ContentFile
@@ -23,7 +23,7 @@ from .models import Category, MenuItem, Variant, ModifierGroup, ModifierOption, 
     Customer
 from .apps import (
     POS_TAX_RATE_BPS,         # 1300 (13%)
-    POS_DISCOUNT_CHOICES,     # ("NONE", ...), ("STUDENT_10", ...), ...
+    # POS_DISCOUNT_CHOICES,     # ("NONE", ...), ("STUDENT_10", ...), ...
     POS_NICKEL_ROUNDING,      # True/False
 )
 from .permissions import compute_order_permissions
@@ -104,7 +104,7 @@ def _save_cart(session, cart):
     :param cart:
     :return: null
     """
-    subtotal_cents = sum(l["qty"] * l["unit_total_cents"] for l in cart["lines"])
+    subtotal_cents = sum(line["qty"] * line["unit_total_cents"] for line in cart["lines"])
     # discount (in basis points from your config)
     disc_bp = DISCOUNT_BP.get(cart.get("discount_code") or "NONE", 0)
     discount = _bp(subtotal_cents, disc_bp)
@@ -356,7 +356,6 @@ def cart_add_line(request):
 
     # 6) Build a user-friendly summary string with option deltas + tax
     summary = _summarize_selections(normalized)  # function shown below
-    tax_cents = unit_total_cents*0.13
 
     # 7) Save into the session cart
     from uuid import uuid4
@@ -457,7 +456,7 @@ def cart_remove_line(request):
 
     # Filter out that line
     before = len(cart["lines"])
-    cart["lines"] = [l for l in cart["lines"] if l["id"] != line_id]
+    cart["lines"] = [line for line in cart["lines"] if line["id"] != line_id]
     if len(cart["lines"]) == before:
         return HttpResponseBadRequest("Line not found")
 
@@ -1020,9 +1019,10 @@ def order_detail(request, pk):
     data = serialize_order_for_modal(order)
     data["permissions"] = compute_order_permissions(order, request.user)
     return JsonResponse({"ok": True, "order": data})
+
 @login_required
 def order_note(request, pk):
-    order = get_object_or_404(Order, pk=pk)
+    # order = get_object_or_404(Order, pk=pk)
     pass
 
 @login_required
@@ -1101,8 +1101,8 @@ def customers_list(request):
     limit = max(1, min(50, int(request.GET.get("limit", 20))))
     cursor = request.GET.get("cursor")
     if cursor:
-        try: qs = qs.filter(id__lt=int(cursor))
-        except: pass
+       qs = qs.filter(id__lt=int(cursor))
+
 
     slice_ = list(qs[:limit])
     out = []
@@ -1152,8 +1152,7 @@ def customer_orders(request, pk):
     limit = max(1, min(50, int(request.GET.get("limit", 20))))
     cursor = request.GET.get("cursor")
     if cursor:
-        try: orders_qs = orders_qs.filter(id__lt=int(cursor))
-        except: pass
+        orders_qs = orders_qs.filter(id__lt=int(cursor))
 
     orders = list(orders_qs[:limit])
 
@@ -1192,9 +1191,9 @@ def customer_add(request):
                 phone=phone,
                 email=email,
             )
-    except IntegrityError as e:
+    except IntegrityError:
         # unique phone conflict
-        return JsonResponse({"ok": False, "error": "Customer already exists"}, status=409)
+        return JsonResponse({"ok": False, "error": "Customer already exists:"}, status=409)
 
     return JsonResponse(
             {
@@ -1300,7 +1299,6 @@ def order_assign_customer(request, pk: int):
         # idempotent no-op: all good even if no customer was attached
         if order.customer_id is None:
             return JsonResponse({"ok": True, "order": serialize_order_for_modal(order)})
-        old_id = order.customer_id
         order.customer = None
         order.save(update_fields=["customer"])
         return JsonResponse({"ok": True, "order": serialize_order_for_modal(order)})
