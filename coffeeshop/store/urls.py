@@ -28,8 +28,15 @@ path("cart/remove-line/", views.cart_remove_line, name="api_delete"),
     path("orders/<int:id>/note/", views.order_note, name="order_note"),
     path("orders/<int:pk>/receipt/", views.order_receipt, name="order_receipt"),
 
+    #customers
+    path("customers/list/", views.customers_list, name="customers_list"),
+    path("customers/add/", views.customer_add, name="customer_add"),
+    path("customers/<int:pk>/", views.customer_detail, name="customer_detail"),
+    path("customers/<int:pk>/orders/", views.customer_orders, name="customer_orders"),
+# assign to an existing ORDER
+    path("orders/<int:pk>/assign_customer/", views.order_assign_customer, name="order_assign_customer"),
 
-
-
+    # assign to CART (session) before an order exists
+    path("cart/assign_customer/", views.cart_assign_customer, name="cart_assign_customer"),
 
 ]
