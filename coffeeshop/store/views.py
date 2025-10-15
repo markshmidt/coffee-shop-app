@@ -10,7 +10,7 @@ import json
 from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
 from decimal import Decimal
-from django.http import JsonResponse, HttpResponseBadRequest, HttpResponse
+from django.http import JsonResponse, HttpResponseBadRequest, HttpResponse, HttpResponseNotFound
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.encoding import iri_to_uri
@@ -489,7 +489,7 @@ def cart_pay(request):
 
 
 # ==== LOGIN VIEWS =====
-
+@csrf_exempt
 def login_user(request):
     if request.method == "POST":
         username = request.POST.get("username")
@@ -510,7 +510,7 @@ def logout_user(request):
     return redirect('login')
 
 # ====== ORDER VIEWS =====
-@login_required
+@csrf_exempt
 @require_POST
 def order_payment(request):
     """
@@ -577,6 +577,23 @@ def order_payment(request):
     lines = payload.get("lines")
     if not isinstance(lines, list) or not lines:
         return JsonResponse({"ok": False, "error": "Cart is empty or malformed."}, status=400)
+
+    #resolve customer
+    #inspect the session cart and return a Customer  or None
+    customer = None
+    cart = _get_cart(request.session)
+    if cart.get("customer_id"):
+        # lock the row to update points in the same txn later
+        customer = Customer.objects.select_for_update().get(pk=cart["customer_id"])
+    elif cart.get("create"):
+        data = cart["create"]
+        existing = Customer.objects.select_for_update().filter(phone=data["phone"]).first()
+        customer = existing or Customer.objects.create(
+            fname=data.get("fname", ""),
+            lname=data.get("lname", ""),
+            phone=data["phone"],
+            email=data.get("email", ""),
+        )
 
     # ---- Recompute from DB ----
     # Using _price_item_validate to ensure variants belong to items and selections belong to allowed groups
@@ -665,6 +682,7 @@ def order_payment(request):
     next_receipt = (Order.objects.aggregate(m=Max("receipt_number"))["m"] or 0) + 1
     order = Order.objects.create(
         created_by=request.user,
+        customer=customer,
         payment_method=payment_method,  # 'CARD' | 'CASH'
         subtotal_cents=recomputed_subtotal_cents,
         tax_cents=tax_cents,
@@ -727,6 +745,7 @@ def order_payment(request):
     resp = {
         "ok": True,
         "created_by": (request.user.get_full_name() or request.user.get_username()),
+        "customer": customer,
         "order_id": order.id,
         "subtotal_cents": recomputed_subtotal_cents,
         "discount_cents": discount_cents,
@@ -742,8 +761,7 @@ def order_payment(request):
 
     return JsonResponse(resp, status=201)
 
-
-@login_required
+@csrf_exempt
 @require_GET
 def orders_list(request):
     """
@@ -947,7 +965,8 @@ def serialize_order_for_modal(order):
         c = order.customer
         customer = {
             "id": c.id,
-            "name": getattr(c, "name", ""),
+            "fname": getattr(c, "fname", ""),
+            "lname": getattr(c, "lname", ""),
             "phone": getattr(c, "phone", ""),
             "email": getattr(c, "email", ""),
         }
@@ -968,7 +987,7 @@ def serialize_order_for_modal(order):
     }
 
 
-@login_required
+@csrf_exempt
 @require_GET
 def order_detail(request, pk):
     """
@@ -991,7 +1010,7 @@ def order_detail(request, pk):
     data = serialize_order_for_modal(order)
     data["permissions"] = compute_order_permissions(order, request.user)
     return JsonResponse({"ok": True, "order": data})
-@login_required
+@csrf_exempt
 def order_note(request, pk):
     order = get_object_or_404(Order, pk=pk)
     pass
@@ -1027,7 +1046,7 @@ def order_receipt(request, pk):
 
     #return inline for future preview
     return HttpResponse(html)
-@login_required
+@csrf_exempt
 def orders_page(request):
     return render(request, "orders_page.html")
 
@@ -1183,9 +1202,137 @@ def customer_detail(request, pk):
 def customer_edit(request, pk):
     pass
 
-def assign_customer(request, pk):
-    pass
-#
+@csrf_exempt
+@require_POST
+def cart_assign_customer(request):
+    """
+    Assign or clear a customer on the in-session cart (not in the DB, because order is not created yer).
+    The cart is stored in request.session["cart"] and later used by checkout
+    to create an Order with the already-chosen customer.
+    Body:
+      {"customer_id": 123}                -> attach existing
+      {"customer_id": null}               -> remove
+      {"create": {fname, lname, phone, email}} -> remember intended new customer
+    """
+    try:
+        payload = json.loads(request.body.decode("utf-8")) #parsing incoming HTTP POST
+    except Exception:
+        return HttpResponseBadRequest("Invalid JSON")
+
+    cart = _get_cart(request.session)
+    cart.pop("create", None)
+
+    if "customer_id" in payload:
+        #  attach existing customer or remove assignment
+        cid = payload["customer_id"]
+        if cid is None:
+            cart["customer_id"] = None
+        else:
+            # to ensure the referenced customer actually exists
+            if not Customer.objects.filter(pk=cid).exists():
+                return HttpResponseBadRequest("Customer not found")
+            cart["customer_id"] = cid
+
+    #create new customer
+    elif "create" in payload:
+        data = payload["create"] or {}
+        phone = (data.get("phone", ""))
+        email = (data.get("email") or "").strip().lower()
+        if not phone:
+            return HttpResponseBadRequest("Phone is required")
+        cart["customer_id"] = None
+        # store the create-intent - creation only after order_payment
+        cart["create"] = {
+            "fname": (data.get("fname") or "").strip(),
+            "lname": (data.get("lname") or "").strip(),
+            "phone": phone,
+            "email": email,
+        }
+    else:
+        return HttpResponseBadRequest("Provide 'customer_id' or 'create'")
+
+    _save_cart(request.session, cart)
+    return JsonResponse({"ok": True, "cart": {"customer_id": cart.get("customer_id"), "create": cart.get("create")}})
+
+@csrf_exempt
+@require_POST
+@transaction.atomic
+def order_assign_customer(request, pk: int):
+    """
+    Attach/change/remove the customer to existing order
+    Body (one of):
+      {"customer_id": 123}
+      {"customer_id": null}
+      {"create": {fname, lname, phone, email}}  # find-by-phone or create, then assign
+
+    requires permission :can_assign_customer"
+    """
+    # lock the order to avoid race conditions
+    try:
+        order = Order.objects.select_for_update().get(pk=pk)
+    except Order.DoesNotExist:
+        return HttpResponseNotFound("Order not found")
+
+    # permission required
+    perms = compute_order_permissions(order, request.user)
+    if not perms.get("can_assign_customer"):
+        return HttpResponseBadRequest("Missing permission: can_assign_customer")
+
+    #load json
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+    except Exception:
+        return HttpResponseBadRequest("Invalid JSON")
+
+    # remove
+    if "customer_id" in payload and payload["customer_id"] is None:
+        # idempotent no-op: all good even if no customer was attached
+        if order.customer_id is None:
+            return JsonResponse({"ok": True, "order": serialize_order_for_modal(order)})
+        old_id = order.customer_id
+        order.customer = None
+        order.save(update_fields=["customer"])
+        return JsonResponse({"ok": True, "order": serialize_order_for_modal(order)})
+
+    # assign existing
+    if "customer_id" in payload:
+        cid = payload["customer_id"]
+        try:
+            cust = Customer.objects.get(pk=cid)
+        except Customer.DoesNotExist:
+            return HttpResponseBadRequest("Customer not found")
+        if order.customer_id == cust.id:  # idempotent, ok if same customer was assigned
+            return JsonResponse({"ok": True, "order": serialize_order_for_modal(order)})
+        order.customer = cust
+        order.save(update_fields=["customer"])
+        return JsonResponse({"ok": True, "order": serialize_order_for_modal(order)})
+
+    # create-and-assign
+    if "create" in payload:
+        data = payload["create"] or {}
+        phone = data.get("phone", "")
+        email = (data.get("email") or "").strip().lower()
+        if not phone:
+            return HttpResponseBadRequest("Phone is required")
+
+        # check phone , if no, create new customer
+        cust = Customer.objects.filter(phone=phone).first()
+        if not cust:
+            cust = Customer.objects.create(
+                fname=(data.get("fname") or "").strip(),
+                lname=(data.get("lname") or "").strip(),
+                phone=phone,
+                email=email,
+            )
+
+        if order.customer_id == cust.id:  # idempotent
+            return JsonResponse({"ok": True, "order": serialize_order_for_modal(order)})
+
+        order.customer = cust
+        order.save(update_fields=["customer"])
+        return JsonResponse({"ok": True, "order": serialize_order_for_modal(order)})
+
+    return HttpResponseBadRequest("Provide 'customer_id', 'customer_id': null, or 'create'")
 # def customer_edit(request, pk):
 #     pass
 # def customer_delete(request, pk):
