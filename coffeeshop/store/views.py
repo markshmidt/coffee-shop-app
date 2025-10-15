@@ -33,7 +33,7 @@ from .permissions import compute_order_permissions
 
 @login_required
 def home(request):
-
+    new_order_count = Order.objects.count() + 1 #for ORDER in templates
     price_expr = ExpressionWrapper(
         F("price_cents") * Value(Decimal("0.01")),
         output_field=DecimalField(max_digits=8, decimal_places=2),
@@ -62,6 +62,7 @@ def home(request):
             "cats": list(cats),
             "variants": variants,
             "modifier_groups": modifier_groups,
+            "new_order_count": new_order_count,
         }
     )
 
@@ -463,6 +464,7 @@ def cart_remove_line(request):
     _save_cart(request.session, cart)
     return JsonResponse({"ok": True, "cart": _cart_snapshot(cart)})
 
+@login_required
 @require_POST
 def cart_discount(request):
     data = json.loads(request.body.decode("utf-8"))
@@ -489,7 +491,7 @@ def cart_pay(request):
 
 
 # ==== LOGIN VIEWS =====
-@csrf_exempt
+@login_required
 def login_user(request):
     if request.method == "POST":
         username = request.POST.get("username")
@@ -510,7 +512,7 @@ def logout_user(request):
     return redirect('login')
 
 # ====== ORDER VIEWS =====
-@csrf_exempt
+@login_required
 @require_POST
 def order_payment(request):
     """
@@ -589,12 +591,20 @@ def order_payment(request):
         data = cart["create"]
         existing = Customer.objects.select_for_update().filter(phone=data["phone"]).first()
         customer = existing or Customer.objects.create(
-            fname=data.get("fname", ""),
-            lname=data.get("lname", ""),
-            phone=data["phone"],
-            email=data.get("email", ""),
+            fname=(data.get("fname") or "").strip(),
+            lname=(data.get("lname") or "").strip(),
+            phone= (data.get("phone") or "").strip(),
+            email=(data.get("email") or "").strip().lower()
         )
-
+    customer_out = None
+    if customer:
+        customer_out = {
+            "id": customer.id,
+            "fname": customer.fname,
+            "lname": customer.lname,
+            "phone": customer.phone,
+            "email": customer.email,
+        }
     # ---- Recompute from DB ----
     # Using _price_item_validate to ensure variants belong to items and selections belong to allowed groups
     recomputed_subtotal_cents = 0
@@ -745,7 +755,7 @@ def order_payment(request):
     resp = {
         "ok": True,
         "created_by": (request.user.get_full_name() or request.user.get_username()),
-        "customer": customer,
+        "customer": customer_out,
         "order_id": order.id,
         "subtotal_cents": recomputed_subtotal_cents,
         "discount_cents": discount_cents,
@@ -761,7 +771,7 @@ def order_payment(request):
 
     return JsonResponse(resp, status=201)
 
-@csrf_exempt
+@login_required
 @require_GET
 def orders_list(request):
     """
@@ -987,7 +997,7 @@ def serialize_order_for_modal(order):
     }
 
 
-@csrf_exempt
+@login_required
 @require_GET
 def order_detail(request, pk):
     """
@@ -1010,11 +1020,11 @@ def order_detail(request, pk):
     data = serialize_order_for_modal(order)
     data["permissions"] = compute_order_permissions(order, request.user)
     return JsonResponse({"ok": True, "order": data})
-@csrf_exempt
+@login_required
 def order_note(request, pk):
     order = get_object_or_404(Order, pk=pk)
     pass
-@csrf_exempt
+
 @login_required
 def order_receipt(request, pk):
     """
@@ -1046,14 +1056,14 @@ def order_receipt(request, pk):
 
     #return inline for future preview
     return HttpResponse(html)
-@csrf_exempt
+@login_required
 def orders_page(request):
     return render(request, "orders_page.html")
 
 
 #------ CUSTOMERS ------
 
-@csrf_exempt
+@login_required
 @require_GET
 def customers_list(request):
     """
@@ -1119,7 +1129,7 @@ def customers_list(request):
     return JsonResponse({"ok": True, "customers": out, "next_cursor": next_cursor})
 
 
-@csrf_exempt
+@login_required
 @require_GET
 def customer_orders(request, pk):
     # base orders for this customer
@@ -1151,6 +1161,7 @@ def customer_orders(request, pk):
     next_cursor = out[-1]["id"] if len(out) == limit else None
     return JsonResponse({"ok": True, "orders": out, "next_cursor": next_cursor})
 
+@login_required
 @require_POST
 def customer_add(request):
     """
@@ -1202,7 +1213,7 @@ def customer_detail(request, pk):
 def customer_edit(request, pk):
     pass
 
-@csrf_exempt
+@login_required
 @require_POST
 def cart_assign_customer(request):
     """
@@ -1254,7 +1265,7 @@ def cart_assign_customer(request):
     _save_cart(request.session, cart)
     return JsonResponse({"ok": True, "cart": {"customer_id": cart.get("customer_id"), "create": cart.get("create")}})
 
-@csrf_exempt
+@login_required
 @require_POST
 @transaction.atomic
 def order_assign_customer(request, pk: int):

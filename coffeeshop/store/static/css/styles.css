@@ -200,3 +200,98 @@ a, button { cursor:pointer; }
   cursor:pointer;
 }
 .pill:hover { background:#243244; }
+.modal.hidden { display:none; }
+
+
+/* Backdrop (the thing you open/close) */
+#customer-modal{
+  position: fixed !important;   /* <— key for viewport centering */
+  inset: 0;
+  display: none;                /* JS toggles to flex when opening */
+  align-items: center;          /* vertical center */
+  justify-content: center;      /* horizontal center */
+  background: rgba(2,6,23,.6);
+  z-index: 9999;                /* above everything */
+  gap:8px;
+}
+
+/* If you keep using a .hidden class to close it */
+#customer-modal.hidden{ display: none !important; }
+
+/* The dialog box inside (your markup uses .modal__dialog) */
+#customer-modal .modal__dialog{
+  width: min(720px, 92vw);
+  max-height: 90vh;
+  overflow: auto;               /* scroll inside if tall */
+  margin: 0;                    /* no margins so true center */
+  border: 1px solid #1f2937;
+  border-radius: 16px;
+  background: var(--panel);
+  box-shadow: 0 25px 60px rgba(0,0,0,.45);
+}
+
+#customer-modal .modal__header{
+  grid-column:1 / -1;
+  display:flex; justify-content:space-between; align-items:center;
+  margin-bottom:6px;
+
+}
+#customer-modal .x{ background:transparent; border:0; color:#93a2b8; font-size:20px; margin-left:auto; }
+
+/* sections (search & create) styled like .group in item modal */
+#customer-modal .group,
+#customer-modal section,
+#customer-modal .panelish{
+  margin:0; padding:10px;
+  border:1px dashed #334155;
+  border-radius:12px;
+  background:var(--card, #0b1222);
+}
+
+/* tiny section titles to match */
+#customer-modal h6{ margin:0 0 8px; font-size:13px; color:#cbd5e1; }
+
+/* inputs/buttons reuse your tokens */
+#customer-modal .input{
+  width:100%;
+  background:#0b1222; border:1px solid #1e293b; color:var(--text, #cbd5e1);
+  padding:10px 12px; border-radius:10px; outline:none;
+}
+#customer-modal .btn{
+  padding:10px 12px; border-radius:10px; border:1px solid #1f2937;
+  background:#0b1222; color:#e2e8f0; transition:.15s transform, .15s filter;
+}
+#customer-modal .btn:hover{ filter:brightness(1.15); }
+#customer-modal .btn:active{ transform:translateY(1px); }
+#customer-modal .btn.primary{ background:linear-gradient(180deg, #22c55e, #16a34a); border-color:#065f46; color:#032114; }
+#customer-modal .btn.warn{ background:linear-gradient(180deg, #f59e0b, #d97706); border-color:#92400e; color:#1f1300; }
+#customer-modal .btn.ghost{ background:#0b1222; }
+
+/* results list — cards like cart lines / option groups */
+#customer-modal #cust-results{
+  margin-top:10px;
+  display:flex; flex-direction:column; gap:8px;
+  max-height:40vh; overflow:auto; padding-right:2px;
+}
+#customer-modal #cust-results > *{
+  display:grid; grid-template-columns: 1fr auto;
+  align-items:start; gap:8px;
+  padding:10px; border:1px solid #1f2937; border-radius:12px; background:var(--card, #0b1222);
+}
+#customer-modal #cust-results strong{ color:#e2e8f0; font-weight:600; }
+#customer-modal .muted{ color:#94a3b8; }
+#customer-modal .small{ font-size:.9rem; }
+
+/* use chip-style for inline "Assign" buttons too (if you use .chip-btn there) */
+#customer-modal .chip-btn{
+  padding:8px 12px; border-radius:999px; border:1px solid #334155; background:#0b1222; color:#cbd5e1;
+}
+#customer-modal .chip-btn.active{ background:#12322a; border-color:#1b7a52; color:#86efac; }
+
+/* form column tidy spacing */
+#customer-modal form#cust-create{ display:grid; gap:8px; }
+#customer-modal #cust-create-msg{ margin-top:4px; }
+
+/* responsive: stack columns on narrow screens */
+@media (max-width: 760px){
+  #customer-modal .modal{ grid-template-columns: 1fr; }

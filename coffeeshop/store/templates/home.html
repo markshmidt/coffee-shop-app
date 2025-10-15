@@ -10,35 +10,16 @@
 
           <section class="panel" id="prevInv">
               <h3> Previous invoices</h3>
-              <div class="invoice" id="prev-invoices-list"> <!-- by clicking each you can see whole order / list of all orders-->
+              <div class="invoice" id="prev-invoices-list">
                    <a href="{% url 'orders' %}" id="orders-more-chip" class="pill">More…</a>
               </div>
           </section>
-          <!-- Orders modal -->
-<div id="orders-modal" class="modal-backdrop" style="display:none;">
-  <div class="modal">
-    <div class="modal-header">
-      <h4>Recent Orders</h4>
-      <button class="close-modal" data-modal-id="orders-modal">×</button>
-    </div>
-    <div class="modal-body">
-      <table class="orders-table">
-        <thead>
-          <tr><th>ID</th><th>When</th><th>Total</th><th>PM</th><th>By</th></tr>
-        </thead>
-        <tbody id="orders-tbody"></tbody>
-      </table>
-      <div style="margin-top:8px;">
-        <button id="orders-load-more" class="btn ghost">Load more</button>
-      </div>
-    </div>
-  </div>
-</div>
 
         <section class="panel" style="flex:1; min-height:100%;">
           <h3 class="section-title">Cart</h3>
-            <h4> ORDER 99</h4>
-            <a href="#" > Customer: Guest</a> <!-- when you click guest there is a list opening, with all customers, where you find the needed customer and assign him to order-->
+            <h4> ORDER {{new_order_count}}</h4>
+            <a href="#" id="cart-customer-label">Customer: Guest</a>
+<!-- when you click guest there is a list opening, with all customers, where you find the needed customer and assign him to order-->
             <div class="clock" id="clock2">--:--</div>
 
           <!-- Lines list (static placeholders for now) -->
@@ -192,6 +173,43 @@
     </div>
   </div>
   {% endfor%}
+
+<!---- Assign customer modal ---->
+<div id="customer-modal" class="modal hidden">
+  <div class="modal__dialog panel" style="max-width:640px">
+    <div class="modal__header">
+      <h3>Assign customer</h3>
+      <button class="x close-modal" id="cust-close" aria-label="Close">X</button>
+    </div>
+
+    <div class="modal__body">
+      <div class="grid" style="display:grid; grid-template-columns: 1fr 260px; gap:16px;">
+
+        <!-- Search & results -->
+        <div>
+          <input id="cust-search" class="input" placeholder="Search name, phone, or email…" />
+          <div id="cust-results" style="margin-top:10px; max-height:40vh; overflow:auto;"></div>
+        </div>
+
+        <!-- Create new -->
+        <form id="cust-create" class="panel" style="padding:12px;">
+          <h4 class="section-title">New customer</h4>
+          <div style="display:grid; gap:8px;">
+            <input class="input" name="fname" placeholder="First name" />
+            <input class="input" name="lname" placeholder="Last name" />
+            <input class="input" name="phone" placeholder="Phone (e.g., +14165551234)" required />
+            <input class="input" name="email" placeholder="Email (optional)" />
+          </div>
+          <div style="display:flex; gap:8px; margin-top:10px;">
+            <button type="submit" class="btn primary">Create & assign</button>
+            <button id="cust-remove" type="button" class="btn warn">Remove</button>
+          </div>
+          <p id="cust-create-msg" style="margin-top:8px; font-size:.9rem;"></p>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
 
 
 {{ cats|json_script:"cats-data" }}

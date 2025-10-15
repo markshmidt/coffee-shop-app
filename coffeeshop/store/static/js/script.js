@@ -764,6 +764,7 @@ async function onPayClick(e) {
     };
 
     // pay
+    console.log('PAY payload →', JSON.stringify(payload));
     const res = await fetch('/order/pay/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
@@ -992,7 +993,7 @@ function renderOrderModal(order) {
   const m = ensureOrderModal();
   m.style.display = 'flex';
   document.getElementById('order-modal-title').textContent =
-    `Order #${order.number || order.id}`;
+    `Order #${order.id}`;
 
   const centsTo = c => '$' + ((c || 0) / 100).toFixed(2);
 
@@ -1048,7 +1049,7 @@ function renderOrderModal(order) {
   const paymentHtml = order.payment_method || '';
 
   const customerHtml = order.customer
-    ? `${order.customer.name} ${order.customer.phone ? `• ${order.customer.phone}` : ''}`
+    ? `${order.customer.fname} ${order.customer.phone ? `• ${order.customer.phone}` : ''}`
     : '<span class="muted">Guest customer</span>';
 
   document.getElementById('order-modal-content').innerHTML = `
@@ -1125,3 +1126,137 @@ function openReceipt(orderId) {
   // open in a new tab
   window.open(`/orders/${encodeURIComponent(id)}/receipt/`, '_blank', 'noopener,noreferrer');
 }
+
+
+// CUSTOMER ASSIGN MODAL
+
+// ---------- Small helpers ----------
+async function apiGET(url){
+  const r = await fetch(url,{credentials:'same-origin'});
+  if(!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+async function apiPOST(url, body){
+  const r = await fetch(url,{
+    method:'POST',
+    headers:{'Content-Type':'application/json','X-CSRFToken':CSRF},
+    credentials:'same-origin',
+    body: JSON.stringify(body||{})
+  });
+  if(!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+function debounce(fn,ms=250){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms)}}
+function displayName(c){ const n = `${(c.fname||'').trim()} ${(c.lname||'').trim()}`.trim(); return n || c.phone || c.email || 'Customer'; }
+
+// ---------- Elements ----------
+const modal       = document.getElementById('customer-modal');
+const inputSearch = document.getElementById('cust-search');
+const resultsEl   = document.getElementById('cust-results');
+const formCreate  = document.getElementById('cust-create');
+const btnClose    = document.getElementById('cust-close');
+const btnRemove   = document.getElementById('cust-remove');
+const msgCreate   = document.getElementById('cust-create-msg');
+const linkHeader  = document.getElementById('cart-customer-label');
+
+// ---------- Open/close ----------
+function openCustomerModal(){
+  if(!modal) return;
+  inputSearch.value = '';
+  resultsEl.innerHTML = '';
+  msgCreate.textContent = '';
+  modal.classList.remove('hidden');
+modal.style.display = 'flex';
+document.body.style.overflow = 'hidden';
+  inputSearch.focus();
+}
+function closeCustomerModal(){ modal.style.display = 'none';
+modal.classList.add('hidden');
+document.body.style.overflow = '';
+ }
+
+// ---------- Search (uses your /customers/list) ----------
+const doSearch = debounce(async (q)=>{
+  if(!q || !q.trim()){ resultsEl.innerHTML=''; return; }
+  try{
+    const data = await apiGET(`/customers/list/?q=${encodeURIComponent(q)}&limit=20&with_orders=brief`);
+    renderResults(data.customers || []);
+  }catch(e){
+    resultsEl.innerHTML = `<div class="row">Error searching</div>`;
+  }
+}, 250);
+
+function renderResults(list){
+  if(!list.length){ resultsEl.innerHTML = `<div class="row">No results</div>`; return; }
+  resultsEl.innerHTML = '';
+  for(const c of list){
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.innerHTML = `
+      <div>
+        <div style="font-weight:600">${displayName(c)}</div>
+        <div style="opacity:.75; font-size:.9rem">${c.phone||''}${c.email? ' · '+c.email : ''}</div>
+      </div>
+      <div><button class="btn primary">Assign</button></div>
+    `;
+    row.querySelector('button').onclick = () => assignExistingToCart(c.id, c);
+    resultsEl.appendChild(row);
+  }
+}
+
+// ---------- Assign to CART ----------
+async function assignExistingToCart(customerId, customerObj){
+  try{
+    await apiPOST('/cart/assign_customer/', { customer_id: customerId });
+    updateCartHeaderCustomer(displayName(customerObj));
+    closeCustomerModal();
+  }catch(e){
+    showToast?.('Failed to assign customer', { type:'error' });
+  }
+}
+
+btnRemove?.addEventListener('click', async ()=>{
+  try{
+    await apiPOST('/cart/assign_customer/', { customer_id: null });
+    updateCartHeaderCustomer('Guest');
+    closeCustomerModal();
+  }catch(e){
+    showToast?.('Failed to remove customer', { type:'error' });
+  }
+});
+
+formCreate?.addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  msgCreate.textContent = '';
+  const fd = new FormData(formCreate);
+  const payload = {
+    create: {
+      fname: (fd.get('fname')||'').trim(),
+      lname: (fd.get('lname')||'').trim(),
+      phone: (fd.get('phone')||'').trim(),
+      email: (fd.get('email')||'').trim(),
+    }
+  };
+  if(!payload.create.phone){ msgCreate.textContent='Phone is required'; return; }
+
+  try{
+    await apiPOST('/cart/assign_customer/', payload);
+    updateCartHeaderCustomer(displayName(payload.create));
+    closeCustomerModal();
+  }catch(e){
+    msgCreate.textContent = 'Could not create/assign (maybe duplicate phone or invalid email)';
+  }
+});
+
+// ---------- Wire header link + modal controls ----------
+linkHeader?.addEventListener('click', (e)=>{ e.preventDefault(); openCustomerModal(); });
+inputSearch?.addEventListener('input', (e)=> doSearch(e.target.value));
+btnClose?.addEventListener('click', closeCustomerModal);
+
+// ---------- Update header helper ----------
+function updateCartHeaderCustomer(name){
+  if(linkHeader) linkHeader.textContent = `Customer: ${name || 'Guest'}`;
+}
+
+// (optional) on page load, if you include customer id/name in /cart/ snapshot,
+// call updateCartHeaderCustomer(...) here.
