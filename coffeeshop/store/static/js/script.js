@@ -1147,7 +1147,19 @@ async function apiPOST(url, body){
   return r.json();
 }
 function debounce(fn,ms=250){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms)}}
-function displayName(c){ const n = `${(c.fname||'').trim()} ${(c.lname||'').trim()}`.trim(); return n || c.phone || c.email || 'Customer'; }
+function displayName(c){
+  const first = (c.fname || c.first_name || '').trim();
+  const last  = (c.lname || c.last_name || '').trim();
+  const combo = [first, last].filter(Boolean).join(' ').trim();
+
+  // fallbacks from various endpoints
+  return (
+    combo ||
+    (c.display_name || '').trim() ||
+    (c.name || '').trim() ||
+    (c.phone || '').trim() ||
+    'Customer'
+  );}
 
 // ---------- Elements ----------
 const modal       = document.getElementById('customer-modal');
@@ -1175,7 +1187,7 @@ modal.classList.add('hidden');
 document.body.style.overflow = '';
  }
 
-// ---------- Search (uses your /customers/list) ----------
+// ---------- Search  ----------
 const doSearch = debounce(async (q)=>{
   if(!q || !q.trim()){ resultsEl.innerHTML=''; return; }
   try{
