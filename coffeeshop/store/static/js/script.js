@@ -1103,7 +1103,9 @@ function renderOrderModal(order) {
   }
   showToast?.('Not implemented yet', { type: 'info' });
   };
-  btnAssign.onclick = () => {openCustomerModal(`${order.id}`) };
+  btnAssign.onclick = () => openCustomerModal({ orderId: Number(order.id) });;
+
+
   btnPrint.onclick  = () => {
 //      if (!order?.id) return;
       openReceipt(`${order.id}`);
@@ -1174,8 +1176,9 @@ const linkHeader  = document.getElementById('cart-customer-label');
 // ---------- Open/close ----------
 let assignOrderId = null; // null => cart mode; number => order mode
 
-function openCustomerModal(orderId){
- assignOrderId = orderId;
+function openCustomerModal({ orderId = null, preset = '' } = {}){
+ assignOrderId = (orderId !== null && Number.isFinite(Number(orderId))) ? Number(orderId) : null;
+  console.debug('Customer modal mode:', assignOrderId ? 'ORDER' : 'CART', 'orderId=', assignOrderId);
   if(!modal) return;
   inputSearch.value = '';
   resultsEl.innerHTML = '';
@@ -1234,8 +1237,9 @@ function updateCartHeaderCustomer(name) {
 // Order modal header e.g.
 // <div class="row"><strong>Customer:</strong> <span id="order-customer-label">Guest</span></div>
 function updateOrderHeaderCustomer(name) {
-  const el = document.getElementById('order-customer-label');
+  const el = document.getElementById('customerHtml');
   if (el) el.textContent = name || 'Guest';
+  closeCustomerModal();
 }
 // ---------- Assign to CART ----------
 function modeEndpoint() {
@@ -1253,7 +1257,9 @@ function applyLabel(nameLike) {
 }
 
 async function assignExistingToCart(customerId, customerObj) {
+const url = modeEndpoint();
   await apiPOST(modeEndpoint(), { customer_id: customerId });
+   console.debug('POST →', url, 'assignOrderId=', assignOrderId);
   applyLabel(customerObj);
   closeCustomerModal();
 }
@@ -1264,8 +1270,10 @@ if (!window.__custRemoveInit) {
 
   btnRemove.onclick = async () => {
     try {
+    const url = modeEndpoint();
       await apiPOST(modeEndpoint(), { customer_id: null });
       applyLabel('Guest');
+       console.debug('REMOVE →', url, 'assignOrderId=', assignOrderId);
       closeCustomerModal();
     } catch (e) {
       showToast?.('Failed to remove customer', { type: 'error' });
@@ -1293,6 +1301,8 @@ formCreate?.addEventListener('submit', async (e) => {
   }
 
   try {
+  const url = modeEndpoint();
+  console.debug('CREATE →', url, 'assignOrderId=', assignOrderId);
     await apiPOST(modeEndpoint(), payload);
     applyLabel(payload.create);
     closeCustomerModal();
