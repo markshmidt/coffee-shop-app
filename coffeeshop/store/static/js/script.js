@@ -1175,6 +1175,17 @@ const linkHeader  = document.getElementById('cart-customer-label');
 
 // ---------- Open/close ----------
 let assignOrderId = null; // null => cart mode; number => order mode
+async function reloadOrderModal(orderId) {
+  const { ok, order } = await apiGET(`/orders/${orderId}/`);
+  if (ok && order) {
+    const backdrop = document.getElementById('order-modal-backdrop');
+    renderOrderModal(order);
+    if (backdrop) {
+      backdrop.style.display = 'flex';
+      document.body.style.overflow = 'hidden';
+    }
+  }
+}
 
 function openCustomerModal({ orderId = null, preset = '' } = {}){
  assignOrderId = (orderId !== null && Number.isFinite(Number(orderId))) ? Number(orderId) : null;
@@ -1239,7 +1250,7 @@ function updateCartHeaderCustomer(name) {
 function updateOrderHeaderCustomer(name) {
   const el = document.getElementById('customerHtml');
   if (el) el.textContent = name || 'Guest';
-  closeCustomerModal();
+  reloadOrderModal();
 }
 // ---------- Assign to CART ----------
 function modeEndpoint() {
@@ -1250,17 +1261,19 @@ function modeEndpoint() {
 function afterAssignLabel(objOrName) {
   return typeof objOrName === 'string' ? objOrName : displayName(objOrName || {});
 }
-function applyLabel(nameLike) {
-  const label = afterAssignLabel(nameLike);
-  if (assignOrderId) updateOrderHeaderCustomer(label);
-  else               updateCartHeaderCustomer(label);
-}
+
 
 async function assignExistingToCart(customerId, customerObj) {
 const url = modeEndpoint();
+const currentOrderId = assignOrderId;
   await apiPOST(modeEndpoint(), { customer_id: customerId });
    console.debug('POST →', url, 'assignOrderId=', assignOrderId);
-  applyLabel(customerObj);
+
+ if (currentOrderId) {
+    await reloadOrderModal(currentOrderId);
+  } else {
+    updateCartHeaderCustomer(displayName(customerObj));
+  }
   closeCustomerModal();
 }
 
@@ -1272,7 +1285,6 @@ if (!window.__custRemoveInit) {
     try {
     const url = modeEndpoint();
       await apiPOST(modeEndpoint(), { customer_id: null });
-      applyLabel('Guest');
        console.debug('REMOVE →', url, 'assignOrderId=', assignOrderId);
       closeCustomerModal();
     } catch (e) {
@@ -1304,7 +1316,6 @@ formCreate?.addEventListener('submit', async (e) => {
   const url = modeEndpoint();
   console.debug('CREATE →', url, 'assignOrderId=', assignOrderId);
     await apiPOST(modeEndpoint(), payload);
-    applyLabel(payload.create);
     closeCustomerModal();
   } catch (e) {
     msgCreate.textContent = 'Could not create/assign (maybe duplicate phone or invalid email)';
