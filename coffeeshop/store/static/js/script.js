@@ -809,7 +809,26 @@ async function onPayClick(e) {
     btn.removeAttribute('aria-busy');
   }
 }
-;
+//REMOVE CUSTOMER BUTTON
+const btnRemove = document.getElementById('cust-remove');
+if (btnRemove) {
+  btnRemove.addEventListener('click', async (e) => {
+    e.preventDefault();
+
+    btnRemove.disabled = true;
+    try {
+      await apiPOST('/cart/assign_customer/', { customer_id: null });
+      updateCartHeaderCustomer('Guest');
+      btnRemove.style.display = 'none';
+      showToast?.('Customer removed from cart', { type: 'success' });
+    } catch (err) {
+      console.error('Remove failed:', err);
+      showToast?.('Failed to remove customer', { type: 'error' });
+    } finally {
+      btnRemove.disabled = false;
+    }
+  });
+}
 // ---- ORDERS PAGE ----
 document.addEventListener('DOMContentLoaded', () => {
   const feed = document.getElementById('orders-feed');
@@ -1169,7 +1188,6 @@ const inputSearch = document.getElementById('cust-search');
 const resultsEl   = document.getElementById('cust-results');
 const formCreate  = document.getElementById('cust-create');
 const btnClose    = document.getElementById('cust-close');
-const btnRemove   = document.getElementById('cust-remove');
 const msgCreate   = document.getElementById('cust-create-msg');
 const linkHeader  = document.getElementById('cart-customer-label');
 
@@ -1271,27 +1289,15 @@ const currentOrderId = assignOrderId;
 
  if (currentOrderId) {
     await reloadOrderModal(currentOrderId);
+
   } else {
     updateCartHeaderCustomer(displayName(customerObj));
+    btnRemove.style.display = "inline"
   }
+
   closeCustomerModal();
 }
 
-// ---------- Remove assignment ----------
-if (!window.__custRemoveInit) {
-  window.__custRemoveInit = true;
-
-  btnRemove.onclick = async () => {
-    try {
-    const url = modeEndpoint();
-      await apiPOST(modeEndpoint(), { customer_id: null });
-       console.debug('REMOVE →', url, 'assignOrderId=', assignOrderId);
-      closeCustomerModal();
-    } catch (e) {
-      showToast?.('Failed to remove customer', { type: 'error' });
-    }
-  };
-}
 
 // ---------- Create & assign ----------
 formCreate?.addEventListener('submit', async (e) => {
