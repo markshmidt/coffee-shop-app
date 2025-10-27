@@ -18,6 +18,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST, require_GET
 from collections import defaultdict
 from django.core.files.base import ContentFile
+from .services.loyalty import award_points_for_order, compute_earn_points
 
 from .models import Category, MenuItem, Variant, ModifierGroup, ModifierOption, Order, OrderItem, OrderItemModifier, \
     Customer
@@ -148,6 +149,17 @@ def _cart_snapshot(cart):
     Snapshot returned to the client after any change.
     Keep fields stable so frontend render code is simple.
     """
+
+    subtotal = cart.get("subtotal_cents", 0)
+    projected_pts = compute_earn_points(subtotal)  # same formula as backend
+
+    loyalty = {"projected_points": projected_pts}
+
+    cid = cart.get("customer_id")
+    if cid:
+        # minimal fetch to avoid heavy joins
+        pts = Customer.objects.filter(pk=cid).values_list("points_balance", flat=True).first() or 0
+        loyalty.update({"customer_id": cid, "points_balance": pts})
     return {
         "lines": cart["lines"],
         "discount_code": cart.get("discount_code", "NONE"),
@@ -166,6 +178,7 @@ def _cart_snapshot(cart):
         "tax_label": _fmt_cents(cart.get("tax_cents", 0)),
         "total_label": _fmt_cents(cart.get("total_cents", 0)),
         "rounding_delta_label": _fmt_cents(cart.get("rounding_delta_cents", 0)),
+        "loyalty": loyalty,
     }
 
 def _fmt_cents(c):
@@ -595,15 +608,7 @@ def order_payment(request):
             phone= (data.get("phone") or "").strip(),
             email=(data.get("email") or "").strip().lower()
         )
-    customer_out = None
-    if customer:
-        customer_out = {
-            "id": customer.id,
-            "fname": customer.fname,
-            "lname": customer.lname,
-            "phone": customer.phone,
-            "email": customer.email,
-        }
+
     # ---- Recompute from DB ----
     # Using _price_item_validate to ensure variants belong to items and selections belong to allowed groups
     recomputed_subtotal_cents = 0
@@ -749,13 +754,32 @@ def order_payment(request):
     request.session["cart"] = _empty_cart()
     _save_cart(request.session, request.session["cart"])  # keep pipeline consistent
 
+    points_awarded = 0
+    new_balance = None
+    if order.customer_id and order.subtotal_cents > 0:
+        points_awarded, new_balance = award_points_for_order(order.pk)
+
+    # build customer_out with fresh balance
+    customer_out = None
+    if order.customer_id:
+        c = Customer.objects.only(
+            "id", "fname", "lname", "phone", "email", "points_balance"
+        ).get(pk=order.customer_id)
+        customer_out = {
+            "id": c.id,
+            "fname": c.fname,
+            "lname": c.lname,
+            "phone": c.phone,
+            "email": c.email,
+            "points_balance": c.points_balance,  # fresh value
+        }
+
     # --- response payload ---
     chip_method = "Cash" if payment_method == "CASH" else "Card"
     resp = {
         "ok": True,
         "created_by": (request.user.get_full_name() or request.user.get_username()),
         "customer": customer_out,
-        "order_id": order.id,
         "subtotal_cents": recomputed_subtotal_cents,
         "discount_cents": discount_cents,
         "tax_cents": tax_cents,
@@ -766,6 +790,10 @@ def order_payment(request):
         "tax_label": _fmt_cents(tax_cents),
         "total_label": _fmt_cents(total_cents),
         "chip_label": f"{_fmt_cents(total_cents)[1:]} {chip_method}",  # e.g., "6.22 Card"
+        "loyalty": {
+            "points_awarded": points_awarded,
+            "customer_points_balance": new_balance,
+        }
     }
 
     return JsonResponse(resp, status=201)
@@ -954,7 +982,6 @@ def serialize_order_for_modal(order):
         "rounding_cents": rounding_cents, "rounding_label": _fmt_cents(rounding_cents),
         "grand_total_cents": grand_cents, "grand_total_label": _fmt_cents(grand_cents),
     }
-
     # ---- Payments (if you have a relation) ----
     payments_out = []
     if hasattr(order, "payments"):
@@ -978,7 +1005,9 @@ def serialize_order_for_modal(order):
             "lname": getattr(c, "lname", ""),
             "phone": getattr(c, "phone", ""),
             "email": getattr(c, "email", ""),
+            "points_balance": getattr(c, "points_balance", 0),
         }
+    projected_pts = compute_earn_points(subtotal_cents)
 
     return {
         "id": order.id,
@@ -993,6 +1022,11 @@ def serialize_order_for_modal(order):
         "payments": payments_out,
         "customer": customer,
         "notes": getattr(order, "internal_notes", ""),
+        "loyalty": {
+            "points_earned": getattr(order, "points_earned", 0),
+            "redeemed_points": getattr(order, "redeemed_points", 0),
+            "projected_points": projected_pts,
+        },
     }
 
 
@@ -1111,7 +1145,7 @@ def customers_list(request):
             "id": c.id,
             "name": f"{(c.fname or '').strip()} {(c.lname or '').strip()}".strip(),
             "phone": c.phone, "email": c.email,
-            "point_balance": getattr(c, "point_balance", 0),
+            "points_balance": getattr(c, "points_balance", 0),
         }
         if request.GET.get("with_orders") == "brief":
             row["order_count"] = getattr(c, "order_count", 0)
@@ -1206,9 +1240,23 @@ def customer_add(request):
             },
             status=201,
         )
-
+def _customer_to_dict(c: Customer) -> dict:
+    return {
+        "id": c.id,
+        "fname": c.fname,
+        "lname": c.lname,
+        "phone": c.phone,
+        "email": c.email,
+        "points_balance": c.points_balance,
+    }
 def customer_detail(request, pk):
-    pass
+    try:
+        c = Customer.objects.get(pk=pk)
+    except Customer.DoesNotExist:
+        # Always return an HttpResponse
+        return JsonResponse({"ok": False, "error": "Customer not found."}, status=404)
+
+    return JsonResponse({"ok": True, "customer": _customer_to_dict(c)}, status=200)
 def customer_edit(request, pk):
     pass
 
@@ -1346,3 +1394,10 @@ def order_assign_customer(request, pk: int):
 #     pass
 # def customer_delete(request, pk):
 #     pass
+
+# # ADD POINTS FOR MODEL
+# def add_points_for_order(order):
+#     if order.customer and order.subtotal_cents > 0:
+#         points_to_add = order.subtotal_cents // 100  # 1 point per $1
+#         order.customer.points_balance += points_to_add
+#         order.customer.save(update_fields=["points_balance"])

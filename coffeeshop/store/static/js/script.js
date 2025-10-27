@@ -314,6 +314,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Cart casche
 let CART_CACHE = null;
+let CURRENT_CUSTOMER = null;
 function getCurrentCart() { return CART_CACHE; }
 
 // Simple toast helper to show errors in ui
@@ -480,7 +481,17 @@ function renderCart(cart) {
       </div>
     `;
     linesLst.appendChild(li);
+
   });
+
+    if (CURRENT_CUSTOMER) {
+    // use cart subtotal so it changes live
+    const name = displayName(CURRENT_CUSTOMER, { showProjectedEarn: cart.subtotal_cents });
+    updateCartHeaderCustomer(name);
+  } else {
+    // no customer assigned → keep “Guest”
+    updateCartHeaderCustomer('Guest');
+  }
 
       // --- Totals
     sub.textContent   = cart.subtotal_label ?? centsToLabel(cart.subtotal_cents || 0);
@@ -536,6 +547,7 @@ function setupCartRadios() {
     });
   });
 }
+
 
 // call it!
 document.addEventListener('DOMContentLoaded', async () => {
@@ -798,6 +810,12 @@ async function onPayClick(e) {
       data.created_by
     );
 
+    if (data.customer && data.loyalty) {
+  const customerObj = { ...data.customer, points_balance: data.loyalty.customer_points_balance };
+  updateCartHeaderCustomer(
+    displayName(customerObj, { showProjectedEarn: null })
+  );
+}
     // toast for debug
     showToast?.(`Order #${data.order_id} created — ${data.total_label || data.chip_label}`, { type: 'success' });
 
@@ -807,6 +825,9 @@ async function onPayClick(e) {
   } finally {
     btn.disabled = false;
     btn.removeAttribute('aria-busy');
+       CURRENT_CUSTOMER = null;                 // <-- important
+    updateCartHeaderCustomer('Guest');       // <-- header label
+    if (btnRemove) btnRemove.style.display = 'none';
   }
 }
 //REMOVE CUSTOMER BUTTON
@@ -1126,7 +1147,6 @@ function renderOrderModal(order) {
 
 
   btnPrint.onclick  = () => {
-//      if (!order?.id) return;
       openReceipt(`${order.id}`);
       showToast?.('CSV receipt opened in new tab', { type: 'success' });
       }
@@ -1168,19 +1188,41 @@ async function apiPOST(url, body){
   return r.json();
 }
 function debounce(fn,ms=250){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms)}}
-function displayName(c){
-  const first = (c.fname || c.first_name || '').trim();
-  const last  = (c.lname || c.last_name || '').trim();
-  const combo = [first, last].filter(Boolean).join(' ').trim();
 
-  // fallbacks from various endpoints
-  return (
+function projectedEarnPoints(subtotalCents) {
+  const pts = Math.floor(subtotalCents / 100) * 1;
+  return Number.isFinite(pts) ? pts : 0;
+}
+function displayName(c = {}, opts = {}){
+ const { showProjectedEarn = null } = opts;
+  const pick = (...vals) =>
+    vals.find(v => typeof v === 'string' && v.trim().length > 0)?.trim();
+
+  // Build the best "name" we can
+  const first = pick(c.fname,);
+  const last  = pick(c.lname);
+  const combo = pick([first, last].filter(Boolean).join(' ')); // "" if both missing
+
+  // Fallbacks if combo is empty
+  const base =
     combo ||
-    (c.display_name || '').trim() ||
-    (c.name || '').trim() ||
-    (c.phone || '').trim() ||
-    'Customer'
-  );}
+    pick(c.display_name, c.name, String(c.phone ?? '')) ||
+    'Customer';
+
+   const rawPts = c.points_balance ?? c.points ?? null;
+  const numPts = Number.isFinite(Number(rawPts)) ? Number(rawPts) : null;
+
+  let earnSuffix = '';
+  if (Number.isFinite(showProjectedEarn)) {
+    const earn = projectedEarnPoints(showProjectedEarn);
+    earnSuffix = ` (+${earn} pts)`;
+  }
+
+  // Show suffix only if points are known. If you prefer to hide 0, change to (numPts > 0)
+  const ptsSuffix = numPts !== null ? ` • ${numPts} pts` : '';
+
+  return base + ptsSuffix+ earnSuffix;
+  }
 
 // ---------- Elements ----------
 const modal       = document.getElementById('customer-modal');
@@ -1239,6 +1281,10 @@ function renderResults(list){
   if(!list.length){ resultsEl.innerHTML = `<div class="row">No results</div>`; return; }
   resultsEl.innerHTML = '';
   for(const customer of list){
+  const normalized = {
+      ...customer,
+      points_balance: customer.points_balance ?? null
+    };
     const row = document.createElement('div');
     row.className = 'row';
     row.innerHTML = `
@@ -1277,26 +1323,52 @@ function modeEndpoint() {
     : `/cart/assign_customer/`;
 }
 function afterAssignLabel(objOrName) {
-  return typeof objOrName === 'string' ? objOrName : displayName(objOrName || {});
+  return typeof objOrName === 'string'
+    ? objOrName
+    : displayName(objOrName, { showProjectedEarn: subtotalCents });
 }
 
 
-async function assignExistingToCart(customerId, customerObj) {
-const url = modeEndpoint();
-const currentOrderId = assignOrderId;
-  await apiPOST(modeEndpoint(), { customer_id: customerId });
-   console.debug('POST →', url, 'assignOrderId=', assignOrderId);
+async function
+assignExistingToCart(customerId, customerObj) {
+  const url = modeEndpoint();
+  const currentOrderId = assignOrderId;
 
- if (currentOrderId) {
+  await apiPOST(url, { customer_id: customerId });
+  console.debug('POST →', url, 'assignOrderId=', assignOrderId);
+    CURRENT_CUSTOMER = {
+    ...customerObj,
+    points_balance: customerObj.points_balance  ?? null
+  };
+
+  if (currentOrderId) {
+    // ORDER mode
     await reloadOrderModal(currentOrderId);
-
   } else {
-    updateCartHeaderCustomer(displayName(customerObj));
-    btnRemove.style.display = "inline"
+    // CART mode — fetch a fresh cart snapshot (don’t rely on cache here)
+    let subtotalCents = null;
+    try {
+      const { cart } = await getJSON('/cart/');   // returns your full snapshot
+      if (cart) {
+        // keep your module cache current (no window usage)
+        CART_CACHE = cart;
+        if (isPOS()) renderCart(cart);            // refresh UI
+        subtotalCents = cart.subtotal_cents ?? null;
+      }
+    } catch (e) {
+      console.warn('Could not fetch cart after assign:', e);
+    }
+
+    updateCartHeaderCustomer(
+      displayName(customerObj, { showProjectedEarn: subtotalCents })
+    );
+
+    if (btnRemove) btnRemove.style.display = 'inline';
   }
 
   closeCustomerModal();
 }
+
 
 
 // ---------- Create & assign ----------
