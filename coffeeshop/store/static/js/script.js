@@ -809,7 +809,26 @@ async function onPayClick(e) {
     btn.removeAttribute('aria-busy');
   }
 }
-;
+//REMOVE CUSTOMER BUTTON
+const btnRemove = document.getElementById('cust-remove');
+if (btnRemove) {
+  btnRemove.addEventListener('click', async (e) => {
+    e.preventDefault();
+
+    btnRemove.disabled = true;
+    try {
+      await apiPOST('/cart/assign_customer/', { customer_id: null });
+      updateCartHeaderCustomer('Guest');
+      btnRemove.style.display = 'none';
+      showToast?.('Customer removed from cart', { type: 'success' });
+    } catch (err) {
+      console.error('Remove failed:', err);
+      showToast?.('Failed to remove customer', { type: 'error' });
+    } finally {
+      btnRemove.disabled = false;
+    }
+  });
+}
 // ---- ORDERS PAGE ----
 document.addEventListener('DOMContentLoaded', () => {
   const feed = document.getElementById('orders-feed');
@@ -954,7 +973,7 @@ function ensureOrderModal() {
         <button id="order-btn-print">Print receipt</button>
          <button id="order-btn-email"> Email receipt </button>
         <button id="order-btn-refund">Refund</button>
-        <button id="order-btn-assign">Assign customer</button>
+        <button id="order-btn-assign" data-order-id="{{ order.id }}">Assign customer</button>
 
       </div>
 
@@ -1103,7 +1122,9 @@ function renderOrderModal(order) {
   }
   showToast?.('Not implemented yet', { type: 'info' });
   };
-  btnAssign.onclick = () => showToast?.('Assign customer flow coming soon', { type: 'info' });
+  btnAssign.onclick = () => openCustomerModal({ orderId: Number(order.id) });;
+
+
   btnPrint.onclick  = () => {
 //      if (!order?.id) return;
       openReceipt(`${order.id}`);
@@ -1147,7 +1168,19 @@ async function apiPOST(url, body){
   return r.json();
 }
 function debounce(fn,ms=250){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms)}}
-function displayName(c){ const n = `${(c.fname||'').trim()} ${(c.lname||'').trim()}`.trim(); return n || c.phone || c.email || 'Customer'; }
+function displayName(c){
+  const first = (c.fname || c.first_name || '').trim();
+  const last  = (c.lname || c.last_name || '').trim();
+  const combo = [first, last].filter(Boolean).join(' ').trim();
+
+  // fallbacks from various endpoints
+  return (
+    combo ||
+    (c.display_name || '').trim() ||
+    (c.name || '').trim() ||
+    (c.phone || '').trim() ||
+    'Customer'
+  );}
 
 // ---------- Elements ----------
 const modal       = document.getElementById('customer-modal');
@@ -1155,12 +1188,26 @@ const inputSearch = document.getElementById('cust-search');
 const resultsEl   = document.getElementById('cust-results');
 const formCreate  = document.getElementById('cust-create');
 const btnClose    = document.getElementById('cust-close');
-const btnRemove   = document.getElementById('cust-remove');
 const msgCreate   = document.getElementById('cust-create-msg');
 const linkHeader  = document.getElementById('cart-customer-label');
 
 // ---------- Open/close ----------
-function openCustomerModal(){
+let assignOrderId = null; // null => cart mode; number => order mode
+async function reloadOrderModal(orderId) {
+  const { ok, order } = await apiGET(`/orders/${orderId}/`);
+  if (ok && order) {
+    const backdrop = document.getElementById('order-modal-backdrop');
+    renderOrderModal(order);
+    if (backdrop) {
+      backdrop.style.display = 'flex';
+      document.body.style.overflow = 'hidden';
+    }
+  }
+}
+
+function openCustomerModal({ orderId = null, preset = '' } = {}){
+ assignOrderId = (orderId !== null && Number.isFinite(Number(orderId))) ? Number(orderId) : null;
+  console.debug('Customer modal mode:', assignOrderId ? 'ORDER' : 'CART', 'orderId=', assignOrderId);
   if(!modal) return;
   inputSearch.value = '';
   resultsEl.innerHTML = '';
@@ -1171,15 +1218,17 @@ document.body.style.overflow = 'hidden';
   inputSearch.focus();
 }
 function closeCustomerModal(){ modal.style.display = 'none';
-modal.classList.add('hidden');
-document.body.style.overflow = '';
+    modal.classList.add('hidden');
+    document.body.style.overflow = '';
+    assignOrderId = null;
  }
 
-// ---------- Search (uses your /customers/list) ----------
+// ---------- Search  ----------
 const doSearch = debounce(async (q)=>{
   if(!q || !q.trim()){ resultsEl.innerHTML=''; return; }
   try{
     const data = await apiGET(`/customers/list/?q=${encodeURIComponent(q)}&limit=20&with_orders=brief`);
+    console.log(data)
     renderResults(data.customers || []);
   }catch(e){
     resultsEl.innerHTML = `<div class="row">Error searching</div>`;
@@ -1189,61 +1238,92 @@ const doSearch = debounce(async (q)=>{
 function renderResults(list){
   if(!list.length){ resultsEl.innerHTML = `<div class="row">No results</div>`; return; }
   resultsEl.innerHTML = '';
-  for(const c of list){
+  for(const customer of list){
     const row = document.createElement('div');
     row.className = 'row';
     row.innerHTML = `
       <div>
-        <div style="font-weight:600">${displayName(c)}</div>
-        <div style="opacity:.75; font-size:.9rem">${c.phone||''}${c.email? ' · '+c.email : ''}</div>
+        <div style="font-weight:600">${displayName(customer)}</div>
+        <div style="opacity:.75; font-size:.9rem">${customer.phone||''}${customer.email? ' · '+customer.email : ''}</div>
       </div>
       <div><button class="btn primary">Assign</button></div>
     `;
-    row.querySelector('button').onclick = () => assignExistingToCart(c.id, c);
+    row.querySelector('button').onclick = () => assignExistingToCart(customer.id, customer);
     resultsEl.appendChild(row);
   }
 }
+function updateCartHeaderCustomer(name) {
+  const el =
+    document.getElementById('cart-customer-label') ||
+    document.querySelector('a[data-role="customer-link"]');
 
-// ---------- Assign to CART ----------
-async function assignExistingToCart(customerId, customerObj){
-  try{
-    await apiPOST('/cart/assign_customer/', { customer_id: customerId });
-    updateCartHeaderCustomer(displayName(customerObj));
-    closeCustomerModal();
-  }catch(e){
-    showToast?.('Failed to assign customer', { type:'error' });
-  }
+  if (el) el.textContent = `Customer: ${name || 'Guest'}`;
+
+  // Optional: stash on window so other code can read it
+  window.__cartCustomerName = name || 'Guest';
 }
 
-btnRemove?.addEventListener('click', async ()=>{
-  try{
-    await apiPOST('/cart/assign_customer/', { customer_id: null });
-    updateCartHeaderCustomer('Guest');
-    closeCustomerModal();
-  }catch(e){
-    showToast?.('Failed to remove customer', { type:'error' });
-  }
-});
+// Order modal header e.g.
+// <div class="row"><strong>Customer:</strong> <span id="order-customer-label">Guest</span></div>
+function updateOrderHeaderCustomer(name) {
+  const el = document.getElementById('customerHtml');
+  if (el) el.textContent = name || 'Guest';
+  reloadOrderModal();
+}
+// ---------- Assign to CART ----------
+function modeEndpoint() {
+  return assignOrderId
+    ? `/orders/${assignOrderId}/assign_customer/`
+    : `/cart/assign_customer/`;
+}
+function afterAssignLabel(objOrName) {
+  return typeof objOrName === 'string' ? objOrName : displayName(objOrName || {});
+}
 
-formCreate?.addEventListener('submit', async (e)=>{
+
+async function assignExistingToCart(customerId, customerObj) {
+const url = modeEndpoint();
+const currentOrderId = assignOrderId;
+  await apiPOST(modeEndpoint(), { customer_id: customerId });
+   console.debug('POST →', url, 'assignOrderId=', assignOrderId);
+
+ if (currentOrderId) {
+    await reloadOrderModal(currentOrderId);
+
+  } else {
+    updateCartHeaderCustomer(displayName(customerObj));
+    btnRemove.style.display = "inline"
+  }
+
+  closeCustomerModal();
+}
+
+
+// ---------- Create & assign ----------
+formCreate?.addEventListener('submit', async (e) => {
   e.preventDefault();
   msgCreate.textContent = '';
+
   const fd = new FormData(formCreate);
   const payload = {
     create: {
-      fname: (fd.get('fname')||'').trim(),
-      lname: (fd.get('lname')||'').trim(),
-      phone: (fd.get('phone')||'').trim(),
-      email: (fd.get('email')||'').trim(),
+      fname: (fd.get('fname') || '').trim(),
+      lname: (fd.get('lname') || '').trim(),
+      phone: (fd.get('phone') || '').trim(),
+      email: (fd.get('email') || '').trim(),
     }
   };
-  if(!payload.create.phone){ msgCreate.textContent='Phone is required'; return; }
+  if (!payload.create.phone) {
+    msgCreate.textContent = 'Phone is required';
+    return;
+  }
 
-  try{
-    await apiPOST('/cart/assign_customer/', payload);
-    updateCartHeaderCustomer(displayName(payload.create));
+  try {
+  const url = modeEndpoint();
+  console.debug('CREATE →', url, 'assignOrderId=', assignOrderId);
+    await apiPOST(modeEndpoint(), payload);
     closeCustomerModal();
-  }catch(e){
+  } catch (e) {
     msgCreate.textContent = 'Could not create/assign (maybe duplicate phone or invalid email)';
   }
 });
@@ -1258,5 +1338,3 @@ function updateCartHeaderCustomer(name){
   if(linkHeader) linkHeader.textContent = `Customer: ${name || 'Guest'}`;
 }
 
-// (optional) on page load, if you include customer id/name in /cart/ snapshot,
-// call updateCartHeaderCustomer(...) here.
