@@ -28,6 +28,7 @@ from .apps import (
     POS_NICKEL_ROUNDING,      # True/False
 )
 from .permissions import compute_order_permissions
+from .utils.serializers import serialize_customer
 
 
 # ----- POS home page -------
@@ -151,7 +152,7 @@ def _cart_snapshot(cart):
     """
 
     subtotal = cart.get("subtotal_cents", 0)
-    projected_pts = compute_earn_points(subtotal)  # same formula as backend
+    projected_pts = compute_earn_points(subtotal)
 
     loyalty = {"projected_points": projected_pts}
 
@@ -705,6 +706,7 @@ def order_payment(request):
         rounding_delta_cents=rounding_delta_cents,
         created_at=timezone.now(),
         receipt_number=next_receipt,
+
     )
 
     items_to_create = [
@@ -765,19 +767,13 @@ def order_payment(request):
         c = Customer.objects.only(
             "id", "fname", "lname", "phone", "email", "points_balance"
         ).get(pk=order.customer_id)
-        customer_out = {
-            "id": c.id,
-            "fname": c.fname,
-            "lname": c.lname,
-            "phone": c.phone,
-            "email": c.email,
-            "points_balance": c.points_balance,  # fresh value
-        }
+        customer_out = serialize_customer(c)
 
     # --- response payload ---
     chip_method = "Cash" if payment_method == "CASH" else "Card"
     resp = {
         "ok": True,
+        "order_id": order.id,
         "created_by": (request.user.get_full_name() or request.user.get_username()),
         "customer": customer_out,
         "subtotal_cents": recomputed_subtotal_cents,
@@ -791,9 +787,14 @@ def order_payment(request):
         "total_label": _fmt_cents(total_cents),
         "chip_label": f"{_fmt_cents(total_cents)[1:]} {chip_method}",  # e.g., "6.22 Card"
         "loyalty": {
+            "redeemed_points": order.redeemed_points,
             "points_awarded": points_awarded,
             "customer_points_balance": new_balance,
-        }
+            "customer_can_redeem_after": (
+                order.customer.can_redeem() if order.customer else False)
+        },
+        "loyalty_redemption_cents": order.loyalty_redemption_cents,
+        "loyalty_redemption_label": _fmt_cents(order.loyalty_redemption_cents),
     }
 
     return JsonResponse(resp, status=201)
@@ -1146,6 +1147,7 @@ def customers_list(request):
             "name": f"{(c.fname or '').strip()} {(c.lname or '').strip()}".strip(),
             "phone": c.phone, "email": c.email,
             "points_balance": getattr(c, "points_balance", 0),
+            "can_redeem": c.can_redeem(),
         }
         if request.GET.get("with_orders") == "brief":
             row["order_count"] = getattr(c, "order_count", 0)
