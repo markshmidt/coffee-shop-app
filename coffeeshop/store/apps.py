@@ -14,7 +14,7 @@ class StoreConfig(AppConfig):
 POS_TAX_RATE_BPS = 1300                  # 13.00% in basis points
 POS_POINTS_PER_DOLLAR = 1                # 1 point per whole $1
 POS_REDEMPTION_POINTS = 80               # 80 pts = free drink
-POS_LOYALTY_PRICE_CAP_CENTS = 600        # free drink up to $6.00
+POS_LOYALTY_PRICE_CAP_CENTS = 800        # free drink up to $8.00
 POS_NICKEL_ROUNDING = True               # cash payments: round to nearest $0.05
 POS_LATE_ATTACH_MINUTES = 30             # allow attaching phone after pay
 POS_DISCOUNT_CHOICES = (
