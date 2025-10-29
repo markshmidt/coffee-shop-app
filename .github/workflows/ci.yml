@@ -11,10 +11,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-      
-    defaults:
-      run:
-        working-directory: coffeeshop
 
     steps:
       - uses: actions/checkout@v4
