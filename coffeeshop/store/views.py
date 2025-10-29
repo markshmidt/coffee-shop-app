@@ -23,9 +23,9 @@ from .services.loyalty import award_points_for_order, compute_earn_points
 from .models import Category, MenuItem, Variant, ModifierGroup, ModifierOption, Order, OrderItem, OrderItemModifier, \
     Customer
 from .apps import (
-    POS_TAX_RATE_BPS,         # 1300 (13%)
+    POS_TAX_RATE_BPS,  # 1300 (13%)
     # POS_DISCOUNT_CHOICES,     # ("NONE", ...), ("STUDENT_10", ...), ...
-    POS_NICKEL_ROUNDING,      # True/False
+    POS_NICKEL_ROUNDING, POS_LOYALTY_PRICE_CAP_CENTS, POS_REDEMPTION_POINTS,  # True/False
 )
 from .permissions import compute_order_permissions
 from .utils.serializers import serialize_customer
@@ -107,7 +107,7 @@ def _save_cart(session, cart):
     :return: null
     """
     subtotal_cents = sum(line["qty"] * line["unit_total_cents"] for line in cart["lines"])
-    # discount (in basis points from your config)
+    # discount (in basis points from config)
     disc_bp = DISCOUNT_BP.get(cart.get("discount_code") or "NONE", 0)
     discount = _bp(subtotal_cents, disc_bp)
 
@@ -115,7 +115,17 @@ def _save_cart(session, cart):
     tax_cents = _bp(taxable, POS_TAX_RATE_BPS)
 
     pre_total = taxable + tax_cents
-    total = pre_total
+
+    loyalty_cents = 0
+    cid = cart.get("customer_id")
+    if cart.get("redeem") and cid:
+        cust = Customer.objects.only("id", "points_balance").filter(pk=cid).first()
+        if cust and cust.can_redeem():
+            # policy: percent discount first, then loyalty on the remainder
+            loyalty_cents = min(pre_total, POS_LOYALTY_PRICE_CAP_CENTS)
+
+
+    total = max(0, pre_total - loyalty_cents)
     rounding_delta = 0
     if cart.get("payment_method") == "CASH" and POS_NICKEL_ROUNDING:
         rounded = _nickel_round_cents(pre_total)
@@ -127,6 +137,7 @@ def _save_cart(session, cart):
     cart["tax_cents"] = tax_cents
     cart["total_cents"] = total
     cart["rounding_delta_cents"] = rounding_delta
+    cart["loyalty_redemption_cents"] = loyalty_cents
     request_session = session
     request_session["cart"] = cart
 
@@ -152,34 +163,54 @@ def _cart_snapshot(cart):
     """
 
     subtotal = cart.get("subtotal_cents", 0)
+    discount_cents = cart.get("discount_cents", 0)
     projected_pts = compute_earn_points(subtotal)
 
-    loyalty = {"projected_points": projected_pts}
+    # ALWAYS initialize
+    loyalty_preview_cents = 0
 
+    loyalty = {"projected_points": projected_pts}
     cid = cart.get("customer_id")
+
     if cid:
-        # minimal fetch to avoid heavy joins
-        pts = Customer.objects.filter(pk=cid).values_list("points_balance", flat=True).first() or 0
+        pts = (
+                  Customer.objects
+                  .filter(pk=cid)
+                  .values_list("points_balance", flat=True)
+                  .first()
+              ) or 0
+
+        cust = Customer.objects.only("id", "points_balance").filter(pk=cid).first()
+
         loyalty.update({"customer_id": cid, "points_balance": pts})
+
+        if cust and cart.get("redeem") and cust.can_redeem():
+            loyalty_preview_cents = max(0, subtotal - discount_cents)
+            loyalty_preview_cents = min(loyalty_preview_cents, POS_LOYALTY_PRICE_CAP_CENTS)
+
+
     return {
-        "lines": cart["lines"],
+         "lines": cart.get("lines", []),
         "discount_code": cart.get("discount_code", "NONE"),
         "payment_method": cart.get("payment_method", "CARD"),
 
         # raw cents
-        "subtotal_cents": cart.get("subtotal_cents", 0),
-        "discount_cents": cart.get("discount_cents", 0),
+        "subtotal_cents": subtotal,
+        "discount_cents": discount_cents,
         "tax_cents": cart.get("tax_cents", 0),
         "total_cents": cart.get("total_cents", 0),
         "rounding_delta_cents": cart.get("rounding_delta_cents", 0),
 
-        # preformatted labels
-        "subtotal_label": _fmt_cents(cart.get("subtotal_cents", 0)),
-        "discount_label": "-" + _fmt_cents(cart.get("discount_cents", 0)) if cart.get("discount_cents") else _fmt_cents(0),
+        # labels
+        "subtotal_label": _fmt_cents(subtotal),
+        "discount_label": "-" + _fmt_cents(discount_cents) if discount_cents else _fmt_cents(0),
         "tax_label": _fmt_cents(cart.get("tax_cents", 0)),
         "total_label": _fmt_cents(cart.get("total_cents", 0)),
         "rounding_delta_label": _fmt_cents(cart.get("rounding_delta_cents", 0)),
+
+        # loyalty preview for the cart UI
         "loyalty": loyalty,
+        "loyalty_redemption_cents": loyalty_preview_cents,
     }
 
 def _fmt_cents(c):
@@ -288,30 +319,6 @@ def _price_item_validate(item: MenuItem, variant_id, selections):
     unit_total_cents = base_cents + options_cents
     return base_cents, options_cents, unit_total_cents, normalized, variant_name
 
-# Cart data structure
-# {
-#   "lines": [
-#     {
-#       "id": "uuid-string",
-#       "item_id": 12,
-#       "item_name": "Latte",
-#       "variant_id": 45,                     # or None
-#       "variant_name": "12oz",               # or None
-#       "qty": 1,
-#       "unit_total_cents": 570,              # base + modifiers (for 1 unit)
-#       "base_cents": 500,
-#       "options_cents": 70,
-#       "selections": [                       # normalized user choices
-#         {"group_id": 3, "option_ids": [10]},            # Milk: Oat
-#         {"group_id": 7, "option_ids": [25, 26, 27]},    # Syrups: Vanilla, Caramel, ...
-#       ],
-#       "summary": "Milk: Oat ; Syrups: Vanilla, Caramel"
-#     },
-#     ...
-#   ],
-#   "subtotal_cents": 1120 ($11.20),
-#   "tax_cents": 1120*0.13
-# }
 
 @login_required
 @require_POST
@@ -414,6 +421,7 @@ def cart_clear(request):
         "tax_cents": 0,
         "total_cents": 0,
         "rounding_delta_cents": 0,
+
     }
     # Recompute and persist (keeps pipeline consistent)
     _save_cart(request.session, request.session["cart"])
@@ -494,13 +502,12 @@ def cart_discount(request):
         if method not in ("CARD", "CASH"):
             return HttpResponseBadRequest("Bad payment method")
         cart["payment_method"] = method
+    if "redeem" in data:
+        cart["redeem"] = bool(data["redeem"])
+        _save_cart(request.session, cart)
 
     _save_cart(request.session, cart)
     return JsonResponse({"ok": True, "cart": _cart_snapshot(cart)})
-
-
-def cart_pay(request):
-    pass
 
 
 # ==== LOGIN VIEWS =====
@@ -677,10 +684,21 @@ def order_payment(request):
         })
 
     # ----- Discount, Tax,rounding -----
+
     # apply discount in cents;
     discount_cents = min(requested_discount_cents, recomputed_subtotal_cents)
 
-    taxable_cents = max(0, recomputed_subtotal_cents - discount_cents) #avoid negative
+    # redemption logic
+    loyalty_redemption_cents = 0
+    redeemed_points = 0
+    if customer and _get_cart(request.session).get("redeem") and customer.can_redeem():
+        loyalty_redemption_cents = min(
+            max(0, recomputed_subtotal_cents - discount_cents),
+            POS_LOYALTY_PRICE_CAP_CENTS
+        )
+        redeemed_points = POS_REDEMPTION_POINTS
+
+    taxable_cents = max(0, recomputed_subtotal_cents - discount_cents - loyalty_redemption_cents) #avoid negative
     tax_cents = _bp(taxable_cents, POS_TAX_RATE_BPS)
 
     pre_total_cents = taxable_cents + tax_cents
@@ -706,6 +724,8 @@ def order_payment(request):
         rounding_delta_cents=rounding_delta_cents,
         created_at=timezone.now(),
         receipt_number=next_receipt,
+        loyalty_redemption_cents=loyalty_redemption_cents,
+        redeemed_points=redeemed_points,
 
     )
 
@@ -764,10 +784,18 @@ def order_payment(request):
     # build customer_out with fresh balance
     customer_out = None
     if order.customer_id:
+        if redeemed_points:
+            Customer.objects.filter(pk=customer.pk).update(
+                points_balance=F('points_balance') - redeemed_points
+            )
         c = Customer.objects.only(
             "id", "fname", "lname", "phone", "email", "points_balance"
         ).get(pk=order.customer_id)
         customer_out = serialize_customer(c)
+    points_awarded, new_balance = (0, None)
+    if order.customer_id and order.subtotal_cents > 0:
+        pts, bal = award_points_for_order(order.pk)
+        points_awarded, new_balance = pts, bal
 
     # --- response payload ---
     chip_method = "Cash" if payment_method == "CASH" else "Card"
@@ -791,7 +819,9 @@ def order_payment(request):
             "points_awarded": points_awarded,
             "customer_points_balance": new_balance,
             "customer_can_redeem_after": (
-                order.customer.can_redeem() if order.customer else False)
+                order.customer.can_redeem() if order.customer else False),
+            "loyalty_redemption_cents": order.loyalty_redemption_cents,  # NEW
+            "loyalty_redemption_label": _fmt_cents(order.loyalty_redemption_cents),
         },
         "loyalty_redemption_cents": order.loyalty_redemption_cents,
         "loyalty_redemption_label": _fmt_cents(order.loyalty_redemption_cents),
@@ -982,6 +1012,8 @@ def serialize_order_for_modal(order):
         "tax_cents":      tax_cents,      "tax_label":      _fmt_cents(tax_cents),
         "rounding_cents": rounding_cents, "rounding_label": _fmt_cents(rounding_cents),
         "grand_total_cents": grand_cents, "grand_total_label": _fmt_cents(grand_cents),
+        "loyalty_redemption_cents": order.loyalty_redemption_cents,
+        "loyalty_redemption_label": _fmt_cents(order.loyalty_redemption_cents),
     }
     # ---- Payments (if you have a relation) ----
     payments_out = []
