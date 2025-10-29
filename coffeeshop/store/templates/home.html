@@ -20,9 +20,9 @@
             <h4> ORDER {{new_order_count}}</h4>
             <button class="pill" id="cart-customer-label" data-order-id="{{ order.id }}">Customer: Guest</button>
             <button id="cust-remove" type="button" class="pill"  data-action="cust-remove" style="display:none">Remove</button>
-            <label class="pill">
-  <input type="checkbox" id="redeem"> Redeem
-</label>
+            <label class="pill" id="redeem-label" style="display:none">
+                <input type="checkbox" id="redeem"> Redeem
+            </label>
             <div class="clock" id="clock2">--:--</div>
 
           <!-- Lines list (static placeholders for now) -->

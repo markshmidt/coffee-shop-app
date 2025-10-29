@@ -445,20 +445,20 @@ function renderCart(cart) {
   // loyalty row
   let loyRow = document.getElementById('cart-loyalty');
   if (!loyRow) {
-    loyRow = document.createElement('div');
-    loyRow.id = 'cart-loyalty';
-    loyRow.className = 'row';
-    loyRow.style.display = 'none';
-    loyRow.innerHTML = `<span>Loyalty</span><span id="loyalty-amount">$0.00</span>`;
-    if (discRow?.parentNode) {
-      discRow.insertAdjacentElement('afterend', loyRow);
-    } else if (taxRow?.parentNode) {
-      taxRow.insertAdjacentElement('beforebegin', loyRow);
-    } else {
-      totalRow?.parentNode?.insertBefore(loyRow, totalRow);
-    }
-  }
-  const amtL = loyRow.querySelector('#loyalty-amount');
+  loyRow = document.createElement('div');
+  loyRow.id = 'cart-loyalty';
+  loyRow.className = 'row';
+  loyRow.style.display = 'none';
+  loyRow.innerHTML = `<span>Loyalty</span><span id="loyalty-amount">$0.00</span>`;
+}
+
+// Always reinsert just before Total (so order: Subtotal → Discount → Tax → Loyalty → Total)
+if (totalRow && totalRow.parentNode) {
+  totalRow.insertAdjacentElement('beforebegin', loyRow);
+}
+
+const amtL = loyRow.querySelector('#loyalty-amount');
+
 
   // bail early if critical nodes missing
   if (!linesLst || !sub || !tax) {
@@ -469,6 +469,9 @@ function renderCart(cart) {
   // --- loyalty preview row + checkbox state
   wireRedeemToggle();
   const redeem = document.getElementById('redeem');
+  const redeemLabel = document.getElementById('redeem-label')
+    const pts = Number(cart.loyalty?.points_balance || 0);
+    const eligible = pts >= 80 && (cart.subtotal_cents - cart.discount_cents) > 0;
 
   const lp = Number(cart.loyalty_redemption_cents || 0);
   if (lp > 0) {
@@ -477,12 +480,12 @@ function renderCart(cart) {
   } else {
     loyRow.style.display = 'none';
   }
-
+if (redeemLabel) redeemLabel.style.display = eligible ? 'inline' : 'none';
   if (redeem) {
-    const pts = Number(cart.loyalty?.points_balance || 0);
-    const eligible = pts >= 80 && (cart.subtotal_cents - cart.discount_cents) > 0;
+//  redeem.style.display = "inline"
     redeem.disabled = !eligible;
     redeem.checked = lp > 0;
+
   }
   // 1) clear current DOM
   linesLst.innerHTML = '';
