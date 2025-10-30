@@ -18,55 +18,18 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST, require_GET
 from collections import defaultdict
 from django.core.files.base import ContentFile
-from .services.loyalty import award_points_for_order, compute_earn_points
+from ..services.loyalty import award_points_for_order, compute_earn_points
 
-from .models import Category, MenuItem, Variant, ModifierGroup, ModifierOption, Order, OrderItem, OrderItemModifier, \
+from ..models import Category, MenuItem, Variant, ModifierGroup, ModifierOption, Order, OrderItem, OrderItemModifier, \
     Customer
-from .apps import (
+from ..apps import (
     POS_TAX_RATE_BPS,  # 1300 (13%)
     # POS_DISCOUNT_CHOICES,     # ("NONE", ...), ("STUDENT_10", ...), ...
     POS_NICKEL_ROUNDING, POS_LOYALTY_PRICE_CAP_CENTS, POS_REDEMPTION_POINTS,  # True/False
 )
-from .permissions import compute_order_permissions
-from .utils.serializers import serialize_customer
+from ..permissions import compute_order_permissions
+from ..serializers.serializers import serialize_customer
 
-
-# ----- POS home page -------
-
-@login_required
-def home(request):
-    new_order_count = Order.objects.count() + 1 #for ORDER in templates
-    price_expr = ExpressionWrapper(
-        F("price_cents") * Value(Decimal("0.01")),
-        output_field=DecimalField(max_digits=8, decimal_places=2),
-    )
-
-    items = (
-        MenuItem.objects
-        .annotate(price=price_expr)
-        .order_by("price")
-        .select_related("category")
-        .prefetch_related("direct_modifier_groups", "category__modifier_groups")
-    )
-
-    parents = Category.objects.filter(parent__isnull=True).order_by("position", "name")
-    cats = Category.objects.values("id", "name", "parent_id").order_by("position", "name")
-
-    variants = Variant.objects.filter(active=True).annotate(price=price_expr).values("id", "name", "price", "price_cents", "menu_item_id").order_by("price", "name" )
-
-    modifier_groups = ModifierGroup.objects.all().order_by("name")
-    return render(
-        request,
-        "home.html",
-        {
-            "parents": parents,
-            "items": items,
-            "cats": list(cats),
-            "variants": variants,
-            "modifier_groups": modifier_groups,
-            "new_order_count": new_order_count,
-        }
-    )
 
 # ====== CART ====
 

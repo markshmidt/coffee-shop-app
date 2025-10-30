@@ -1,10 +1,14 @@
 from django.contrib.auth.views import LoginView, LogoutView
 from django.urls import path
-from . import views
+from .views import home as home_views
+from .views import cart as cart_views
+from .views import order as orders_views
+from .views import customers as customers_views
+from .views import views
 
 urlpatterns = [
     # pos page and cart
-    path("", views.home, name="home"),
+    path("", home_views.home, name="home"),
     path("cart/add-line/", views.cart_add_line, name="api_add_line"),
     path("cart/clear/", views.cart_clear, name="api_clear"),
     path("cart/", views.cart_get, name="api_cart_add"),

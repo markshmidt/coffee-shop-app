@@ -2,7 +2,7 @@
 {% block title %}POS — Cart{% endblock %}
 
 {% block content %}
-  {# everything you currently show on the POS page: previous invoices chips, cart, radios, grid, modals, etc. #}
+  {# MAIN POS PAGE #}
   <div id="pos-root">
     <main class="main">
       <!-- LEFT: Cart -->
@@ -20,7 +20,7 @@
             <h4> ORDER {{new_order_count}}</h4>
             <button class="pill" id="cart-customer-label" data-order-id="{{ order.id }}">Customer: Guest</button>
             <button id="cust-remove" type="button" class="pill"  data-action="cust-remove" style="display:none">Remove</button>
-            <label class="pill" id="redeem-label" style="display:none">
+            <label class="pill" id="redeem-label" style="display:hidden">
                 <input type="checkbox" id="redeem"> Redeem
             </label>
             <div class="clock" id="clock2">--:--</div>
@@ -74,14 +74,14 @@
       <section class="menu">
         <div class="panel">
           <div class="categories" id="cat-bar">
-            {% for cat in parents %}
+            {% for cat in parent_categories %}
               <button class="cat-btn" data-cat="{{ cat.id }}">{{ cat.name }}</button>
             {% endfor %}
           </div>
         </div>
         <div class="categories" id="sub-bar" style="display:none;"></div>
         <div id="all-subcats" style="display:none;">
-            {% for c in cats %}
+            {% for c in categories %}
               <button class="cat-btn" data-cat="{{ c.id }}" data-parent="{{ c.parent_id }}">{{ c.name }}</button>
             {% endfor %}
         </div>
@@ -177,7 +177,6 @@
   </div>
   {% endfor%}
 
-<!---- Assign customer modal ---->
 
 {{ cats|json_script:"cats-data" }}
   </div>

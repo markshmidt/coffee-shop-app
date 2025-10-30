@@ -482,7 +482,6 @@ const amtL = loyRow.querySelector('#loyalty-amount');
   }
 if (redeemLabel) redeemLabel.style.display = eligible ? 'inline' : 'none';
   if (redeem) {
-//  redeem.style.display = "inline"
     redeem.disabled = !eligible;
     redeem.checked = lp > 0;
 
