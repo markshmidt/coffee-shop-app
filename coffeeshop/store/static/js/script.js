@@ -658,7 +658,7 @@ document.getElementById('cart-lines')?.addEventListener('click', async (e) => {
   // –1 (remove if goes to 0)
   if (e.target.closest('.qty-dec')) {
     const newQty = qty - 1;
-    const url  = newQty > 0 ? '/cart/update-line/' : '/cart/remove-line/';
+    const url  = '/cart/update-line/'
     const body = newQty > 0 ? { line_id: lineId, qty: newQty } : { line_id: lineId };
     const { cart } = await postJSON(url, body);
     if (isPOS()) renderCart(cart);
@@ -668,7 +668,7 @@ document.getElementById('cart-lines')?.addEventListener('click', async (e) => {
 
   // remove explicitly
   if (e.target.closest('.remove-line')) {
-    const { cart } = await postJSON('/cart/remove-line/', { line_id: lineId });
+    const { cart } = await postJSON('/cart/update-line/', { line_id: lineId });
     if (isPOS()) renderCart(cart);
 
     return;

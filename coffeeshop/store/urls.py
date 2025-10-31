@@ -15,7 +15,6 @@ urlpatterns = [
     path("cart/clear/", cart_views.cart_clear, name="api_clear"),
     path("cart/", cart_views.cart_get, name="api_cart_add"),
     path("cart/update-line/", cart_views.cart_update_line, name="api_update"),
-path("cart/remove-line/", cart_views.cart_remove_line, name="api_delete"),
     path("cart/discount/", cart_views.cart_discount, name="api_discount"),
 
     # login/logout

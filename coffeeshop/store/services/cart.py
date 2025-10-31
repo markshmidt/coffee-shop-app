@@ -195,7 +195,7 @@ def cart_snapshot(cart):
 def summarize_selections(selections):
     """
 
-    We resolve names & deltas to "Milk: Oat (+$1.00); Syrups: Caramel (+$0.50), Vanilla (+$0.50)".
+    We resolve names & deltas from selections to "Milk: Oat (+$1.00); Syrups: Caramel (+$0.50), Vanilla (+$0.50)".
 
     Parameters
         ----------
@@ -243,6 +243,12 @@ def summarize_selections(selections):
 
 def price_item_validate(item: MenuItem, variant_id, selections):
     """
+    Validation:
+    - Variant belongs to MenuItem
+    - GroupModifier is allowed to MenuItem (e.g. no syrups for the food)
+    - ModifiersOptions belong to the chosen Group
+    - Min/Max enforces business rule (e.g. 1 milk per item, 3 syrups max)
+    - Convert all to ints
     Parameters
         ----------
         item : dict[str, Any]
@@ -253,10 +259,12 @@ def price_item_validate(item: MenuItem, variant_id, selections):
         -------
         base_cents: int - price of the drink
         options_cents: int - Sum of all selected modifier option deltas (per unit), in cents
-        unit_total_cents: int - base_cents + options_cents (per unit price)
+        unit_total_cents: int - base_cents + options_cents (per-unit price)
         normalized_selections: list[dict] - list like  [{"group_id": 5, "option_ids": [20, 21]},{"group_id": 7, "option_ids": [22]}]
-        variant_name: str | None - the label for the chosen variant (e.g., "12oz"), no0ne for items without variants
+        variant_name: str | None - the label for the chosen variant (e.g., "12oz"), none for items without variants
     """
+
+    #variant exists and its price is assigned to base cents
     if variant_id:
         try:
             variant = Variant.objects.get(id=variant_id, menu_item=item, active=True)
@@ -303,8 +311,9 @@ def price_item_validate(item: MenuItem, variant_id, selections):
 
         #normalized_selections as list of {group_id, option_ids} with integers
         options_cents += sum(o.price_cents for o in opts)
-        normalized.append({"group_id": gid, "option_ids": option_ids})
+        normalized.append({"group_id": gid, "option_ids": option_ids}) #[{"group_id":1, "option_ids": [1,2,3]}]
 
+    #combine variant price + modifiers prices
     unit_total_cents = base_cents + options_cents
     return base_cents, options_cents, unit_total_cents, normalized, variant_name
 

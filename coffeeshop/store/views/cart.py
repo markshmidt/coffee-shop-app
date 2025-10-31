@@ -8,21 +8,32 @@ from django.views.decorators.http import require_POST, require_GET
 from ..apps import POS_DISCOUNT_CHOICES
 from ..models import MenuItem, Variant
 from ..services.cart import price_item_validate, summarize_selections, get_cart, save_cart, \
-    cart_snapshot
-
-
-# ====== CART ====
+    cart_snapshot, empty_cart
+from ..utils.parse_json import parse_json
+from uuid import uuid4
 
 @login_required
 @require_POST
 def cart_add_line(request):
-    # 1) Parse JSON safely
-    try:
-        payload = json.loads(request.body.decode("utf-8"))
-    except Exception:
-        return JsonResponse({"ok": False, "error": "Bad JSON"}, status=400)
+    """
+    Add a line to the cart.
 
-    # 2) Extract & validate fields types
+     Parameters
+        ----------
+        request: django.http.HttpRequest like {"item_id": {{item_id}}, "variant_id": {{variant_id}},"qty": 1,
+        "selections": [{ "group_id": {{group_id}}, "option_ids": [{{option_id_1}}, {{option_id_2}}] }]}
+
+    Returns
+        -------
+        JsonResponse
+    """
+    # Parse JSON safely
+    try:
+        payload = parse_json(request)
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Bad JSON in cart_add_line view"}, status=400)
+
+    # Extract & validate fields types
     try:
         item_id = int(payload["item_id"])
         variant_id = payload.get("variant_id")
@@ -33,61 +44,42 @@ def cart_add_line(request):
     except Exception:
         return JsonResponse({"ok": False, "error": "Bad payload"}, status=400)
 
-    # 3) Fetch item
+    # Fetch item
     try:
         item = MenuItem.objects.get(id=item_id, active=True)
     except MenuItem.DoesNotExist:
         return JsonResponse({"ok": False, "error": "Item not found"}, status=404)
 
-    # 4) Price & validate
+    # Price & validate
     try:
-        # accept either 4-tuple or 5-tuple from the validator
-        res = price_item_validate(
+        base_cents, options_cents, unit_total_cents, normalized, variant_name = price_item_validate(
             item=item,
             variant_id=variant_id,
             selections=selections,
         )
-        base_cents, options_cents, unit_total_cents, normalized, *rest = res
     except ValueError as e:
         return JsonResponse({"ok": False, "error": str(e)}, status=400)
     except Exception:
         return JsonResponse({"ok": False, "error": "Server error"}, status=500)
 
-    # 5) Resolve variant name (and ensure it belongs to this item)
-    variant_name = None
-    if variant_id is not None:
-        try:
-            v = Variant.objects.only("name").get(id=variant_id, menu_item=item, active=True)
-            variant_name = v.name
-        except Variant.DoesNotExist:
-            # If your validator already enforced the relation this won't happen.
-            return JsonResponse({"ok": False, "error": "Variant not found for this item"}, status=400)
+    # user-friendly summary string with option deltas + tax
+    summary = summarize_selections(normalized)
 
-    # (Optional) If the validator already returned a variant label as the 5th value,
-    # prefer that label:
-    if rest and rest[0]:
-        variant_name = rest[0]
-
-    # 6) Build a user-friendly summary string with option deltas + tax
-    summary = summarize_selections(normalized)  # function shown below
-
-    # 7) Save into the session cart
-    from uuid import uuid4
-    line_id = uuid4().hex[:16]
-
+    #save into the session cart
+    line_id = uuid4().hex[:16] #client/session-side primary key for a cart line
     cart = get_cart(request.session)
     cart["lines"].append({
         "id": line_id,
         "item_id": item.id,
         "item_name": item.name,
         "variant_id": variant_id,
-        "variant_name": variant_name,            # <— used by the frontend to show size
+        "variant_name": variant_name,
         "qty": qty,
         "base_cents": base_cents,
         "options_cents": options_cents,
         "unit_total_cents": unit_total_cents,
         "selections": normalized,
-        "summary": summary,                      # <— “Milk: Oat (+$1.00) ; Syrups: …”
+        "summary": summary,
     })
     save_cart(request.session, cart)
 
@@ -97,27 +89,35 @@ def cart_add_line(request):
 @login_required
 @require_GET
 def cart_get(request):
+    """
+        Retrieve cart snaphot
+
+         Parameters
+            ----------
+            request: django.http.HttpRequest
+        Returns
+            -------
+            JsonResponse
+        """
     cart = get_cart(request.session)
     return JsonResponse({"ok": True, "cart": cart_snapshot(cart)
     })
 
-# Empty the cart
 @login_required
 @require_POST
 def cart_clear(request):
-    request.session["cart"] = {
-        "lines": [],
-        "discount_code": "NONE",
-        "payment_method": "CARD",
-        "subtotal_cents": 0,
-        "discount_cents": 0,
-        "tax_cents": 0,
-        "total_cents": 0,
-        "rounding_delta_cents": 0,
+    """
+         Return empty cart
 
-    }
-    # Recompute and persist (keeps pipeline consistent)
-    save_cart(request.session, request.session["cart"])
+          Parameters
+             ----------
+             request: django.http.HttpRequest
+         Returns
+             -------
+             JsonResponse
+         """
+    cart = empty_cart()
+    request.session["cart"] = cart
     return JsonResponse({"ok": True, "cart": cart_snapshot(request.session["cart"])})
 
 @login_required
@@ -125,29 +125,32 @@ def cart_clear(request):
 # Update quantity
 def cart_update_line(request):
     """"
-    Payload example:
-      {"line_id": "f2d6-...", "qty": 3}
-
     Behavior:
       - if the line exists and qty > 0 -> set that qty
       - if the line exists and qty <= 0 -> remove the line
       - recompute subtotal and return a fresh snapshot
+    Payload example:
+      {"line_id": "f2d6-...", "qty": 3}
+
+  Parameters
+         ----------
+         request: django.http.HttpRequest
+     Returns
+         -------
+         JsonResponse
     """
     try:
-        payload = json.loads(request.body.decode("utf-8"))
-        #scan lines to find line_id
+        payload = parse_json(request)
         line_id = payload["line_id"]
-        qty = max(1, int(payload["qty"]))
+        qty = int(payload.get("qty", 0)) #if qty missing -> assign to 0 and remove
     except Exception:
         return HttpResponseBadRequest("Bad payload")
 
     cart = get_cart(request.session)
-    for line in cart["lines"]:
+    for i, line in enumerate(cart["lines"]):
         if line["id"] == line_id:
-            #set new quantity
             if qty <= 0:
-                # treat 0 or negative as "remove"
-                cart["lines"].pop(line)
+                del cart["lines"][i]
             else:
                 line["qty"] = qty
             save_cart(request.session, cart)
@@ -155,33 +158,21 @@ def cart_update_line(request):
 
     return HttpResponseBadRequest("Line not found")
 
-@login_required
-@require_POST
-def cart_remove_line(request):
-    """
-    Payload: {"line_id": "uuid"}
-    """
-    try:
-        payload = json.loads(request.body.decode("utf-8"))
-        line_id = payload["line_id"]
-    except Exception:
-        return HttpResponseBadRequest("Bad payload")
-
-    cart = get_cart(request.session)
-
-    # Filter out that line
-    before = len(cart["lines"])
-    cart["lines"] = [line for line in cart["lines"] if line["id"] != line_id]
-    if len(cart["lines"]) == before:
-        return HttpResponseBadRequest("Line not found")
-
-    save_cart(request.session, cart)
-    return JsonResponse({"ok": True, "cart": cart_snapshot(cart)})
 
 @login_required
 @require_POST
 def cart_discount(request):
-    data = json.loads(request.body.decode("utf-8"))
+    """"
+    Updates discount/payment/redeem flags on the cart and return a fresh snapshot.
+
+  Parameters
+         ----------
+         request: django.http.HttpRequest
+     Returns
+         -------
+         JsonResponse
+    """
+    data = parse_json(request)
     cart = get_cart(request.session)
 
     if "discount_code" in data:
@@ -197,7 +188,6 @@ def cart_discount(request):
         cart["payment_method"] = method
     if "redeem" in data:
         cart["redeem"] = bool(data["redeem"])
-        save_cart(request.session, cart)
 
     save_cart(request.session, cart)
     return JsonResponse({"ok": True, "cart": cart_snapshot(cart)})
