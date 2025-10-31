@@ -5,6 +5,7 @@ from .views import cart as cart_views
 from .views import order as orders_views
 from .views import customers as customers_views
 from .views import views
+from .views import auth
 from .views import debug
 
 urlpatterns = [
@@ -18,12 +19,8 @@ urlpatterns = [
     path("cart/discount/", cart_views.cart_discount, name="api_discount"),
 
     # login/logout
-    path("login/", LoginView.as_view(template_name="login.html"), name="login"),
-    path(
-        "logout/",
-        LogoutView.as_view(next_page="login"),  # always redirect here after logout
-        name="logout",
-    ),
+    path("login/", auth.login_user, name="login"),
+    path("logout/", auth.logout_user, name="logout"),
 
     # orders
     path("order/pay/", views.order_payment, name="api_payment"),
