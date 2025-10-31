@@ -9,7 +9,7 @@
 - Tips are stored on the order but not counted as sales (reported separately).
 
 - Totals formula (order):
-total = subtotal − manual_discount − loyalty_redemption + tax + tip
+total = subtotal + tax − manual_discount − loyalty_redemption  + tip(future implementation)
 
 ## Lifecycle & permissions
 
@@ -27,11 +27,11 @@ total = subtotal − manual_discount − loyalty_redemption + tax + tip
 
 ## Loyalty
 
-- Enroll by phone (E164. str, unique). First and Last name optional.
+- Enroll by phone (E164. str, unique). First and Last name as well as email optional.
 
 - Earn: points_earned = floor(pre-tax subtotal after manual discount and excluding redeemed drink).
 
-- Redeem: 80 pts = 1 drink up to a price cap (configurable; customer pays difference).
+- Redeem: 80 pts = 8$, if total is less then 8$, min(8$, total) is counted.
 
 - One redemption per order; no points on the free portion.
 
