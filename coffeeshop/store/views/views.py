@@ -1398,3 +1398,4 @@ def order_assign_customer(request, pk: int):
 #         points_to_add = order.subtotal_cents // 100  # 1 point per $1
 #         order.customer.points_balance += points_to_add
 #         order.customer.save(update_fields=["points_balance"])
+
