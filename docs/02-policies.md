@@ -31,7 +31,7 @@ total = subtotal + tax − manual_discount − loyalty_redemption  + tip(future 
 
 - Earn: points_earned = floor(pre-tax subtotal after manual discount and excluding redeemed drink).
 
-- Redeem: 80 pts = 8$, if total is less then 8$, min(8$, total) is counted.
+- Redeem: 80 pts = 8$, if total is less then 8$, total = max(0, pre_total - loyalty_cents).
 
 - One redemption per order; no points on the free portion.
 
