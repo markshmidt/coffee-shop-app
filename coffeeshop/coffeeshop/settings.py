@@ -129,4 +129,29 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'home'   # <-- redirect after successful login
 LOGOUT_REDIRECT_URL = 'login'
-
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "simple": {"format": "%(asctime)s %(levelname)s %(name)s: %(message)s"},
+    },
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "formatter": "simple"},
+        # optional file log
+        "file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": BASE_DIR / "logs/app.log",
+            "maxBytes": 1_000_000,
+            "backupCount": 5,
+            "formatter": "simple",
+        },
+    },
+    "root": {"handlers": ["console"], "level": "INFO"},
+    "loggers": {
+        "store": {  # your app label
+            "handlers": ["console", "file"],  # include "file" if you want a file too
+            "level": "DEBUG",
+            "propagate": False,
+        },
+    },
+}
