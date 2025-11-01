@@ -9,7 +9,7 @@ from ..apps import POS_DISCOUNT_CHOICES
 from ..models import MenuItem, Variant
 from ..services.cart import price_item_validate, summarize_selections, get_cart, save_cart, \
     cart_snapshot, empty_cart
-from ..utils.parse_json import parse_json
+from ..utils.http import parse_json
 from uuid import uuid4
 
 @login_required

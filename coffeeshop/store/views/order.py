@@ -1,3 +1,4 @@
+import json
 from venv import logger
 
 from django.contrib.auth.decorators import login_required
@@ -36,20 +37,23 @@ def order_payment(request):
       - Persists Order, OrderItems, and modifier snapshots.
       - Optionally attaches/creates a Customer based on the session cart.
       - Clears the in-session cart and returns an order summary.
-
+ Request JSON:
+      { "payment_method": "CARD"|"CASH", "discount_cents": <int>=0, "redeem": <bool>=false }
+ Response: 201 with order summary JSON (totals, labels, loyalty info).
 
     """
-
-    payload = parse_json(request)
+    cart = get_cart(request.session)
+    logger.debug(cart)
     # validate payment method
-    method_raw = (payload.get("payment_method") or "").upper().strip()
+    method_raw = (cart.get("payment_method") or "").upper().strip()
+    logger.debug(method_raw)
     if method_raw not in ("CARD", "CASH"):
         return JsonResponse({"ok": False, "error": "payment_method must be 'CARD' or 'CASH'."}, status=400)
     payment_method = method_raw
-    requested_discount_cents = max(0, int(payload.get("discount_cents") or 0))
-    redeem = bool(payload.get("redeem", False))
 
-    cart = get_cart(request.session)
+
+    redeem = bool(cart.get("redeem", False))
+    requested_discount_cents = int(cart.get("discount_cents", 0)) or 0
     lines = cart.get("lines") or []
     if not lines:
         return JsonResponse({"ok": False, "error": "Cart is malformed."}, status=400)
@@ -210,7 +214,7 @@ def order_payment(request):
 
     # ----- clear session cart -----
     save_cart(request.session, empty_cart())
-
+    logger.debug("SESSION %s CART %s", request.session.session_key, request.session.get("cart"))
 
     # --- response payload ---
     chip_method = "Cash" if payment_method == "CASH" else "Card"
@@ -245,14 +249,24 @@ def order_payment(request):
 @require_GET
 def orders_list(request):
     """
-    Return the most recent orders, newest first.
+    Return a paginated, newest-first list of recent orders for the current UI.
+
+    Query parameters
+    ----------------
+    - limit: Optional[int]  # number of rows to return; clamped to [1, 50]
+    - cursor: Optional[int] # last seen Order.id; return rows with id < cursor
+
+    Returns
+         -------
+         JsonResponse
+
     """
     try:
         limit = max(1, min(50, int(request.GET.get("limit", 16))))
     except Exception:
         limit = 1
 
-    cursor = request.GET.get("cursor")
+    cursor = request.GET.get("cursor") # last seen Order.id
     qs = (
         Order.objects
         .select_related("created_by") #joins the user table
@@ -272,7 +286,7 @@ def orders_list(request):
     )
     if cursor:
         try:
-            qs = qs.filter(id__lt=int(cursor)) #ilter by id < cursor
+            qs = qs.filter(id__lt=int(cursor))
         except Exception:
             pass
 
@@ -282,8 +296,7 @@ def orders_list(request):
     orders = page[:limit]  # trim the extra before serializing
 
     for o in orders: #materializes only page in settled limit with prefetched orders
-        when_dt = o.created_at
-        when_dt = timezone.localtime(when_dt)  # show local time
+        when_dt = timezone.localtime(o.created_at)  # show local time
         when_label = when_dt.strftime("%Y-%m-%d %H:%M")
 
         out.append({
@@ -291,7 +304,7 @@ def orders_list(request):
             "status": o.status,
             "when_iso": when_dt.isoformat(),
             "when_label": when_label,
-            "payment_method": o.payment_method,  # 'CARD' | 'CASH'
+            "payment_method": o.payment_method,
             "total_cents": o.total_cents,
             "total_label": _fmt_cents(o.total_cents),
             "created_by": o.created_by.get_username(),

@@ -840,7 +840,8 @@ async function onPayClick(e) {
     const res = await fetch('/order/pay/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
-      body: JSON.stringify(payload),
+       credentials: 'same-origin',
+      body: JSON.stringify({}),
     });
 
     const data = await res.json().catch(() => ({}));
