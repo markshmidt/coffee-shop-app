@@ -222,8 +222,6 @@ class Order(models.Model):
     status = models.CharField(max_length=10,
                               choices=STATUS_CHOICES,
                               default=STATUS_PAID)
-
-    # id = models.AutoField(primary_key=True)
     customer = models.ForeignKey(Customer, on_delete=models.SET_NULL, null=True, blank=True, related_name="orders")
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="orders")
 
@@ -235,7 +233,7 @@ class Order(models.Model):
         default="NONE",
     )
     manual_discount_cents = models.IntegerField(default=0)
-    loyalty_redemption_cents = models.IntegerField(default=0)
+
     tax_cents = models.IntegerField()
     tip_cents = models.IntegerField(default=0)
     total_cents = models.IntegerField()
@@ -243,10 +241,9 @@ class Order(models.Model):
     rounding_delta_cents = models.IntegerField(default=0)  # optional
 
     # loyalty
+    loyalty_redemption_cents = models.IntegerField(default=0)
     points_earned = models.IntegerField(default=0)
     redeemed_points = models.IntegerField(default=0)  # 0 or 80
-
-    # paid_at = models.DateTimeField(null=True, blank=True)  # allow null for old rows
 
     receipt_number = models.IntegerField()
     payment_method = models.CharField(

@@ -59,39 +59,12 @@ def serialize_order_for_modal(order):
         base_total_cents = base * qty
         mods_total_cents = mods * qty
 
-        # # group modifiers for a future cheque ui (group totals + extended totals)
-        # grouped = defaultdict(lambda: {"group": "", "options": [], "group_total_cents": 0})
-        # for modifier in modifiers_out:
-        #     #sum per-unit deltas per group
-        #     g = modifier["group"] or "Modifiers"
-        #     box = grouped[g]
-        #     box["group"] = g
-        #     box["options"].append(modifier)
-        #     box["group_total_cents"] += (modifier["price_cents"] or 0)
-        #
-        # modifier_groups = []
-        # for box in grouped.values():
-        #     # for each group per-unit sum × qty
-        #     ext = (box["group_total_cents"] or 0) * qty
-        #     modifier_groups.append({
-        #         **box,
-        #         "group_total_label": _fmt_cents(box["group_total_cents"]),
-        #         "group_total_ext_cents": ext,
-        #         "group_total_ext_label": _fmt_cents(ext),
-        #     })
-
         # final per-item dict
         items_out.append({
             "line_id": item.id,
             "name": item.name_snapshot,
             "variant": item.variant_name_snapshot or "",
             "qty": qty,
-
-            # original totals
-            "unit_cents": unit_price,
-            "unit_label": _fmt_cents(unit_price),
-            "line_cents": unit_price * qty,
-            "line_label": _fmt_cents(unit_price * qty),
 
             # base vs mods (unit + extended)
             "base_unit_cents": base,
@@ -106,7 +79,14 @@ def serialize_order_for_modal(order):
 
             # modifiers
             "modifiers": modifiers_out,
-            "note": getattr(item, "note", ""),
+
+            # original totals
+            "unit_cents": unit_price,
+            "unit_label": _fmt_cents(unit_price),
+            "line_cents": unit_price * qty,
+            "line_label": _fmt_cents(unit_price * qty),
+
+
         })
 
     # ---- Totals (use stored, compute if missing) ----
@@ -117,7 +97,7 @@ def serialize_order_for_modal(order):
     discount_cents = getattr(order, "discount_cents", 0) or 0
     tax_cents      = getattr(order, "tax_cents", 0) or 0
     rounding_cents = getattr(order, "rounding_delta_cents", 0) or 0
-    grand_cents    = getattr(order, "total_cents", subtotal_cents - discount_cents + tax_cents + rounding_cents)
+    grand_cents    = getattr(order, "total_cents", 0)
 
     totals = {
         "subtotal_cents": subtotal_cents, "subtotal_label": _fmt_cents(subtotal_cents),
@@ -128,19 +108,6 @@ def serialize_order_for_modal(order):
         "loyalty_redemption_cents": order.loyalty_redemption_cents,
         "loyalty_redemption_label": _fmt_cents(order.loyalty_redemption_cents),
     }
-    # ---- Payments (if you have a relation) ----
-    payments_out = []
-    if hasattr(order, "payments"):
-        for p in order.payments.all():
-            amt = getattr(p, "amount_cents", 0) or 0
-            payments_out.append({
-                "id": p.id,
-                "method": (getattr(p, "method", getattr(p, "type", "")) or "").upper(),
-                "amount_cents": amt,
-                "amount_label": _fmt_cents(amt),
-                "ref": getattr(p, "reference", ""),
-                "at": timezone.localtime(getattr(p, "created_at", order.created_at)).isoformat(),
-            })
 
     customer = None
     if getattr(order, "customer_id", None):
@@ -153,7 +120,7 @@ def serialize_order_for_modal(order):
             "email": getattr(c, "email", ""),
             "points_balance": getattr(c, "points_balance", 0),
         }
-    projected_pts = compute_earn_points(subtotal_cents)
+    # projected_pts = compute_earn_points(subtotal_cents)
 
     return {
         "id": order.id,
@@ -161,17 +128,16 @@ def serialize_order_for_modal(order):
         "status": order.status,
         "payment_method": (getattr(order, "payment_method", "") or "").upper(),
         "created_by": order.created_by.get_username(),
-        "when_iso": created_at.isoformat(),
-        "when_label": created_at.strftime("%Y-%m-%d %H:%M"),
+        "created_at_iso": created_at.isoformat(),
+        "created_at_label": created_at.strftime("%Y-%m-%d %H:%M"),
         "items": items_out,
         "totals": totals,
-        "payments": payments_out,
         "customer": customer,
         "notes": getattr(order, "internal_notes", ""),
         "loyalty": {
             "points_earned": getattr(order, "points_earned", 0),
             "redeemed_points": getattr(order, "redeemed_points", 0),
-            "projected_points": projected_pts,
+            # "projected_points": projected_pts,
         },
     }
 

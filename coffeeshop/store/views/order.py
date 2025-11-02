@@ -387,14 +387,13 @@ def order_receipt(request, pk):
         .select_related("customer", "created_by")
         .prefetch_related(Prefetch("items", queryset=items_qs)), pk=pk)
 
-    # reuse exact structure we use for the modal
+    # reuse serializer
     data = serialize_order_for_modal(order)
 
     # render template, return a string format
-    html = render_to_string("receipt.html", {"o": data})
+    html = render_to_string("receipt.html", {"order": data})
 
     # save html receipt to db field for audit trails and sending receipt to customer (later)
-    #GET - json dict, get - dicts method to retrieve value
     if request.GET.get("save") == "1" and hasattr(order, "receipt_file"):
         filename = f"receipt-{order.id}.html"
         # contentFile - wraps html string as a file-like object

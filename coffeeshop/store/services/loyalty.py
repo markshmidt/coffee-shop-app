@@ -4,7 +4,7 @@ from django.db.models import F
 from ..models import Order, Customer
 
 CENTS_PER_POINT = 100       # 1 point per $1
-EARN_RATE = 1               # multiplier if you do promos later
+EARN_RATE = 1               # multiplier if promos later
 
 def compute_earn_points(subtotal_cents: int) -> int:
     return (subtotal_cents // CENTS_PER_POINT) * EARN_RATE
