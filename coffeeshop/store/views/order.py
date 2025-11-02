@@ -1,5 +1,8 @@
 import json
-from venv import logger
+import logging
+
+# Create a module-level logger
+logger = logging.getLogger(__name__)
 
 from django.contrib.auth.decorators import login_required
 from django.core.files.base import ContentFile
@@ -29,7 +32,7 @@ from ..utils.serializers import serialize_order_for_modal
 @transaction.atomic
 def order_payment(request):
     """
-    Create and finalize an Order from a client-provided cart payload.
+    Create and finalize an Order from a session cart payload.
 
     This endpoint:
       - Re-validates and re-prices each line against the DB (item/variant/modifiers).
@@ -38,7 +41,7 @@ def order_payment(request):
       - Optionally attaches/creates a Customer based on the session cart.
       - Clears the in-session cart and returns an order summary.
  Request JSON:
-      { "payment_method": "CARD"|"CASH", "discount_cents": <int>=0, "redeem": <bool>=false }
+      {}
  Response: 201 with order summary JSON (totals, labels, loyalty info).
 
     """
@@ -191,10 +194,11 @@ def order_payment(request):
     if mods_to_create:
         logger.debug("[PAY] saved modifier snapshots in DB:",
         OrderItemModifier.objects.bulk_create(mods_to_create))
-    points_awarded = 0
-    new_balance = None
+
+    points_awarded, new_balance = (0, None)
     if order.customer_id and order.subtotal_cents > 0:
-        points_awarded, new_balance = award_points_for_order(order.pk)
+        pts, bal = award_points_for_order(order.pk)
+        points_awarded, new_balance = pts, bal
 
     # build customer_out with fresh balance
     customer_out = None
@@ -207,10 +211,6 @@ def order_payment(request):
             "id", "fname", "lname", "phone", "email", "points_balance"
         ).get(pk=order.customer_id)
         customer_out = serialize_customer(c)
-    points_awarded, new_balance = (0, None)
-    if order.customer_id and order.subtotal_cents > 0:
-        pts, bal = award_points_for_order(order.pk)
-        points_awarded, new_balance = pts, bal
 
     # ----- clear session cart -----
     save_cart(request.session, empty_cart())
@@ -221,6 +221,7 @@ def order_payment(request):
     resp = {
          "ok": True,
         "order_id": order.id,
+        "customer": customer_out,
         "created_by": request.user.get_full_name() or request.user.get_username(),
         "subtotal_cents": subtotal,
         "discount_cents": discount_cents,
@@ -320,7 +321,7 @@ def orders_list(request):
                 for it in o.items.all()
             ],
         })
-
+    logger.info(out)
     next_cursor = orders[-1].id if has_more else None
     return JsonResponse({"ok": True, "orders": out, "next_cursor": next_cursor})
 
@@ -328,7 +329,25 @@ def orders_list(request):
 @require_GET
 def order_detail(request, pk):
     """
-    JSON payload for the modal.
+    JSON payload for the modal
+
+    Parameters
+    ----------------
+    request : HttpRequest
+        Incoming GET request.
+    pk : int | str
+        Primary key of the Order to retrieve.
+    Returns
+         -------
+          JsonResponse like {
+          "ok": true,
+          "order": {
+            ...  # output of serialize_order_for_modal(order)
+            "permissions": { ... }  # capabilities for the current user
+          }
+        }
+
+
     """
     #prefetch order items + their modifiers
     items_qs = OrderItem.objects.all().prefetch_related("modifiers")
@@ -343,7 +362,7 @@ def order_detail(request, pk):
         pk=pk,
     )
 
-    #modal payload and attaching user-specific permissions.
+    #modal payload and attaching user-specific permissions
     data = serialize_order_for_modal(order)
     data["permissions"] = compute_order_permissions(order, request.user)
     return JsonResponse({"ok": True, "order": data})

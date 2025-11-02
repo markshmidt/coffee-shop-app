@@ -23,12 +23,12 @@ urlpatterns = [
     path("logout/", auth.logout_user, name="logout"),
 
     # orders
-    path("order/pay/", views.order_payment, name="api_payment"),
-    path("orders/list/", views.orders_list, name="orders_list"),
-    path("orders/", views.orders_page, name="orders"),
-    path("orders/<int:pk>/", views.order_detail, name="order_detail"),
-    path("orders/<int:id>/note/", views.order_note, name="order_note"),
-    path("orders/<int:pk>/receipt/", views.order_receipt, name="order_receipt"),
+    path("order/pay/", orders_views.order_payment, name="api_payment"),
+    path("orders/list/", orders_views.orders_list, name="orders_list"),
+    path("orders/", orders_views.orders_page, name="orders"),
+    path("orders/<int:pk>/", orders_views.order_detail, name="order_detail"),
+    path("orders/<int:id>/note/", orders_views.order_note, name="order_note"),
+    path("orders/<int:pk>/receipt/", orders_views.order_receipt, name="order_receipt"),
 
     #customers
     path("customers/list/", views.customers_list, name="customers_list"),

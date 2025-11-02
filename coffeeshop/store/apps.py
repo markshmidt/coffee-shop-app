@@ -22,7 +22,7 @@ POS_DISCOUNT_CHOICES = {
     "STUDENT_10": 1000,
     "FRIENDS_FAMILY_20": 2000,
 }
-TIME_ZONE = "Toronto"
+
 
 def seed_roles(sender, **kwargs):
     from django.contrib.auth.models import Group, Permission

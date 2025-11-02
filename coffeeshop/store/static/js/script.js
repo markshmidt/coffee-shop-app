@@ -1110,25 +1110,27 @@ function renderOrderModal(order) {
     const baseTotalLabel = it.base_total_label || centsTo(baseUnit * qty);
 
     const modsUnit       = Number.isFinite(it.mods_unit_cents) ? it.mods_unit_cents : 0;
+    console.log(modsUnit)
     const modsUnitLabel  = it.mods_unit_label  || centsTo(modsUnit);
     const modsTotalLabel = it.mods_total_label || centsTo(modsUnit * qty);
 
-    // grouped modifiers (if present)
-    const groupsHtml = (it.modifier_groups || []).map(g => {
-      const opts = (g.options || []).map(o =>
-        `${o.choice}${o.price_cents ? ` (+${o.price_label})` : ''}`
-      ).join(', ');
-      const totalLine = g.group_total_ext_cents
-        ? ` — ${g.group_total_ext_label}`
-        : '';
-      return `<div class="muted small">${g.group}: ${opts}${totalLine}</div>`;
-    }).join('');
-
+    const modifiersHtml = (it.modifiers || []).map(m => {
+    // support either price_* or delta_* naming
+    const delta = Number.isFinite(m.price_cents) ? m.price_cents
+                 : Number.isFinite(m.delta_cents) ? m.delta_cents
+                 : 0;
+    const unitLabel = m.price_label || m.delta_label || centsTo(delta);
+    const signUnit  = delta > 0 ? `(+${unitLabel})` : `(${unitLabel})`; // shows (+$1.20), ($0.00) or (-$0.50)
+    const extPart   = qty > 1 ? ` — ×${qty} = ${centsTo(delta * qty)}` : '';
+    const groupTxt  = m.group ? `${m.group}: ` : '';
+    const choiceTxt = m.choice || '';
+    return `<div class="muted small">${groupTxt}${choiceTxt} ${signUnit}${extPart}</div>`;
+  }).join('');
     // base vs mods breakdown
     const breakdown = `
       <div class="muted small">
         base ${baseUnitLabel} ×${qty} = ${baseTotalLabel}
-        ${modsUnit > 0 ? `<br>mods ${modsUnitLabel} ×${qty} = ${modsTotalLabel}` : ''}
+
       </div>
     `;
 
@@ -1137,8 +1139,8 @@ function renderOrderModal(order) {
         <div class="left">
           <span class="qty">×${qty}</span> ${it.name}
           ${it.variant ? `<span class="muted">· ${it.variant}</span>` : ''}
-          ${groupsHtml}
           ${breakdown}
+          ${modifiersHtml}
         </div>
         <div class="right">${it.line_label}</div>
       </li>
