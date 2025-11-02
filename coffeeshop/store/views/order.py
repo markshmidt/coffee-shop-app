@@ -12,7 +12,7 @@ from django.http import JsonResponse, HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
 from django.utils import timezone
-from django.views.decorators.http import require_POST, require_GET
+from django.views.decorators.http import require_POST, require_GET, require_http_methods
 
 from ..apps import POS_LOYALTY_PRICE_CAP_CENTS, POS_REDEMPTION_POINTS, POS_TAX_RATE_BPS, \
     POS_NICKEL_ROUNDING
@@ -368,9 +368,29 @@ def order_detail(request, pk):
     return JsonResponse({"ok": True, "order": data})
 
 @login_required
+@require_http_methods(["PATCH"])
 def order_note(request, pk):
-    # order = get_object_or_404(Order, pk=pk)
-    pass
+    payload = parse_json(request)
+
+    note = payload.get("note", "")
+    if not isinstance(note, str):
+        return JsonResponse({"ok": False, "error": "`note` must be a string."}, status=400)
+
+    note = note.strip().replace("\r\n", "\n")
+    if len(note) > 400:
+        return JsonResponse({"ok": False, "error": f"Note too long (>{400} chars)."}, status=400)
+
+
+    order = get_object_or_404(Order.objects.select_for_update(), pk=pk)
+
+    order.internal_notes = note
+    order.save(update_fields=["internal_notes"])
+
+    return JsonResponse({
+        "ok": True,
+        "order_id": order.id,
+        "note": order.internal_notes,
+    }, status=200)
 
 @login_required
 def order_receipt(request, pk):

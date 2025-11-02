@@ -107,13 +107,13 @@
                        {% if modifier.group %}<span class="ghead">{{ modifier.group }}:</span>{% endif %}
                         {{ modifier.choice }}
                         {% with unit_label=modifier.delta_label|default:modifier.price_label %}
-          {% if unit_label %} ({{ unit_label }}){% endif %}
-        {% endwith %}
-        {% with qty=item.qty|default:1 %}
-          {% if qty|add:0 > 1 and m.ext_label %}
-            — ×{{ qty }} = {{ m.ext_label }}
-          {% endif %}
-        {% endwith %}
+                              {% if unit_label %} ({{ unit_label }}){% endif %}
+                        {% endwith %}
+                        {% with qty=item.qty|default:1 %}
+                          {% if qty|add:0 > 1 and m.ext_label %}
+                            — ×{{ qty }} = {{ m.ext_label }}
+                          {% endif %}
+                        {% endwith %}
                     </p>
                   {% endfor %}
                 </div>
