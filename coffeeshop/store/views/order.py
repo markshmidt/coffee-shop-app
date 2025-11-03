@@ -1,8 +1,4 @@
 import logging
-
-# Create a module-level logger
-logger = logging.getLogger(__name__)
-
 from django.contrib.auth.decorators import login_required
 from django.core.files.base import ContentFile
 from django.db import transaction
@@ -15,7 +11,7 @@ from django.views.decorators.http import require_POST, require_GET, require_http
 
 from ..apps import POS_LOYALTY_PRICE_CAP_CENTS, POS_REDEMPTION_POINTS, POS_TAX_RATE_BPS, \
     POS_NICKEL_ROUNDING
-from ..models import Customer, MenuItem, Variant, Order, OrderItem, ModifierOption, OrderItemModifier, \
+from ..models import Customer, MenuItem, Order, OrderItem, ModifierOption, OrderItemModifier, \
     ModifierGroup
 from ..permissions import compute_order_permissions
 from ..serializers.serializers import serialize_customer
@@ -26,6 +22,8 @@ from ..utils.http import parse_json
 from ..utils.serializers import serialize_order_for_modal
 
 
+
+logger = logging.getLogger(__name__)
 @login_required
 @require_POST
 @transaction.atomic

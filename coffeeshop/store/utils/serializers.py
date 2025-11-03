@@ -1,8 +1,7 @@
-from collections import defaultdict
+
 from django.utils import timezone
 
 from ..models import Customer
-from ..services.loyalty import compute_earn_points
 from ..services.pricing import _fmt_cents
 
 tz = timezone.get_default_timezone()

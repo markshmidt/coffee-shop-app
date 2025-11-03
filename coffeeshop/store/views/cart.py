@@ -3,7 +3,7 @@ from django.http import HttpResponseBadRequest, JsonResponse
 from django.views.decorators.http import require_POST, require_GET
 
 from ..apps import POS_DISCOUNT_CHOICES
-from ..models import MenuItem, Variant
+from ..models import MenuItem
 from ..services.cart import price_item_validate, summarize_selections, get_cart, save_cart, \
     cart_snapshot, empty_cart
 from ..utils.http import parse_json
