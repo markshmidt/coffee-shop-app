@@ -3,7 +3,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Receipt #{{ o.number }}</title>
+  <title>Receipt #{{ order.number }}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     /* 80mm receipt-friendly + looks fine on A4 too */
@@ -68,19 +68,19 @@
       <div class="meta-grid">
         <div>
           <span class="label">Receipt #</span>
-          <span class="val">#{{ o.number }}</span>
+          <span class="val">#{{ order.number }}</span>
         </div>
         <div>
           <span class="label">Date</span>
-          <span class="val">{{ o.when_label }}</span>
+          <span class="val">{{ order.created_at_label }}</span>
         </div>
         <div>
           <span class="label">Cashier</span>
-          <span class="val">{{ o.created_by }}</span>
+          <span class="val">{{ order.created_by }}</span>
         </div>
         <div>
           <span class="label">Payment</span>
-          <span class="val">{{ o.payment_method }}</span>
+          <span class="val">{{ order.payment_method }}</span>
         </div>
       </div>
     </div>
@@ -90,35 +90,37 @@
     <!-- Items -->
     <div class="items">
       <ul>
-        {% for it in o.items %}
+        {% for item in order.items %}
           <li class="li-line">
             <div class="name">
-              <span class="qty">×{{ it.qty }}</span>
-              {{ it.name }}
-              {% if it.variant %}<span class="variant">· {{ it.variant }}</span>{% endif %}
-              {% if it.modifier_groups %}
+              <span class="qty">×{{ item.qty }}</span>
+              {{ item.name }}
+              {% if item.variant %}<span class="variant">· {{ item.variant }}</span>{% endif %}
+              {% if item.modifiers %}
+                <div class="breakdown">
+                <b>Base: </b>{{ item.base_unit_label }} ×{{ item.qty }} = {{ item.base_total_label }}
+
+              </div>
                 <div class="mods">
-                  {% for g in it.modifier_groups %}
+                  {% for modifier in item.modifiers %}
                     <p class="group">
-                      <span class="ghead">{{ g.group }}:</span>
-                      {% for opt in g.options %}
-                        {{ opt.choice }}{% if opt.price_cents %} (+{{ opt.price_label }}){% endif %}{% if not forloop.last %}, {% endif %}
-                      {% endfor %}
-                      {% if g.group_total_cents %}
-                        — per unit: {{ g.group_total_label }}{% if it.qty and it.qty|add:0 > 1 %}, total: {{ g.group_total_ext_label }}{% endif %}
-                      {% endif %}
+                       {% if modifier.group %}<span class="ghead">{{ modifier.group }}:</span>{% endif %}
+                        {{ modifier.choice }}
+                        {% with unit_label=modifier.delta_label|default:modifier.price_label %}
+                              {% if unit_label %} ({{ unit_label }}){% endif %}
+                        {% endwith %}
+                        {% with qty=item.qty|default:1 %}
+                          {% if qty|add:0 > 1 and m.ext_label %}
+                            — ×{{ qty }} = {{ m.ext_label }}
+                          {% endif %}
+                        {% endwith %}
                     </p>
                   {% endfor %}
                 </div>
               {% endif %}
-              <div class="breakdown">
-                base {{ it.base_unit_label }} ×{{ it.qty }} = {{ it.base_total_label }}
-                {% if it.mods_unit_cents %}
-                  <br>mods {{ it.mods_unit_label }} ×{{ it.qty }} = {{ it.mods_total_label }}
-                {% endif %}
-              </div>
+
             </div>
-            <div class="price">{{ it.line_label }}</div>
+            <div class="price">{{ item.line_label }}</div>
           </li>
         {% endfor %}
       </ul>
@@ -129,18 +131,18 @@
     <!-- Totals -->
     <div class="totals">
       <table>
-        <tr><td class="label">Subtotal</td><td style="text-align:right">{{ o.totals.subtotal_label }}</td></tr>
-        <tr><td class="label">Discount</td><td style="text-align:right">{{ o.totals.discount_label }}</td></tr>
-        <tr><td class="label">Tax</td><td style="text-align:right">{{ o.totals.tax_label }}</td></tr>
-        <tr><td class="label">Rounding</td><td style="text-align:right">{{ o.totals.rounding_label }}</td></tr>
-        <tr><td class="grand">Total</td><td class="grand" style="text-align:right">{{ o.totals.grand_total_label }}</td></tr>
+        <tr><td class="label">Subtotal</td><td style="text-align:right">{{ order.totals.subtotal_label }}</td></tr>
+        <tr><td class="label">Discount</td><td style="text-align:right">{{ order.totals.discount_label }}</td></tr>
+        <tr><td class="label">Tax</td><td style="text-align:right">{{ order.totals.tax_label }}</td></tr>
+        <tr><td class="label">Rounding</td><td style="text-align:right">{{ order.totals.rounding_label }}</td></tr>
+        <tr><td class="grand">Total</td><td class="grand" style="text-align:right">{{ order.totals.grand_total_label }}</td></tr>
       </table>
     </div>
 
     <!-- Notes (optional) -->
-    {% if o.notes %}
+    {% if order.internal_notes %}
       <div class="rule"></div>
-      <div class="muted">Note: {{ o.notes }}</div>
+      <div class="muted">Note: {{ order.internal_notes }}</div>
     {% endif %}
 
     <div class="footer">

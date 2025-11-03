@@ -17,12 +17,12 @@ POS_REDEMPTION_POINTS = 80               # 80 pts = free drink
 POS_LOYALTY_PRICE_CAP_CENTS = 800        # free drink up to $8.00
 POS_NICKEL_ROUNDING = True               # cash payments: round to nearest $0.05
 POS_LATE_ATTACH_MINUTES = 30             # allow attaching phone after pay
-POS_DISCOUNT_CHOICES = (
-    ("NONE", "None"),
-    ("STUDENT_10", "Student -10%"),
-    ("FRIENDS_FAMILY_20", "Friends/Family -20%"),
-)
-TIME_ZONE = "Toronto"
+POS_DISCOUNT_CHOICES = {
+    "NONE": 0,
+    "STUDENT_10": 1000,
+    "FRIENDS_FAMILY_20": 2000,
+}
+
 
 def seed_roles(sender, **kwargs):
     from django.contrib.auth.models import Group, Permission

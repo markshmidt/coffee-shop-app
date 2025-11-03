@@ -482,7 +482,6 @@ const amtL = loyRow.querySelector('#loyalty-amount');
   }
 if (redeemLabel) redeemLabel.style.display = eligible ? 'inline' : 'none';
   if (redeem) {
-//  redeem.style.display = "inline"
     redeem.disabled = !eligible;
     redeem.checked = lp > 0;
 
@@ -659,7 +658,7 @@ document.getElementById('cart-lines')?.addEventListener('click', async (e) => {
   // –1 (remove if goes to 0)
   if (e.target.closest('.qty-dec')) {
     const newQty = qty - 1;
-    const url  = newQty > 0 ? '/cart/update-line/' : '/cart/remove-line/';
+    const url  = '/cart/update-line/'
     const body = newQty > 0 ? { line_id: lineId, qty: newQty } : { line_id: lineId };
     const { cart } = await postJSON(url, body);
     if (isPOS()) renderCart(cart);
@@ -669,7 +668,7 @@ document.getElementById('cart-lines')?.addEventListener('click', async (e) => {
 
   // remove explicitly
   if (e.target.closest('.remove-line')) {
-    const { cart } = await postJSON('/cart/remove-line/', { line_id: lineId });
+    const { cart } = await postJSON('/cart/update-line/', { line_id: lineId });
     if (isPOS()) renderCart(cart);
 
     return;
@@ -841,7 +840,8 @@ async function onPayClick(e) {
     const res = await fetch('/order/pay/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
-      body: JSON.stringify(payload),
+       credentials: 'same-origin',
+      body: JSON.stringify({}),
     });
 
     const data = await res.json().catch(() => ({}));
@@ -1110,25 +1110,27 @@ function renderOrderModal(order) {
     const baseTotalLabel = it.base_total_label || centsTo(baseUnit * qty);
 
     const modsUnit       = Number.isFinite(it.mods_unit_cents) ? it.mods_unit_cents : 0;
+    console.log(modsUnit)
     const modsUnitLabel  = it.mods_unit_label  || centsTo(modsUnit);
     const modsTotalLabel = it.mods_total_label || centsTo(modsUnit * qty);
 
-    // grouped modifiers (if present)
-    const groupsHtml = (it.modifier_groups || []).map(g => {
-      const opts = (g.options || []).map(o =>
-        `${o.choice}${o.price_cents ? ` (+${o.price_label})` : ''}`
-      ).join(', ');
-      const totalLine = g.group_total_ext_cents
-        ? ` — ${g.group_total_ext_label}`
-        : '';
-      return `<div class="muted small">${g.group}: ${opts}${totalLine}</div>`;
-    }).join('');
-
+    const modifiersHtml = (it.modifiers || []).map(m => {
+    // support either price_* or delta_* naming
+    const delta = Number.isFinite(m.price_cents) ? m.price_cents
+                 : Number.isFinite(m.delta_cents) ? m.delta_cents
+                 : 0;
+    const unitLabel = m.price_label || m.delta_label || centsTo(delta);
+    const signUnit  = delta > 0 ? `(+${unitLabel})` : `(${unitLabel})`; // shows (+$1.20), ($0.00) or (-$0.50)
+    const extPart   = qty > 1 ? ` — ×${qty} = ${centsTo(delta * qty)}` : '';
+    const groupTxt  = m.group ? `${m.group}: ` : '';
+    const choiceTxt = m.choice || '';
+    return `<div class="muted small">${groupTxt}${choiceTxt} ${signUnit}${extPart}</div>`;
+  }).join('');
     // base vs mods breakdown
     const breakdown = `
       <div class="muted small">
         base ${baseUnitLabel} ×${qty} = ${baseTotalLabel}
-        ${modsUnit > 0 ? `<br>mods ${modsUnitLabel} ×${qty} = ${modsTotalLabel}` : ''}
+
       </div>
     `;
 
@@ -1137,8 +1139,8 @@ function renderOrderModal(order) {
         <div class="left">
           <span class="qty">×${qty}</span> ${it.name}
           ${it.variant ? `<span class="muted">· ${it.variant}</span>` : ''}
-          ${groupsHtml}
           ${breakdown}
+          ${modifiersHtml}
         </div>
         <div class="right">${it.line_label}</div>
       </li>
@@ -1453,9 +1455,14 @@ assignExistingToCart(customerId, customerObj) {
 
 
 // ---------- Create & assign ----------
-formCreate?.addEventListener('submit', async (e) => {
+document.addEventListener('submit', async (e) => {
+ const el = e.target;
+
+  // Only handle our specific form, and guard types
+  if (!(el instanceof HTMLFormElement) || el.id !== 'cust-create') return;
+
+  const formEl = el;
   e.preventDefault();
-  msgCreate.textContent = '';
 
   const fd = new FormData(formCreate);
   const payload = {
@@ -1475,6 +1482,13 @@ formCreate?.addEventListener('submit', async (e) => {
   const url = modeEndpoint();
   console.debug('CREATE →', url, 'assignOrderId=', assignOrderId);
     await apiPOST(modeEndpoint(), payload);
+    if (assignOrderId) {
+      await reloadOrderModal(assignOrderId);   // ORDER mode: DB create/attach
+    } else {
+      // CART mode: only remember intent; update header so UX reflects it
+      updateCartHeaderCustomer(displayName(payload.create));
+      if (btnRemove) btnRemove.style.display = 'inline';
+    }
     closeCustomerModal();
   } catch (e) {
     msgCreate.textContent = 'Could not create/assign (maybe duplicate phone or invalid email)';
