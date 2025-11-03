@@ -1455,9 +1455,14 @@ assignExistingToCart(customerId, customerObj) {
 
 
 // ---------- Create & assign ----------
-formCreate?.addEventListener('submit', async (e) => {
+document.addEventListener('submit', async (e) => {
+ const el = e.target;
+
+  // Only handle our specific form, and guard types
+  if (!(el instanceof HTMLFormElement) || el.id !== 'cust-create') return;
+
+  const formEl = el;
   e.preventDefault();
-  msgCreate.textContent = '';
 
   const fd = new FormData(formCreate);
   const payload = {
@@ -1477,6 +1482,13 @@ formCreate?.addEventListener('submit', async (e) => {
   const url = modeEndpoint();
   console.debug('CREATE →', url, 'assignOrderId=', assignOrderId);
     await apiPOST(modeEndpoint(), payload);
+    if (assignOrderId) {
+      await reloadOrderModal(assignOrderId);   // ORDER mode: DB create/attach
+    } else {
+      // CART mode: only remember intent; update header so UX reflects it
+      updateCartHeaderCustomer(displayName(payload.create));
+      if (btnRemove) btnRemove.style.display = 'inline';
+    }
     closeCustomerModal();
   } catch (e) {
     msgCreate.textContent = 'Could not create/assign (maybe duplicate phone or invalid email)';

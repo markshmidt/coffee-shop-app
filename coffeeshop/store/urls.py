@@ -31,7 +31,7 @@ urlpatterns = [
 
     #customers
     path("customers/list/", customers_views.customers_list, name="customers_list"),
-    path("customers/add/", customers_views.customer_add, name="customer_add"),
+    # path("customers/add/", customers_views.customer_add, name="customer_add"),
     path("customers/<int:pk>/", customers_views.customer_detail, name="customer_detail"),
     path("customers/<int:pk>/orders/", customers_views.customer_orders, name="customer_orders"),
 # assign to an existing ORDER

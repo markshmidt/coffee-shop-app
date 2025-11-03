@@ -13,6 +13,7 @@ from ..models import Customer, Order, OrderItem
 from ..permissions import compute_order_permissions
 from ..services.cart import get_cart, save_cart
 from ..services.pricing import _fmt_cents
+from ..utils.http import parse_json
 from ..utils.serializers import serialize_order_for_modal, customer_to_dict
 
 
@@ -158,56 +159,56 @@ def customer_orders(request, pk):
     out = [serialize_order_for_modal(o) for o in orders]
     next_cursor = out[-1]["id"] if len(out) == limit else None
     return JsonResponse({"ok": True, "orders": out, "next_cursor": next_cursor})
-
-@login_required
-@require_POST
-def customer_add(request):
-    """
-        Create a customer from a JSON or form POST.
-        Returns: {ok, id, fname, lname, phone, email}
-        """
-    if request.content_type and "application/json" in request.content_type:
-        try:
-            payload = json.loads(request.body.decode("utf-8"))
-        except Exception:
-            return JsonResponse({"ok": False, "error": "Invalid JSON"}, status=400)
-        fname = (payload.get("fname"))
-        lname = (payload.get("lname"))
-        email = (payload.get("email"))
-        phone = (payload.get("phone"))
-    else:
-        fname = (request.POST.get("fname"))
-        lname = (request.POST.get("lname"))
-        email = (request.POST.get("email"))
-        phone = (request.POST.get("phone"))
-    if not (phone):
-        return JsonResponse({"ok": False, "error": "Phone is required"}, status=400)
-    try:
-        with transaction.atomic():
-            customer = Customer.objects.create(
-                fname=fname,
-                lname = lname,
-                phone=phone,
-                email=email,
-            )
-    except IntegrityError:
-        # unique phone conflict
-        return JsonResponse({"ok": False, "error": "Customer already exists:"}, status=409)
-
-    return JsonResponse(
-            {
-                "ok": True,
-                "id": customer.id,
-                "first_name": customer.fname,
-                "last_name": customer.lname,
-                "phone": customer.phone,
-                "email": customer.email,
-            },
-            status=201,
-        )
-
-def customer_edit(request, pk):
-    pass
+#
+# @login_required
+# @require_POST
+# def customer_add(request):
+#     """
+#         Create a customer from a JSON or form POST.
+#         Returns: {ok, id, fname, lname, phone, email}
+#         """
+#     if request.content_type and "application/json" in request.content_type:
+#         try:
+#             payload = json.loads(request.body.decode("utf-8"))
+#         except Exception:
+#             return JsonResponse({"ok": False, "error": "Invalid JSON"}, status=400)
+#         fname = (payload.get("fname"))
+#         lname = (payload.get("lname"))
+#         email = (payload.get("email"))
+#         phone = (payload.get("phone"))
+#     else:
+#         fname = (request.POST.get("fname"))
+#         lname = (request.POST.get("lname"))
+#         email = (request.POST.get("email"))
+#         phone = (request.POST.get("phone"))
+#     if not (phone):
+#         return JsonResponse({"ok": False, "error": "Phone is required"}, status=400)
+#     try:
+#         with transaction.atomic():
+#             customer = Customer.objects.create(
+#                 fname=fname,
+#                 lname = lname,
+#                 phone=phone,
+#                 email=email,
+#             )
+#     except IntegrityError:
+#         # unique phone conflict
+#         return JsonResponse({"ok": False, "error": "Customer already exists:"}, status=409)
+#
+#     return JsonResponse(
+#             {
+#                 "ok": True,
+#                 "id": customer.id,
+#                 "first_name": customer.fname,
+#                 "last_name": customer.lname,
+#                 "phone": customer.phone,
+#                 "email": customer.email,
+#             },
+#             status=201,
+#         )
+#
+# def customer_edit(request, pk):
+#     pass
 
 @login_required
 @require_POST
@@ -221,15 +222,13 @@ def cart_assign_customer(request):
       {"customer_id": null}               -> remove
       {"create": {fname, lname, phone, email}} -> remember intended new customer
     """
-    try:
-        payload = json.loads(request.body.decode("utf-8")) #parsing incoming HTTP POST
-    except Exception:
-        return HttpResponseBadRequest("Invalid JSON")
+    payload = parse_json(request)
 
     cart = get_cart(request.session)
-    cart.pop("create", None)
+
 
     if "customer_id" in payload:
+        cart.pop("create", None)
         #  attach existing customer or remove assignment
         cid = payload["customer_id"]
         if cid is None:
@@ -243,7 +242,7 @@ def cart_assign_customer(request):
     #create new customer
     elif "create" in payload:
         data = payload["create"] or {}
-        phone = (data.get("phone", ""))
+        phone = (data.get("phone", "")).strip()
         email = (data.get("email") or "").strip().lower()
         if not phone:
             return HttpResponseBadRequest("Phone is required")
@@ -272,7 +271,10 @@ def order_assign_customer(request, pk: int):
       {"customer_id": null}
       {"create": {fname, lname, phone, email}}  # find-by-phone or create, then assign
 
-    requires permission :can_assign_customer"
+     Permissions
+    -----------
+    Requires `compute_order_permissions(order, user)["can_assign_customer"]` to be truthy.
+
     """
     # lock the order to avoid race conditions
     try:
@@ -285,11 +287,7 @@ def order_assign_customer(request, pk: int):
     if not perms.get("can_assign_customer"):
         return HttpResponseBadRequest("Missing permission: can_assign_customer")
 
-    #load json
-    try:
-        payload = json.loads(request.body.decode("utf-8"))
-    except Exception:
-        return HttpResponseBadRequest("Invalid JSON")
+    payload = parse_json(request)
 
     # remove
     if "customer_id" in payload and payload["customer_id"] is None:
@@ -316,7 +314,7 @@ def order_assign_customer(request, pk: int):
     # create-and-assign
     if "create" in payload:
         data = payload["create"] or {}
-        phone = data.get("phone", "")
+        phone = data.get("phone", "").strip()
         email = (data.get("email") or "").strip().lower()
         if not phone:
             return HttpResponseBadRequest("Phone is required")

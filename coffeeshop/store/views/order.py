@@ -45,8 +45,9 @@ def order_payment(request):
  Response: 201 with order summary JSON (totals, labels, loyalty info).
 
     """
+
     cart = get_cart(request.session)
-    logger.debug(cart)
+    logger.debug("CART %s", cart)
     # validate payment method
     method_raw = (cart.get("payment_method") or "").upper().strip()
     logger.debug(method_raw)
@@ -159,8 +160,8 @@ def order_payment(request):
             menu_item=si["item"],
             name_snapshot=si["item"].name,
             variant_name_snapshot=si["variant_name"],
-            base_unit_price_cents=si["base_cents"],
-            unit_price_cents=si["unit_cents"],
+            base_unit_price_cents=si["base"],
+            unit_price_cents=si["unit"],
             qty=si["quantity"],
         )
         for si in staged_items
