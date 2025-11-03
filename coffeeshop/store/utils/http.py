@@ -1,8 +1,8 @@
 import json
+
+from django.core.exceptions import BadRequest
 from django.http import HttpResponseBadRequest
 
-class BadRequest(Exception):
-    pass
 
 def parse_json(request):
     # Ensure JSON content type

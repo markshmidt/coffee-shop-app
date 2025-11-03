@@ -7,8 +7,6 @@ from django.db.models import (
 )
 from decimal import Decimal
 
-# Create your models here.
-
 class Customer(models.Model):
     id = models.AutoField(primary_key=True)
     fname = models.CharField(max_length=100, blank=True)

@@ -1,6 +1,7 @@
 from collections import defaultdict
 from django.utils import timezone
 
+from ..models import Customer
 from ..services.loyalty import compute_earn_points
 from ..services.pricing import _fmt_cents
 
@@ -141,3 +142,13 @@ def serialize_order_for_modal(order):
         },
     }
 
+def customer_to_dict(c: Customer) -> dict:
+    return {
+        "id": c.id,
+        "fname": c.fname,
+        "lname": c.lname,
+        "phone": c.phone,
+        "email": c.email,
+        "points_balance": c.points_balance,
+        "created_at": c.created_at.isoformat(),
+    }
