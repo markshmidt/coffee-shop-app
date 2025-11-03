@@ -48,12 +48,4 @@ jobs:
         working-directory: ./coffeeshop
         run: python manage.py migrate --noinput
 
-      # Only run pytest if tests are present (for future)
-      - name: Run tests (only if present)
-        working-directory: ./coffeeshop
-        run: |
-          if ls -1 **/tests.py tests 2>/dev/null | grep -q .; then
-            pytest -q --maxfail=1
-          else
-            echo "No tests found — skipping pytest"
-          fi
+     
