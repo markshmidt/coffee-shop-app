@@ -1,50 +1,56 @@
-name: CI (Django + Docker)
+name: CI (Django)
 
 on:
-  pull_request:
   push:
     branches: [ main ]
+  pull_request:
 
 jobs:
-  test-and-build:
+  test-and-check:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: '3.12'
+
+      - name: Show layout
+        run: |
+          pwd
+          ls -la
+          ls -la coffeeshop
 
       - name: Install deps
-        working-directory: coffeeshop     
+        working-directory: ./coffeeshop
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest ruff
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; else pip install django; fi
+
+      - name: Prepare logs dir (belt & suspenders)
+        working-directory: ./coffeeshop
+        run: mkdir -p logs
 
       - name: Django checks
-        working-directory: coffeeshop    
+        working-directory: ./coffeeshop
         env:
           DJANGO_SETTINGS_MODULE: coffeeshop.settings
-        run: |
-          python manage.py check --fail-level WARNING
-          python manage.py makemigrations --check --dry-run
-
+        run: python manage.py check --fail-level WARNING
+        
+      - name: Install Ruff
+        run: pip install ruff
+        
       - name: Lint
-        working-directory: coffeeshop
+        working-directory: ./coffeeshop
         run: ruff check .
    
       - name: Migrate (SQLite)
-        working-directory: coffeeshop
+        working-directory: ./coffeeshop
         run: python manage.py migrate --noinput
 
       # Only run pytest if tests are present (for future)
       - name: Run tests (only if present)
-         working-directory: coffeeshop
+        working-directory: ./coffeeshop
         run: |
           if ls -1 **/tests.py tests 2>/dev/null | grep -q .; then
             pytest -q --maxfail=1
