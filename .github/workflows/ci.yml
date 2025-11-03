@@ -36,7 +36,10 @@ jobs:
         env:
           DJANGO_SETTINGS_MODULE: coffeeshop.settings
         run: python manage.py check --fail-level WARNING
-
+        
+      - name: Install Ruff
+        run: pip install ruff
+        
       - name: Lint
         working-directory: ./coffeeshop
         run: ruff check .
