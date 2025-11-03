@@ -1,4 +1,3 @@
-import json
 import logging
 
 # Create a module-level logger

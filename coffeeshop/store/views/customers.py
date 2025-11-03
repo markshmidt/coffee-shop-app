@@ -1,5 +1,3 @@
-import json
-from sqlite3 import IntegrityError
 
 from django.contrib.auth.decorators import login_required
 from django.db import transaction

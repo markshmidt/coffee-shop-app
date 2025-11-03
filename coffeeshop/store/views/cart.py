@@ -1,6 +1,3 @@
-import json
-from decimal import Decimal
-
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseBadRequest, JsonResponse
 from django.views.decorators.http import require_POST, require_GET
