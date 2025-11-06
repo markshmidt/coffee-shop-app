@@ -189,6 +189,7 @@ def cart_snapshot(cart):
         # loyalty preview for the cart UI
         "loyalty": loyalty,
         "loyalty_redemption_cents": loyalty_preview_cents,
+        "loyalty_redemption_label": _fmt_cents(loyalty_preview_cents),
     }
 
 
