@@ -150,4 +150,5 @@ def customer_to_dict(c: Customer) -> dict:
         "email": c.email,
         "points_balance": c.points_balance,
         "created_at": c.created_at.isoformat(),
+        "can_redeem": c.can_redeem()
     }
