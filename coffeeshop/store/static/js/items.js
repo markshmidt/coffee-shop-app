@@ -1,5 +1,5 @@
 import { $, $$ } from './dom.js';
-import { to_int} from './utils.js'
+import { to_int, centsToLabel} from './utils.js'
 // === Per-item modal open/close + variant filtering =====
 function initModals(){
   document.addEventListener('click', (e) => {
@@ -122,17 +122,17 @@ function ensureRequiredVariantSelected(modal) {
     // resetting modal
     function resetModal(modal) {
       if (!modal) return;
-      modal.querySelectorAll('.variant-row .chip-btn.active')
-           .forEach(b => b.classList.remove('active'));
+       // Clear variants
+  $$('.variant-row .chip-btn.active', modal).forEach((b) => b.classList.remove('active'));
 
-      modal.querySelectorAll('.group .mods .chip-btn.active')
-           .forEach(b => b.classList.remove('active'));
+  // Clear options
+  $$('.group .mods .chip-btn.active', modal).forEach((b) => b.classList.remove('active'));
 
-      //  re-apply the original defaults tagged on load
-      modal.querySelectorAll('.group .mods .chip-btn[data-default="1"]')
-           .forEach(b => b.classList.add('active'));
+  // Reapply authored defaults for options
+  $$('.group .mods .chip-btn[data-default="1"]', modal).forEach((b) => b.classList.add('active'));
 
       // Recompute preview & button state
+      ensureRequiredVariantSelected(modal);
       computeTotal(modal);
     }
 
@@ -156,30 +156,65 @@ function ensureRequiredVariantSelected(modal) {
       }
     }
   }
+export function initModals({ renderCart, postJSON }) {
+   document.addEventListener('click', (e) => {
+    // OPEN
+    const openBtn = e.target.closest('button[data-modal-id][data-item-id]');
+    if (openBtn) {
+      e.preventDefault();
 
-  // copy base price from the opener when opening the model
-//  document.addEventListener('click', (e) => {
-//    const opener = e.target.closest('button[data-modal-id][data-item-id]');
-//    if (!opener) return;
-//
-//    const modal = document.getElementById(opener.dataset.modalId);
-//    if (!modal) return;
-//
-//    // stash base price so the modal can use it if there are no variants
-//    modal.dataset.baseCents = opener.dataset.baseCents || '0';
-////
-////    if (!('requireVariant' in modal.dataset)) {
-////    const hasVariants = !!modal.querySelector('.variant-row [data-variant-id]');
-////    if (hasVariants) modal.dataset.requireVariant = '1';
-////  }
-//
-//    // disable Add until valid
-//    const addBtn = modal.querySelector('.modal-footer .btn');
-//    if (addBtn) addBtn.disabled = true;
-//
-//    computeTotall(modal);
-//  });
+      const modalId   = openBtn.dataset.modalId;
+      const itemId    = openBtn.dataset.itemId;
+      const modalName = openBtn.dataset.modalName || '';
 
+      const modal = document.getElementById(modalId);
+      if (!modal) { console.warn('Modal not found:', modalId); return; }
+
+      // Title
+      const titleEl = modal.querySelector('.modal-header h4');
+      if (titleEl && modalName) titleEl.textContent = modalName;
+
+      // Show only this item's variants
+      const vlist = modal.querySelector('.variant-row');
+      if (vlist) {
+        vlist.querySelectorAll('[data-variant-id]').forEach((btn) => {
+          btn.style.display = (String(btn.dataset.itemId) === String(itemId)) ? '' : 'none';
+        });
+      }
+
+      // Base price (still useful if no variants)
+      modal.dataset.baseCents = openBtn.dataset.baseCents || '0';
+
+      // If the item has variants, we want to require one
+      const hasVariants = !!modal.querySelector('.variant-row [data-variant-id]');
+      if (hasVariants) modal.dataset.requireVariant = '1';
+
+      // Disable Add until valid
+      modal.querySelector('.modal-footer .btn')?.setAttribute('disabled', 'true');
+
+      // Make sure a variant is selected if required
+      ensureRequiredVariantSelected(modal);
+
+      // Compute preview
+      computeTotal(modal);
+
+      modal.style.display = 'flex';
+      return;
+    }
+
+    // CLOSE via "X"
+    const closeBtn = e.target.closest('.close-modal');
+    if (closeBtn) {
+      const modal = document.getElementById(closeBtn.dataset.modalId) || closeBtn.closest('.modal-backdrop');
+      if (modal) modal.style.display = 'none';
+      return;
+    }
+
+    // CLOSE by backdrop click
+    if (e.target.classList.contains('modal-backdrop')) {
+      e.target.style.display = 'none';
+    }
+  });
   // Clicks inside modals: variants & options & add
   document.addEventListener('click', async (e) => {
     // variant (size)
@@ -238,4 +273,4 @@ function ensureRequiredVariantSelected(modal) {
       }
     }
   });
-})();
+};
