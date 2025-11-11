@@ -46,6 +46,11 @@
                 <label class="pill"><input type="radio" name="discount" value="FRIENDS_FAMILY_20"> Friends/Family</label>
 
             </div>
+              <div id="cart-loyalty" class="row" style="display:none">
+                  <span>Loyalty</span>
+                  <span id="loyalty-amount">$0.00</span>
+                </div>
+
             <div class="row total" id="cart-total">
               <span>Total</span><span id="total-label">$0.00</span>
             </div>
@@ -114,7 +119,8 @@
 
     <!-- Modal (size + modifiers) -->
     {% for item in items %}
-    <div class="modal-backdrop" id="modal-{{ item.id }}">
+    <div class="modal-backdrop" id="modal-{{ item.id }}" data-total-cents="{{ unit_total_cents }}"
+     data-base-variant-id="{{ base_variant_id }}">
       <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title-{{ item.id }}">
         <div class="modal-header">
           <h4 id="modal-title-{{ item.id }}">{{item.name}}</h4>
