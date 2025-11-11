@@ -364,6 +364,7 @@ def order_detail(request, pk):
 
 @login_required
 @require_http_methods(["PATCH"])
+@transaction.atomic
 def order_note(request, pk):
     payload = parse_json(request)
 

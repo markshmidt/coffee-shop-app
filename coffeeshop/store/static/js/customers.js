@@ -1,15 +1,14 @@
 import { $, $$ } from './dom.js';
 import { centsToLabel, showToast, debounce} from './utils.js';
-import { getJSON, postJSON, CSRFToken } from './api.js';
+import { getJSON, postJSON, CSRF } from './api.js';
 import {renderOrderModal} from './orders.js'
 
-const modal       = document.getElementById('customer-modal');
-const inputSearch = document.getElementById('cust-search');
-const resultsEl   = document.getElementById('cust-results');
-const formCreate  = document.getElementById('cust-create');
-const btnClose    = document.getElementById('cust-close');
-const msgCreate   = document.getElementById('cust-create-msg');
-const linkHeader  = document.getElementById('cart-customer-label');
+let assignOrderId = null;
+window.__currentCustomer__ = null;
+
+let modal, inputSearch, resultsEl, formCreate, btnClose, msgCreate, linkHeader, btnRemove;
+let _renderCart = null;
+let _getCartSubtotal = (cart) => cart?.subtotal_cents ?? 0;
 
 export function displayName(c = {}, opts = {}){
  const { showProjectedEarn = null } = opts;
@@ -40,7 +39,7 @@ export function displayName(c = {}, opts = {}){
   return base + ptsSuffix+ earnSuffix;
   }
 
-function updateCartHeaderCustomer(name) {
+export function updateCartHeaderCustomer(name) {
   const el =
     document.getElementById('cart-customer-label') ||
     document.querySelector('a[data-role="customer-link"]');
@@ -48,10 +47,29 @@ function updateCartHeaderCustomer(name) {
   if (el) el.textContent = `${name || 'Guest'}`;
 //  window.__cartCustomerName = name || 'Guest';
 }
+// customers.js
+export function updateCartHeaderCustomerFromCart(cart) {
+  const el = document.getElementById('cart-customer-label');
+  const btnRemove = document.getElementById('cust-remove');
+  if (!el) return;
+
+  // prefer server customer, else fallback to cached one
+  if (cart?.customer) window.__currentCustomer__ = cart.customer;
+  const c = cart?.customer ?? window.__currentCustomer__ ?? null;
+
+  if (c) {
+    el.textContent = displayName(c, { showProjectedEarn: cart?.subtotal_cents ?? 0 });
+    if (btnRemove) btnRemove.style.display = '';
+  } else {
+    el.textContent = 'Guest';
+    if (btnRemove) btnRemove.style.display = 'none';
+  }
+}
+
 
 // Order modal header e.g.
 // <div class="row"><strong>Customer:</strong> <span id="order-customer-label">Guest</span></div>
-function updateOrderHeaderCustomer(name) {
+export function updateOrderHeaderCustomer(name) {
   const el = document.getElementById('customerHtml');
   if (el) el.textContent = name || 'Guest';
   reloadOrderModal();
@@ -59,8 +77,8 @@ function updateOrderHeaderCustomer(name) {
 
 // ---------- Open/close ----------
 export function openCustomerModal({ orderId = null, preset = '' } = {}){
- assignOrderId = (orderId !== null && Number.isFinite(Number(orderId))) ? Number(orderId) : null;
-  if(!modal) return;
+ assignOrderId = (orderId != null && Number.isFinite(Number(orderId))) ? Number(orderId) : null;
+  if (!modal) return;
   inputSearch.value = '';
   resultsEl.innerHTML = '';
   msgCreate.textContent = '';
@@ -125,38 +143,34 @@ async function assignExistingToCart(customerId, customerObj) {
   const url = modeEndpoint();
   const currentOrderId = assignOrderId;
 
- try {
+  try {
     await postJSON(url, { customer_id: customerId });
   } catch (e) {
     showToast?.('Assign failed', { type: 'error' });
     return;
   }
+  window.__currentCustomer__ = { ...customerObj };
   console.debug('POST →', url, 'assignOrderId=', assignOrderId);
-    CURRENT_CUSTOMER = {
-    ...customerObj,
-    points_balance: customerObj.points_balance  ?? null
-  };
 
   if (currentOrderId) {
-    // ORDER mode
-    await reloadOrderModal(currentOrderId);
+    // ORDER mode: trigger a reload of the order modal (decoupled)
+    window.dispatchEvent(new CustomEvent('order:reload', { detail: { orderId: currentOrderId } }));
   } else {
-    // CART mode — fetch a fresh cart snapshot (don’t rely on cache here)
+    // CART mode — fetch a fresh cart snapshot and re-render
     try {
-      const { cart } = await getJSON('/cart/');   // returns your full snapshot
-      if (cart) {
-        // keep your module cache current (no window usage)
-        renderCart(cart);            // refresh UI
-      }
+      const { cart } = await getJSON('/cart/');
+      if (cart && _renderCart) _renderCart(cart);
+
+      // compute projected earn from the fresh cart
+      const subtotalCents = _getCartSubtotal(cart);
+      updateCartHeaderCustomer(
+        displayName(customerObj, { showProjectedEarn: subtotalCents })
+      );
+
+      if (btnRemove) btnRemove.style.display = 'inline';
     } catch (e) {
       console.warn('Could not fetch cart after assign:', e);
     }
-
-    updateCartHeaderCustomer(
-      displayName(customerObj, { showProjectedEarn: subtotalCents })
-    );
-
-    if (btnRemove) btnRemove.style.display = 'inline';
   }
 
   closeCustomerModal();
@@ -194,6 +208,9 @@ async function createAndAssignCustomer(fd) {
 
 
 export function initCustomers( {renderCart, getCartSubtotal}={}) {
+_renderCart = typeof renderCart === 'function' ? renderCart : null;
+  if (typeof getCartSubtotal === 'function') _getCartSubtotal = getCartSubtotal;
+
 modal       = document.getElementById('customer-modal');
   inputSearch = document.getElementById('cust-search');
   resultsEl   = document.getElementById('cust-results');
@@ -202,6 +219,7 @@ modal       = document.getElementById('customer-modal');
   msgCreate   = document.getElementById('cust-create-msg');
   linkHeader  = document.getElementById('cart-customer-label');
   btnRemove   = document.getElementById('cust-remove');
+
 const doSearch = debounce(async (q)=>{
   if(!q || !q.trim()){ resultsEl.innerHTML=''; return; }
   try{

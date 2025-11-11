@@ -2,9 +2,21 @@
 // and provides print/email/refund/assign customer and notes creation
 
 import { $, $$, on } from './dom.js';
-import { getJSON } from './api.js';
+import { getJSON, CSRF } from './api.js';
 import { showToast, centsToLabel } from './utils.js';
-
+import {openCustomerModal} from './customers.js'
+window.addEventListener('order:reload', (e) => {
+  const id = Number(e?.detail?.orderId);
+  if (Number.isFinite(id)) openOrderModal(id);
+});
+function escapeHTML(s = '') {
+  return String(s)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
 
 export async function openOrderModal(orderId) {
 //fetches orders/id/, shows the modal and renderes it
@@ -33,11 +45,9 @@ export function initOrdersFeed({
   let loading = false;
 
   // Event delegation: open modal on click/keyboard
-  on(feed, 'click', (e) => {
-    const card = e.target.closest('.order-card');
-    if (!card || !feed.contains(card)) return;
-    openOrderModal(card.dataset.orderId, { onAssignCustomer });
-  });
+  on(feed, 'click', '.order-card', (e, card) => {
+  openOrderModal(card.dataset.orderId, { onAssignCustomer });
+});
 
   // Fetch one page
   const fetchPage = async ({ reset = false } = {}) => {
@@ -97,13 +107,13 @@ card.innerHTML = `
     </footer>
   `;
     return card;
-  }
-});
+  };
 
 function ensureOrderModal() {
 //checks if the backdrop already exists and creates it
   let el = document.getElementById('order-modal-backdrop');
   if (el) return el;
+
 
   el = document.createElement('div');
   el.id = 'order-modal-backdrop';
@@ -155,8 +165,9 @@ function hideOrderModal() {
 }
 
 
-function renderOrderModal(order) {
+export function renderOrderModal(order) {
   const m = ensureOrderModal();
+  const currentNote = (order.internal_notes ?? '').toString();
   m.style.display = 'flex';
   document.getElementById('order-modal-title').textContent =
     `Order #${order.id}`;
@@ -268,6 +279,11 @@ const loyaltySummaryHtml =
 
     <section class="section notes">
       <h5>Notes</h5>
+      <div id="order-note-view"
+         class="muted"
+         style="white-space:pre-wrap; border:1px dashed var(--hairline,#333); padding:.5rem; border-radius:.5rem; min-height:2.25rem;">
+      ${currentNote ? escapeHTML(currentNote) : '<em>No notes yet</em>'}
+    </div>
       <textarea id="order-note-input" rows="3" placeholder="Add a note to the order." ${order.permissions?.can_add_note ? '' : 'disabled'}></textarea>
       <div><button id="order-note-save" ${order.permissions?.can_add_note ? '' : 'disabled'}>Save note</button></div>
     </section>
@@ -276,10 +292,10 @@ const loyaltySummaryHtml =
 
   // Toolbar buttons
   const perms = order.permissions || {};
-  const btnRefund = document.getElementById('order-btn-refund');
-  const btnAssign = document.getElementById('order-btn-assign');
-  const btnPrint  = document.getElementById('order-btn-print');
-  const btnEmail = document.getElementById('order-btn-email')
+  const btnRefund = m.querySelector('#order-btn-refund');
+const btnAssign = m.querySelector('#order-btn-assign');
+const btnPrint  = m.querySelector('#order-btn-print');
+const btnEmail  = m.querySelector('#order-btn-email');
 
   btnRefund.classList.toggle('is-disabled', !perms.can_refund);
   btnRefund.setAttribute('aria-disabled', String(!perms.can_refund))
@@ -301,10 +317,32 @@ const loyaltySummaryHtml =
 
   btnEmail.onclick  = () => showToast?.('Not implemented yet', { type: 'info' });
 
-    $('order-note-save').onclick = () => {
-    const txt = (document.getElementById('order-note-input').value || '').trim();
-    if (!txt) return;
-    showToast?.('Note saved (stub)', { type: 'success' });
+const orderId = Number(order.id);
+const noteInput = document.getElementById('order-note-input');
+noteInput.value = (order.internal_notes ?? order.notes ?? '').toString();
+const noteView  = document.getElementById('order-note-view');
+
+const saveBtn = document.getElementById('order-note-save');
+saveBtn.onclick = async () => {
+    const txt = (noteInput.value || '').trim();
+
+    try {
+      const res = await fetch(`/orders/${order.id}/note/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+        credentials: 'same-origin',
+        body: JSON.stringify({ note: txt }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.ok === false) throw new Error(data?.error || `Save failed (${res.status})`);
+
+      noteView.innerHTML = txt ? escapeHTML(txt) : '<em>No notes yet</em>';
+
+      showToast?.('Note saved', { type: 'success' });
+    } catch (err) {
+      console.error('note save failed', err);
+      showToast?.(err.message || 'Failed to save note', { type: 'error' });
+    }
   };
 }
 

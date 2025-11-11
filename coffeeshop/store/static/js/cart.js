@@ -1,7 +1,7 @@
 import { $, $$ } from './dom.js';
 import { centsToLabel, showToast } from './utils.js';
-import { getJSON, postJSON, CSRFToken } from './api.js';
-import { displayName, updateCartHeaderCustomerFromCart, updateCartHeaderCustomer} from './script.js'
+import { getJSON, postJSON, CSRF } from './api.js';
+import { displayName, updateCartHeaderCustomerFromCart, updateCartHeaderCustomer} from './customers.js'
 import { openOrderModal} from './orders.js'
 const isPOS = () => document.body?.dataset?.page === 'pos';
 export function setupCartRadios() {
@@ -29,7 +29,7 @@ export function setupCartRadios() {
  }
 
 //REDEEM POINTS
-function wireRedeemToggle() {
+export function wireRedeemToggle() {
   const redeem = document.getElementById('redeem');
   if (!redeem || redeem.dataset.wired) return;
   redeem.dataset.wired = '1';
@@ -45,7 +45,7 @@ function wireRedeemToggle() {
   });
 }
 // Tag the buttons that are default on first render to reapply them after a reset
-function tagDefaultOptionChips(){
+export function tagDefaultOptionChips(){
 $$('.modal-backdrop .group .mods .chip-btn')
     .forEach(btn => {
       if (btn.classList.contains('active')) {
@@ -55,10 +55,10 @@ $$('.modal-backdrop .group .mods .chip-btn')
 }
 
 // ------- RENDERING --------
-function renderCart(cart) {
+
+export function renderCart(cart) {
   if (!isPOS()) return;
 
-  // cache totals rows
   const linesLst  = document.getElementById('cart-lines');
   const subRow    = document.getElementById('cart-subtotal');
   const discRow   = document.getElementById('cart-discount');
@@ -74,76 +74,71 @@ function renderCart(cart) {
   const roundingDelta = document.getElementById('rounding-delta');
 
   const loyRow = document.getElementById('cart-loyalty');
-   const amtL = document.getElementById('loyalty-amount');
+  const amtL   = document.getElementById('loyalty-amount');
 
-  // bail early if critical nodes missing
   if (!linesLst || !sub || !tax) {
     console.warn('renderCart: required DOM nodes missing');
     return;
   }
 
-  // clear current DOM
+  // clear
   linesLst.innerHTML = '';
 
-  // if empty, show a message
-  if ((!cart.lines || cart.lines.length === 0)){
+  // empty state
+  if (!Array.isArray(cart.lines) || cart.lines.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'line';
     empty.innerHTML = `<div class="cart-row muted">Cart is empty</div>`;
     linesLst.appendChild(empty);
-    // hide rounding pill when empty or non-cash
     if (roundingPill) roundingPill.style.display = 'none';
   }
 
-  // add each line as a li
-  cart.lines.forEach(line => {
+  // lines
+  (cart.lines || []).forEach(line => {
     const li = document.createElement('li');
     li.className = 'cart-line';
-
     li.dataset.lineId = line.id;
     li.dataset.qty = String(line.qty);
 
-    // layout
     li.innerHTML = `
       <div class="cart-row">
         <h4>${line.item_name} ${line.variant_name ? `<span class="muted">· ${line.variant_name}</span>` : ''}</h4>
       </div>
       ${line.summary ? `<div class="muted" style="font-size:.9em">${line.summary}</div>` : ''}
-       <div class="qty-controls" style="margin-top:6px;">
-          <span class="qty-pill">Qty: x<span class="qty-val">${line.qty}</span></span>
-        </div>
+      <div class="qty-controls" style="margin-top:6px;">
+        <span class="qty-pill">Qty: x<span class="qty-val">${line.qty}</span></span>
+      </div>
 
-        <div style="text-align:right;">
-           <div class="line-total">${line.line_total_label ?? centsToLabel(line.unit_total_cents * line.qty)}</div>
-          <button class="btn ghost qty-decrease" aria-label="Decrease">–1</button>
-          <button class="btn ghost qty-increase" aria-label="Increase">+1</button>
-           <button class="btn ghost remove-line" style="margin-top:6px;">Remove</button>
+      <div style="text-align:right;">
+        <div class="line-total">${line.line_total_label ?? centsToLabel((line.unit_total_cents||0) * (line.qty||1))}</div>
+        <button class="btn ghost qty-decrease" aria-label="Decrease">–1</button>
+        <button class="btn ghost qty-increase" aria-label="Increase">+1</button>
+        <button class="btn ghost remove-line" style="margin-top:6px;">Remove</button>
       </div>
     `;
     linesLst.appendChild(li);
-
   });
 
+  // header/customer
   updateCartHeaderCustomerFromCart(cart);
 
-      // Totals - labels from backend if exist, otherwise safely create in frontend
-    sub.textContent   = cart.subtotal_label ?? centsToLabel(cart.subtotal_cents || 0);
-    if (disc)  disc.textContent  = cart.discount_label ?? centsToLabel(cart.discount_cents || 0);
-    tax.textContent   = cart.tax_label ?? centsToLabel(cart.tax_cents || 0);
-    if (total) total.textContent = cart.total_label  ?? centsToLabel(cart.total_cents || 0);
+  // totals
+  sub.textContent   = cart.subtotal_label ?? centsToLabel(cart.subtotal_cents || 0);
+  if (disc)  disc.textContent  = cart.discount_label ?? centsToLabel(cart.discount_cents || 0);
+  tax.textContent   = cart.tax_label ?? centsToLabel(cart.tax_cents || 0);
+  if (total) total.textContent = cart.total_label  ?? centsToLabel(cart.total_cents || 0);
 
-// loyalty row
+  // loyalty redemption row
   const lp = Number(cart.loyalty_redemption_cents || 0);
-  loyRow.style.display = lp > 0 ? '' : 'none';
+  if (loyRow) loyRow.style.display = lp > 0 ? '' : 'none';
   if (lp > 0 && amtL) {
     const lbl = cart.loyalty_redemption_label ?? centsToLabel(lp);
     amtL.textContent = '-' + lbl;
   }
 
-  // Rounding(only for CASH)
+  // rounding (cash only)
   if (roundingPill && roundingDelta) {
     if (cart.payment_method === 'CASH' && typeof cart.rounding_delta_label === 'string') {
-      // If server label is positive but lacks a sign, show explicit "+"
       const lbl = cart.rounding_delta_label.startsWith('-')
         ? cart.rounding_delta_label
         : (cart.rounding_delta_label === '$0.00' ? '$0.00' : '+' + cart.rounding_delta_label);
@@ -153,28 +148,34 @@ function renderCart(cart) {
       roundingPill.style.display = 'none';
     }
   }
-   // radios in sync with server
-    if (cart.discount_code) {
+
+  // radios
+  if (cart.discount_code) {
     const d = document.querySelector(`input[name="discount"][value="${cart.discount_code}"]`);
     if (d) d.checked = true;
   }
   if (cart.payment_method) {
     const p = document.querySelector(`input[name="pm"][value="${cart.payment_method}"]`);
     if (p) p.checked = true;
+  }
 
-  //redeem points
-  const pts = Number(cart.loyalty.projected_points || 0);
-  const eligible = pts >= 80 && (cart.subtotal_cents - cart.discount_cents) > 0;
+  // redeem toggle eligibility
+  const pts = Number(cart?.loyalty?.projected_points ?? 0);   // <- nil safe
+  const subC = Number(cart.subtotal_cents ?? 0);
+  const disC = Number(cart.discount_cents ?? 0);
+  const eligible = pts >= 80 && (subC - disC) > 0;
+
   const redeem = document.getElementById('redeem');
   const redeemLabel = document.getElementById('redeem-label');
   if (redeemLabel) redeemLabel.style.display = eligible ? 'inline' : 'none';
   if (redeem) {
     redeem.disabled = !eligible;
     redeem.checked  = lp > 0;
+  }
 }
 
 // ------- card buttons handlers ------
-function wireCartLineButtons() {
+export function wireCartLineButtons() {
 document.getElementById('cart-lines')?.addEventListener('click', async (e) => {
   const lineEl = e.target.closest('.cart-line');
   if (!lineEl) return;
@@ -201,6 +202,7 @@ document.getElementById('cart-lines')?.addEventListener('click', async (e) => {
     //remove explicitly
     if (e.target.closest('.remove-line')) {
       const { cart } = await postJSON('/cart/update-line/', { line_id: lineId });
+      if (cart?.customer) window.__currentCustomer__ = cart.customer;
       renderCart(cart);
       return;
     }
@@ -214,7 +216,7 @@ document.getElementById('cart-lines')?.addEventListener('click', async (e) => {
 
 // ---- PAY BUTTON ---
 // Always return a 'CARD' or 'CASH'
- function getSelectedPaymentMethod({ allowRandom = false } = {}) {
+export function getSelectedPaymentMethod({ allowRandom = false } = {}) {
   const checked = $('input[name="pm"]:checked');
   let val = (checked?.value || '').toString().trim().toUpperCase();
 
@@ -232,36 +234,41 @@ document.getElementById('cart-lines')?.addEventListener('click', async (e) => {
 }
 
 // adding recent orders to ui
-function addInvoiceChip(
-  label,
-  orderId,
-  containerId = 'prev-invoices-list',
-  maxChips = 2
-) {
+// cart.js (or wherever addInvoiceChip lives)
+export function addInvoiceChip(label, orderId, containerId = 'prev-invoices-list', maxChips = 2) {
   const row = document.getElementById(containerId);
   if (!row) return;
 
-  //  if a chip for this order already exists, do nothing
-  if (row.querySelector(`[data-order-id="${orderId}"]`)) return;
+  const more = row.querySelector('#orders-more-chip'); // your anchor
+  if (!more) return;
+
+  // already present? bail
+  if (row.querySelector(`.pill[data-order-id="${orderId}"]`)) return;
 
   const chip = document.createElement('button');
   chip.type = 'button';
   chip.className = 'pill';
   chip.dataset.orderId = String(orderId);
   chip.textContent = label || `Order #${orderId}`;
+  chip.addEventListener('click', () => openOrderModal(orderId));
 
-  //  future: open order details
-  chip.addEventListener('click', () => {
-   openOrderModal(orderId)
-  });
-
-  row.prepend(chip);
-
-  const chips = Array.from(row.querySelectorAll('.pill'));
-  if (chips.length > maxChips) {
-    chips.slice(maxChips).forEach(el => el.remove());
+  // insert as the first *real* chip (before current first, which might be "More…")
+  const firstRealChip = Array.from(row.children).find(el => el !== more);
+  if (firstRealChip) {
+    row.insertBefore(chip, firstRealChip);    // newest on the left
+  } else {
+    row.insertBefore(chip, more);             // if no chips yet, place before "More…"
   }
+
+  // keep "More…" at the end
+  row.appendChild(more);
+
+  // trim to maxChips (exclude the More… anchor)
+  const chips = Array.from(row.querySelectorAll('.pill')).filter(el => el !== more);
+  if (chips.length > maxChips) chips.slice(maxChips).forEach(el => el.remove());
 }
+
+
 
 
 async function onPayClick(e) {
@@ -293,7 +300,7 @@ async function onPayClick(e) {
   try {
     const res = await fetch('/order/pay/', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRFToken },
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
       credentials: 'same-origin',
       body: JSON.stringify({}), // server reads session cart
     });
@@ -337,16 +344,17 @@ async function onPayClick(e) {
     btn.disabled = false;
     btn.removeAttribute('aria-busy');
     updateCartHeaderCustomerFromCart(cart);
+    const btnRemove = document.getElementById('cust-remove');
     if (btnRemove) btnRemove.style.display = 'none';
   }
 }
 
-function wirePayButton() {
+export function wirePayButton() {
   document.getElementById('pay-btn')?.addEventListener('click', onPayClick);
 }
 
 //REMOVE CUSTOMER BUTTON
-function wireRemoveButton() {
+export function wireRemoveButton() {
 const btnRemove = document.getElementById('cust-remove');
 if (btnRemove) {
   btnRemove.addEventListener('click', async (e) => {
@@ -355,6 +363,7 @@ if (btnRemove) {
     btnRemove.disabled = true;
     try {
       await postJSON('/cart/assign_customer/', { customer_id: null });
+      window.__currentCustomer__ = null;
       updateCartHeaderCustomer('Guest');
       btnRemove.style.display = 'none';
       showToast?.('Customer removed from cart', { type: 'success' });
@@ -369,7 +378,7 @@ if (btnRemove) {
 }
 
 // Discard -> POST /cart/clear/ -> render snapshot
-function wireDiscard() {
+export function wireDiscard() {
 document.getElementById('btn-discard')?.addEventListener('click', async (e) => {
   e.preventDefault();
   const btn = e.currentTarget;

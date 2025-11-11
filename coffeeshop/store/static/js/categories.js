@@ -1,18 +1,18 @@
 import { $, $$ } from './dom.js';
 
-function initCategories(){
+export function initCategories(){
    const barTop   = document.getElementById('cat-bar');   // the top-level category bar
   const grid     = document.getElementById('menu-grid'); // the grid with all items
   if (!barTop || !grid) return;   // additional safety
   const barSub   = document.getElementById('sub-bar');   // the subcategory bar (starts hidden)
   const pool     = document.getElementById('all-subcats'); // hidden pool with ALL categories
 
-  const cards    = $$('.item', grid)); // every item card
+  const cards    = $$('.item', grid); // every item card
 
   const hideAllItems = () => cards.forEach(c => c.style.display = 'none');
 
   // If a category has no children, show only the items where data-cat="<category id>"
-  function showOnlyItemsOf = (categoryId) => {
+  const showOnlyItemsOf = (categoryId) => {
     hideAllItems();
     barSub.style.display = 'none';
     cards.forEach(card => {
@@ -22,7 +22,7 @@ function initCategories(){
 
   function showSubCategoryOf(categoryId){
     // find children in the hidden pool
-    const children = $$(`[data-parent="${catId}"]`, pool));
+    const children = $$(`[data-parent="${categoryId}"]`, pool);
 
     // highlight the clicked top-level button
     $$('.cat-btn', barTop).forEach(b => b.classList.remove('active'));

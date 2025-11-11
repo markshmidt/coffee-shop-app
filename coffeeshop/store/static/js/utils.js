@@ -11,6 +11,7 @@ export function debounce(fn, ms = 250) {
     clearTimeout(t);
     t = setTimeout(() => fn(...args), ms);
 }
+}
 
 export function showToast(message, { type = 'info', duration = 3000 } = {}) {
   let container = document.getElementById('toast-container');
