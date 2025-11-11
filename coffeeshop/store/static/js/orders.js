@@ -1,6 +1,3 @@
-//orders.js renders the order feed, opens a modal for order details,
-// and provides print/email/refund/assign customer and notes creation
-
 import { $, $$, on } from './dom.js';
 import { getJSON, CSRF } from './api.js';
 import { showToast, centsToLabel } from './utils.js';

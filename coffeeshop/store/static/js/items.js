@@ -155,7 +155,7 @@ export function initModals({ renderCart }) {
     computeTotal(modal);
   });
 
-  // ADD ×1  (single handler — your code had two)
+  // ADD ×1
   document.addEventListener('click', async (e) => {
     const addBtn = e.target.closest('.modal .modal-footer .btn');
     if (!addBtn) return;

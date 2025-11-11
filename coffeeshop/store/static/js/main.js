@@ -1,4 +1,4 @@
-// main.js
+
 import { getJSON, postJSON } from './api.js';
 import { renderCart, setupCartRadios, wireCartLineButtons, wireDiscard, wirePayButton, addInvoiceChip, tagDefaultOptionChips, wireRedeemToggle, wireRemoveButton } from './cart.js';
 import { initOrdersFeed } from './orders.js';
