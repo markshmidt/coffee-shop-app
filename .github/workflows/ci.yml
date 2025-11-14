@@ -29,7 +29,6 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; else pip install django; fi
 
       - name: Prepare logs dir (belt & suspenders)
-        working-directory: ./coffeeshop
         run: |
           mkdir -p data
           mkdir -p coffeeshop/logs
