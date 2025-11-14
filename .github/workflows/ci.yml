@@ -30,7 +30,10 @@ jobs:
 
       - name: Prepare logs dir (belt & suspenders)
         working-directory: ./coffeeshop
-        run: mkdir -p logs
+        run: |
+          mkdir -p data
+          mkdir -p coffeeshop/logs
+        
 
       - name: Django checks
         working-directory: ./coffeeshop
