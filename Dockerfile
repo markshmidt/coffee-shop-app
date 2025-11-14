@@ -1,6 +1,7 @@
 
 FROM python:3.12-slim
 
+#interpreter to not write bytecode files
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1
@@ -21,14 +22,15 @@ RUN pip install -r requirements.txt
 COPY . .
 
 # runtime dirs
+#https://github.com/gonzalo123/django-non-root
 RUN useradd -m django \
  && mkdir -p /data /coffee-shop-app/coffeeshop/logs \
  && chown -R django:django /data /coffee-shop-app
 USER django
 
 ENV DJANGO_DB_PATH=/data/db.sqlite3 \
-    MEDIA_ROOT=/data/media \
-    STATIC_ROOT=/coffee-shop-app/staticfiles
+    MEDIA_ROOT=/coffeeshop/media \
+    STATIC_ROOT=/coffee-shop-app/static
 
 EXPOSE 8000
 
