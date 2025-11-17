@@ -1,4 +1,4 @@
-# Coffee Island POS — [https://mariia-shmidt-portfolio.com/coffeeshopapp/](https://mariia-shmidt-portfolio.com/coffeeshopapp/)
+# Coffee Island POS — [https://mariia-shmidt-portfolio.com/coffeeshopapp/](https://mariia-shmidt-portfolio.com/coffeeshopapp/login/)
 
 A full-stack Point of Sale (POS) web application built with Django, designed for Coffee Island coffee shop, but suitable for all small similar businesses.
 It provides order management, item configuration, categories, variants, loyalty points, receipt handling, and more.
