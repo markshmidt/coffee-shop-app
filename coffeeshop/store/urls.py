@@ -26,7 +26,7 @@ urlpatterns = [
     path("orders/list/", orders_views.orders_list, name="orders_list"),
     path("orders/", orders_views.orders_page, name="orders"),
     path("orders/<int:pk>/", orders_views.order_detail, name="order_detail"),
-    path("orders/<int:id>/note/", orders_views.order_note, name="order_note"),
+    path("orders/<int:pk>/note/", orders_views.order_note, name="order_note"),
     path("orders/<int:pk>/receipt/", orders_views.order_receipt, name="order_receipt"),
 
     #customers

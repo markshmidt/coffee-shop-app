@@ -14,14 +14,11 @@ from ..apps import POS_LOYALTY_PRICE_CAP_CENTS, POS_REDEMPTION_POINTS, POS_TAX_R
 from ..models import Customer, MenuItem, Order, OrderItem, ModifierOption, OrderItemModifier, \
     ModifierGroup
 from ..permissions import compute_order_permissions
-from ..serializers.serializers import serialize_customer
 from ..services.cart import get_cart, price_item_validate, empty_cart, save_cart
 from ..services.loyalty import award_points_for_order
 from ..services.pricing import _bp, _nickel_round_cents, _fmt_cents
 from ..utils.http import parse_json
-from ..utils.serializers import serialize_order_for_modal
-
-
+from ..utils.serializers import serialize_order_for_modal, customer_to_dict
 
 logger = logging.getLogger(__name__)
 @login_required
@@ -208,7 +205,7 @@ def order_payment(request):
         c = Customer.objects.only(
             "id", "fname", "lname", "phone", "email", "points_balance"
         ).get(pk=order.customer_id)
-        customer_out = serialize_customer(c)
+        customer_out = customer_to_dict(c)
 
     # ----- clear session cart -----
     save_cart(request.session, empty_cart())
@@ -367,6 +364,7 @@ def order_detail(request, pk):
 
 @login_required
 @require_http_methods(["PATCH"])
+@transaction.atomic
 def order_note(request, pk):
     payload = parse_json(request)
 
