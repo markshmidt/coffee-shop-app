@@ -46,10 +46,6 @@ jobs:
       - name: Lint
         working-directory: ./coffeeshop
         run: ruff check .
-   
-      - name: Migrate (SQLite)
-        working-directory: ${{ github.workspace }}/data/db.sqlite3
-        run: python manage.py migrate --noinput
   docker:
     needs: test-and-check
     runs-on: ubuntu-latest
