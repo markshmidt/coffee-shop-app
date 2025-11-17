@@ -10,6 +10,7 @@ djangoenv/
 
 # SQLite database
 db.sqlite3
+data/db.sqlite3
 
 # Django stuff:
 *.log
