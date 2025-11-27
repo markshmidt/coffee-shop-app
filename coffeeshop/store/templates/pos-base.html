@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" xmlns:style="http://www.w3.org/1999/xhtml">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
@@ -13,8 +13,7 @@
 <body data-page="pos">
   <header class="topbar">
       <div class="brand">
-        <strong>Coffee Island POS</strong>
-        <span class="chip">Register A</span>
+         <img src="{% static 'pics/coffee-island-logo.png' %}" class="coffee-photo" style="width: 400px;">
         {% if user.is_authenticated %}
         <span class="chip">User: <span id="who">{{user}}</span></span> <!-- user logged in-->
         {% endif %}
