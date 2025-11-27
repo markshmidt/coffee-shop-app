@@ -14,13 +14,10 @@
   <header class="topbar">
       <div class="brand">
          <img src="{% static 'pics/coffee-island-logo.png' %}" class="coffee-photo" style="width: 400px;">
-        {% if user.is_authenticated %}
-        <span class="chip">User: <span id="who">{{user}}</span></span> <!-- user logged in-->
-        {% endif %}
       </div>
       <div class="clock" id="clock">--:--</div>
 
-      {% if user.is_authenticated %}
+      <span class="btn">User: <span id="who">{{user}}</span></span> <!-- user logged in-->
       <a href="https://github.com/markshmidt/coffee-shop-app" target="_blank">
   <button class="btn">GitHub</button>
 </a>
@@ -32,7 +29,6 @@
     {% csrf_token %}<button class="btn">Logout</button>
 
   </form>
-      {% endif %}
     </header>
 
   <main class="container">

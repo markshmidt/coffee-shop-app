@@ -99,6 +99,30 @@ main.container {
     unicode-bidi: isolate;
 }
 .section-title{ font-weight:600; margin:0 0 0px; }
+/* Cart main panel back to normal block layout */
+.cart > .panel:nth-of-type(2) {
+  display: block;
+}
+
+/* Header row: ORDER on the left */
+.cart > .panel:nth-of-type(2) h4 {
+  display: inline-block;
+  margin: 4px 0 6px;
+}
+
+/* Clock on the same row, aligned to the right */
+.cart > .panel:nth-of-type(2) #clock2 {
+  float: right;
+  margin-top: 6px;
+  font-weight: 500;
+}
+
+/* First pill starts on a new row under the header */
+.cart > .panel:nth-of-type(2) #cart-customer-label {
+  display: block;
+  clear: both;
+  margin-top: 8px;
+}
 
 .cart-lines {
     flex: 1;
@@ -114,18 +138,50 @@ main.container {
   margin-bottom: 10px;
 }
 .cart-line {
-    border: 2px solid red
+    margin-bottom: 5px;
     padding: 12px;
+    display: grid;
+  grid-template-columns: 1fr auto;  /* left: qty, right: total+buttons */
+  row-gap: 4px;
+}.cart-line > .cart-row {
+  grid-column: 1 / -1;
 }
-.cart-line h4{ margin:0; font-size:15px; font-weight:600; }
+.cart-line .qty-controls {
+  grid-column: 1;
+  margin-top: 0 !important;
+}
+.cart-line > div[style*="text-align:right"] {
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  text-align: right;
+}
+
+.cart-line h4{ margin:0; font-size:20px; font-weight:600; }
 .muted{ color:var(--muted); font-size:13px; }
-.qty-controls{ display:flex; align-items:center; gap:6px; }
+.qty-controls {
+  display: flex;
+  align-items: center;      /* vertical center for ALL children */
+  gap: 6px;
+}
+
+/* make all qty buttons behave the same */
+.qty-controls .btn {
+  display: inline-flex;     /* so content inside is centered too */
+  align-items: center;
+  justify-content: center;
+  line-height: 1;           /* kill baseline weirdness */
+  padding: 6px 14px;        /* same padding for -1, +1, Remove */
+}
 
 
 .summary {
     display: grid;
     gap: 10px;
     font-variant-numeric: tabular-nums;
+    font-size:20px
 }
 .row{ display:flex; justify-content:space-between; }
 .row.total{ font-size:22px; font-weight:700; padding-top:6px; border-top:1px dashed #334155; }
@@ -134,21 +190,27 @@ main.container {
   display:flex; gap:10px; align-items:center; justify-content:space-between; margin-top:8px;
 }
 .paybar .pay-group{ display:flex; gap:8px; }
+
 /* ------------------------------------------------------------
    RIGHT COLUMN — MENU
 ------------------------------------------------------------ */
 .menu {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 12px;
+    padding-top: 12px;
 }
 
 /* top categories bar */
 .categories {
     display: flex;
-    gap: 10px;
-    overflow-x: auto;
-    padding: 4px 0;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding-top: 0px;
+    padding-right: 10px;
+    padding-bottom: 10px;
+    padding-left: 10px;
+
 }
 
 /* category buttons */
@@ -164,24 +226,29 @@ main.container {
 
 /* item grid */
 /* REMOVE HUGE EMPTY SPACE BELOW CATEGORIES */
-.menu {
+.menu .panel {
     margin-top: 0 !important;
+    margin-bottom: 0;
     padding-top: 12px;
+    background-color: transparent;
+    padding-right: 0px;
+    padding-bottom: 0px;
+    padding-left: 0px;
+
 }
 
 #cat-bar {
     margin-bottom: 10px !important;
-}
 
-.categories + .panel {
-    margin-top: 0 !important;
 }
 
 
 #menu-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 18px;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 12px;
+    align-items: stretch;          /* cards same height in each row */
+    justify-items: stretch;
 }
 
 .item {
@@ -189,17 +256,51 @@ main.container {
     border-radius: 14px;
     padding: 16px;
     box-shadow: 0px 3px 12px rgba(0,0,0,0.13);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  grid-template-areas:
+    "name price"
+    "btn  btn";
+  row-gap: 6px;
+  align-items: center;
+}
+
+
+.item > div:first-child {
+  grid-area: name;
 }
 
 .item h5 {
-    margin: 0 0 6px;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.item .add {
+  display: contents;
+}
+
+.item .price {
+  grid-area: price;
+  justify-self: end;
+  font-weight: 600;
+}
+
+.item .add .btn {
+  grid-area: btn;
+  justify-self: stretch;
 }
 
 /* Choose button */
 .item .btn {
-    background: #2b2b2b;
+    background: var(--panel);
     border-radius: 10px;
 }
+.btn open-modal: hover{
+    background-color: #2d2825
+}
+
 
 /* ------------------------------------------------------------
    CHIP BUTTONS (MODIFIERS)
