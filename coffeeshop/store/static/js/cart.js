@@ -167,7 +167,15 @@ export function renderCart(cart) {
 
   const redeem = document.getElementById('redeem');
   const redeemLabel = document.getElementById('redeem-label');
-  if (redeemLabel) redeemLabel.style.display = eligible ? 'inline' : 'none';
+  if (redeemLabel) {
+    redeemLabel.style.display = 'inline-flex';
+    redeemLabel.style.opacity = eligible ? '1' : '0.4';
+}
+
+if (redeem) {
+    redeem.disabled = !eligible;
+}
+
   if (redeem) {
     redeem.disabled = !eligible;
     redeem.checked  = lp > 0;

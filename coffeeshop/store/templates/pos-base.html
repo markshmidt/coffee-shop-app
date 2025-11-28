@@ -17,6 +17,7 @@
       </div>
       <div class="clock" id="clock">--:--</div>
 
+      <div class="topbar-action">
       <span class="btn">User: <span id="who">{{user}}</span></span> <!-- user logged in-->
       <a href="https://github.com/markshmidt/coffee-shop-app" target="_blank">
   <button class="btn">GitHub</button>
@@ -29,6 +30,7 @@
     {% csrf_token %}<button class="btn">Logout</button>
 
   </form>
+          </div>
     </header>
 
   <main class="container">

@@ -22,7 +22,7 @@ body[data-page="pos"] {
     font-family: "Roboto", sans-serif;
     color: var(--text-dark);
 
-    background-image: url("/static/pics/coffeeshop-bg.png");
+    background-image: url("/static/pics/coffee-shop-bg.jpg");
     background-size: cover;
     background-position: center;
     background-attachment: fixed;
@@ -41,8 +41,8 @@ body[data-page="pos"]::before {
    TOPBAR
 ------------------------------------------------------------ */
 .topbar {
-    display: flex;
-    justify-content: space-between;
+     display: grid;
+    grid-template-columns: auto 1fr auto; /* logo | clock | actions */
     align-items: center;
 
     background: var(--panel);
@@ -50,8 +50,22 @@ body[data-page="pos"]::before {
     border-radius: var(--radius);
     box-shadow: var(--shadow);
 
-    width: min(1600px, 95%);
+    width: min(1600px, 92%);
     margin: 20px auto;
+}
+.clock {
+    justify-self: center;
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--text-dark);
+}
+
+/* Right side buttons grouped together */
+.topbar-actions {
+    justify-self: end;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 /* ------------------------------------------------------------
@@ -80,12 +94,11 @@ main.container {
 
 .panel {
     background: var(--panel);
-    max-height:
-    border-radius: var(--radius);
     padding-top: 10px;
     padding-right: 20px;
     padding-bottom: 10px;
     padding-left: 20px;
+    border-radius: var(--radius);
 }
 
 }
@@ -334,6 +347,7 @@ main.container {
 
 .pill {
    padding: 10px 18px !important;
+   margin: 5px;
     border-radius: 999px;
     font-size: 16px !important;
     background: #d9a86c;
@@ -477,13 +491,29 @@ input[type="search"] {
     z-index: 9999;
 }
 
+/* Center the whole dialog */
 #customer-modal .modal__dialog {
-    width: min(720px, 92vw);
+    margin: auto;
+    width: min(600px, 92vw);
+    padding: 24px;
+}
+
+/* Center the 2-column grid inside */
+#customer-modal .modal__body .grid {
+    display: grid;
+    grid-template-columns: 1fr 260px;
+    gap: 24px;
+    width: 100%;
+    max-width: 560px;   /* prevents left push */
+    margin: 0 auto;     /* THIS is the key */
+    justify-content: center;
+    align-items: start;
+}
+
+/* Make the right panel visually consistent */
+#customer-modal form.panel {
     background: var(--panel);
-    border-radius: 18px;
-    padding: 20px;
-    border: 1px solid #cfa365;
-    box-shadow: 0 25px 60px rgba(0,0,0,.45);
+    border-radius: 12px;
 }
 
 #customer-modal .modal__header {
@@ -493,7 +523,7 @@ input[type="search"] {
 }
 
 #customer-modal input {
-    width: 100%;
+    width: 90%;
     padding: 10px 12px;
     border-radius: 12px;
     border: 1px solid #c7b08c;
@@ -521,6 +551,16 @@ input[type="search"] {
     box-shadow: 0 3px 10px rgba(0,0,0,.15);
 }
 
+#redeem-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+#redeem-label input[type="checkbox"] {
+    accent-color: #6b3f1f;
+    cursor: pointer;
+}
 
 /* ------------------------------------------------------------
    BUTTONS
