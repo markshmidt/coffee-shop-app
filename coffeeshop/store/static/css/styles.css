@@ -47,11 +47,11 @@ body[data-page="pos"]::before {
 
     background: var(--panel);
     padding: 14px 20px;
-    border-radius: var(--radius);
+
     box-shadow: var(--shadow);
 
-    width: min(1600px, 92%);
-    margin: 20px auto;
+
+    margin: 0px 0px 10px 0pxauto;
 }
 .clock {
     justify-self: center;
@@ -197,10 +197,60 @@ main.container {
 .row{ display:flex; justify-content:space-between; }
 .row.total{ font-size:22px; font-weight:700; padding-top:6px; border-top:1px dashed #334155; }
 .row.em{ color:#cbd5e1; }
-.paybar{
-  display:flex; gap:10px; align-items:center; justify-content:space-between; margin-top:8px;
-}
+
 .paybar .pay-group{ display:flex; gap:8px; }
+/* Payment options container */
+.paybar{
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 10px 0;
+}
+
+
+.paybar .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--panel-dark);
+    border-radius: 999px;
+    color: black;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid rgba(0,0,0,0.15);
+    transition: background .15s ease;
+}
+
+.paybar .pill input[type="radio"] {
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid #444;
+    margin-right: 4px;
+    display: inline-block;
+    position: relative;
+}
+
+.paybar.pill input[type="radio"]:checked {
+    border-color: #2d6a4f;
+    background: #2d6a4f;
+}
+
+.paybar .pill:hover {
+    background: #d9a45a;
+}
+.paybar .pill input[type="radio"]:checked {
+    border-color: #2d6a4f;
+    background: #2d6a4f;
+}
+
+.paybar .pill:has(input[type="radio"]:checked) {
+    background: #d9a45a;
+    color: black;
+    border-color: #b8863b;
+}
 
 /* ------------------------------------------------------------
    RIGHT COLUMN — MENU
