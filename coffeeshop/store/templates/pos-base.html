@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" xmlns:style="http://www.w3.org/1999/xhtml">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
@@ -13,15 +13,12 @@
 <body data-page="pos">
   <header class="topbar">
       <div class="brand">
-        <strong>Coffee Island POS</strong>
-        <span class="chip">Register A</span>
-        {% if user.is_authenticated %}
-        <span class="chip">User: <span id="who">{{user}}</span></span> <!-- user logged in-->
-        {% endif %}
+         <img src="{% static 'pics/coffee-island-logo.png' %}" class="coffee-photo" style="width: 400px;">
       </div>
       <div class="clock" id="clock">--:--</div>
 
-      {% if user.is_authenticated %}
+      <div class="topbar-action">
+      <span class="btn">User: <span id="who">{{user}}</span></span> <!-- user logged in-->
       <a href="https://github.com/markshmidt/coffee-shop-app" target="_blank">
   <button class="btn">GitHub</button>
 </a>
@@ -33,7 +30,7 @@
     {% csrf_token %}<button class="btn">Logout</button>
 
   </form>
-      {% endif %}
+          </div>
     </header>
 
   <main class="container">

@@ -3,56 +3,68 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
-      <meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="stylesheet" href="{% static 'css/login.css' %}">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Roboto Medium -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="{% static 'css/login.css' %}">
+    <title>Login</title>
 </head>
+
 <body>
-<div class="content">
-  <div class="split-container ht--fullscreen">
-    <div class="left-half d-flex al-hv-center">
 
-      <div class="wrapper al-txt-center">
-        <h2>Welcome</h2>
-        <form method="POST" action="{% url 'login' %}" class="login-form">
-            {% csrf_token %}
-          <div class="form__group">
-            <input type="text" name="username" class="form__input" placeholder="username">
-          </div><!-- form-group -->
+<!-- Top stripe -->
+<div class="stripe-top"></div>
 
-          <div class="form__group">
-            <input type="password" name="password" class="form__input" placeholder="password">
-          </div><!-- form-group -->
+<div class="page-wrapper">
 
-          <div class="form__group">
-            <input type="submit" class="form__input form__submit" value="Log in">
+    <!-- LEFT SIDE -->
+    <div class="left-side">
 
-          </div>
-            {% if messages %}
-                {% for message in messages %}
-            <div class="alert alert-warning alert-dismissible fade show" role="alert">
-                {{message}}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-            {% endfor %}
-            {% endif %}
-            {% block content %}
-            {% endblock %}
-        </form>
-      </div>
+        <h1 class="brand">
+            COFFEE
+            <img src="{% static 'pics/flower.png' %}" class="flower-icon">
+            ISLAND
+        </h1>
 
-    </div><!--left half -->
+        <p class="mission-text">
+            Our mission is to ensure that the products we obtain express<br>
+            the loving effort and care which ensures our excellence.
+        </p>
 
-    <div class="right-half d-flex al-hv-center">
+        <img src="{% static 'pics/toronto-coffee-island.jpg' %}" class="coffee-photo">
+    </div>
 
-      <div class="wrapper al-txt-center">
-        <h2 class="logo">Coffee Island POS</h2>
-        <p>"Our mission is to ensure that the products we obtain express the loving effort and care which ensures our excellence"</p>
-      </div><!-- wrapper -->
+    <!-- RIGHT SIDE LOGIN -->
+    <div class="right-side">
+        <div class="login-container">
 
-      <p class="copyright">All Rights Reserved © <span>Coffee Island</span></p>
-    </div><!-- right half -->
-  </div>
+            <form method="POST" action="{% url 'login' %}">
+                {% csrf_token %}
+
+                <label>Username</label>
+                <input type="text" name="username">
+
+                <label>Password</label>
+                <input type="password" name="password">
+
+                <button type="submit" class="btn-submit">Sign IN</button>
+
+                {% if messages %}
+                    {% for message in messages %}
+                    <div class="msg-error">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            </form>
+
+        </div>
+    </div>
+
 </div>
+
+<!-- Bottom stripe -->
+<div class="stripe-bottom"></div>
+
 </body>
 </html>

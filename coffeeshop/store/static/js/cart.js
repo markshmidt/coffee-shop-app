@@ -113,7 +113,7 @@ export function renderCart(cart) {
         <div class="line-total">${line.line_total_label ?? centsToLabel((line.unit_total_cents||0) * (line.qty||1))}</div>
         <button class="btn ghost qty-decrease" aria-label="Decrease">–1</button>
         <button class="btn ghost qty-increase" aria-label="Increase">+1</button>
-        <button class="btn ghost remove-line" style="margin-top:6px;">Remove</button>
+        <button class="btn ghost remove-line">Remove</button>
       </div>
     `;
     linesLst.appendChild(li);
@@ -167,7 +167,15 @@ export function renderCart(cart) {
 
   const redeem = document.getElementById('redeem');
   const redeemLabel = document.getElementById('redeem-label');
-  if (redeemLabel) redeemLabel.style.display = eligible ? 'inline' : 'none';
+  if (redeemLabel) {
+    redeemLabel.style.display = 'inline-flex';
+    redeemLabel.style.opacity = eligible ? '1' : '0.4';
+}
+
+if (redeem) {
+    redeem.disabled = !eligible;
+}
+
   if (redeem) {
     redeem.disabled = !eligible;
     redeem.checked  = lp > 0;

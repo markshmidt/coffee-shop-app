@@ -124,10 +124,10 @@ function ensureOrderModal() {
       </div>
 
       <div class="modal-toolbar">
-        <button id="order-btn-print">Print receipt</button>
-         <button id="order-btn-email"> Email receipt </button>
-        <button id="order-btn-refund">Refund</button>
-        <button id="order-btn-assign" data-order-id="{{ order.id }}">Assign customer</button>
+        <button id="order-btn-print" class="pill">Print receipt</button>
+         <button id="order-btn-email"class="pill"> Email receipt </button>
+        <button id="order-btn-refund"class="pill">Refund</button>
+        <button id="order-btn-assign"class="pill" data-order-id="{{ order.id }}">Assign customer</button>
 
       </div>
 
