@@ -12,6 +12,7 @@
     --radius: 14px;
     --radius-sm: 10px;
     --shadow: 0px 6px 18px rgba(0,0,0,0.18);
+    --topbar-height: 72px;
 }
 
 /* ------------------------------------------------------------
@@ -22,19 +23,21 @@ body[data-page="pos"] {
     font-family: "Roboto", sans-serif;
     color: var(--text-dark);
 
-    background-image: url("/static/pics/coffee-shop-bg.jpg");
-    background-size: cover;
-    background-position: center;
-    background-attachment: fixed;
+     background: var(--bg);
 }
 
 body[data-page="pos"]::before {
     content: "";
     position: fixed;
+    top: var(--topbar-height);
     inset: 0;
     background: rgba(247,236,217,0.75);
     backdrop-filter: blur(2px);
     z-index: -1;
+    background-image: url('/static/pics/coffee-shop-bg.jpg');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
 }
 
 /* ------------------------------------------------------------
@@ -45,7 +48,7 @@ body[data-page="pos"]::before {
     grid-template-columns: auto 1fr auto; /* logo | clock | actions */
     align-items: center;
 
-    background: var(--panel-dark);
+    background: var(--text-dark);
     padding: 14px 20px;
 
     box-shadow: var(--shadow);
@@ -647,7 +650,7 @@ input[type="search"] {
     font-size: 14px;
     cursor: pointer;
     font-weight: 500;
-    background: #4e3a24;      /* brown */
+    background: #c18f51;
     color: white;
     box-shadow: 0 4px 10px rgba(0,0,0,.25);
     transition: 0.2s ease;
