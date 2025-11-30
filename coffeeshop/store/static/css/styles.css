@@ -4,10 +4,10 @@
 
 :root {
     --bg: #f7ecd9;
-    --panel: #f4c37b;
-    --panel-dark: #e9b263;
+    --panel: #fcead8;
+    --panel-dark: #f9b967;
     --white: #ffffff;
-    --text-dark: #2b2b2b;
+    --text-dark: #2d2825;
     --text-muted: #5e5e5e;
     --radius: 14px;
     --radius-sm: 10px;
@@ -45,7 +45,7 @@ body[data-page="pos"]::before {
     grid-template-columns: auto 1fr auto; /* logo | clock | actions */
     align-items: center;
 
-    background: var(--panel);
+    background: var(--panel-dark);
     padding: 14px 20px;
 
     box-shadow: var(--shadow);
@@ -196,6 +196,8 @@ main.container {
 }
 .row{ display:flex; justify-content:space-between; }
 .row.total{ font-size:22px; font-weight:700; padding-top:6px; border-top:1px dashed #334155; }
+.row.total pill: hover{
+ background: var(--panel-dark)}
 .row.em{ color:#cbd5e1; }
 
 .paybar .pay-group{ display:flex; gap:8px; }
@@ -233,24 +235,6 @@ main.container {
     position: relative;
 }
 
-.paybar.pill input[type="radio"]:checked {
-    border-color: #2d6a4f;
-    background: #2d6a4f;
-}
-
-.paybar .pill:hover {
-    background: #d9a45a;
-}
-.paybar .pill input[type="radio"]:checked {
-    border-color: #2d6a4f;
-    background: #2d6a4f;
-}
-
-.paybar .pill:has(input[type="radio"]:checked) {
-    background: #d9a45a;
-    color: black;
-    border-color: #b8863b;
-}
 
 /* ------------------------------------------------------------
    RIGHT COLUMN — MENU
@@ -278,7 +262,7 @@ main.container {
 .cat-btn {
     padding: 10px 18px !important;
     border-radius: 999px;
-    background: white;
+    background: var(--panel);
     border: none;
     box-shadow: 0 3px 8px rgba(0,0,0,.15);
     font-size: 15px;
@@ -316,7 +300,7 @@ main.container {
 }
 
 .item {
-    background: white;
+    background: var(--panel);
     border-radius: 14px;
     padding: 16px;
     box-shadow: 0px 3px 12px rgba(0,0,0,0.13);
@@ -358,7 +342,7 @@ main.container {
 
 /* Choose button */
 .item .btn {
-    background: var(--panel);
+    background: var(--panel-dark);
     border-radius: 10px;
 }
 .btn open-modal: hover{
@@ -400,17 +384,57 @@ main.container {
    margin: 5px;
     border-radius: 999px;
     font-size: 16px !important;
-    background: #d9a86c;
+    background: var(--panel-dark);
     border: 1px solid #c18f51;
     color: #3f260b;
     font-weight: 600;
 }
 
 .pill:hover {
-    background: #c89648;
+    background: var(--text-dark);
+}
+.pill:hover {
+    background: #d9a45a;
+}
+.pill input[type="radio"]:checked {
+    border-color: #2d6a4f;
+    background: #2d6a4f;
 }
 
+.pill:has(input[type="radio"]:checked) {
+    background: #d9a45a;
+    color: black;
+    border-color: #b8863b;
+}
 
+.pill input[type="radio"]:checked {
+    border-color: #2d6a4f;
+    background: #2d6a4f;
+}
+
+.pill:hover {
+    background: #d9a45a;
+}
+.pill input[type="radio"]:checked {
+    border-color: var(--panel);
+    background: var(--panel);
+}
+
+.pill:has(input[type="radio"]:checked) {
+    background: #d9a45a;
+    color: black;
+    border-color: #b8863b;
+}
+.pill input[type="radio"] {
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid #444;
+    margin-right: 4px;
+    display: inline-block;
+    position: relative;
+}
 /* ------------------------------------------------------------
    MODAL STYLING
 ------------------------------------------------------------ */
