@@ -60,7 +60,7 @@ body[data-page="pos"]::before {
     justify-self: center;
     font-size: 18px;
     font-weight: 500;
-    color: var(--text-dark);
+    color: var(--panel-dark);
 }
 
 /* Right side buttons grouped together */
