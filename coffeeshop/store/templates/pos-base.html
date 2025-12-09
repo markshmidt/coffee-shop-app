@@ -24,7 +24,7 @@
 </a>
 
         <form action="{% url 'logout' %}" method="post" style="display:inline">
-             {% if perms.orders.view_sales_reports %}
+             {% if perms.store.view_sales_reports %}
           <button class="btn">Manage</button>
         {% endif %}
     {% csrf_token %}<button class="btn">Logout</button>
