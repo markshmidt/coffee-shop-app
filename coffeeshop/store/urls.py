@@ -1,11 +1,14 @@
 
 from django.urls import path
+
+from .utils.decorators import manager_required
 from .views import home as home_views
 from .views import cart as cart_views
 from .views import order as orders_views
 from .views import customers as customers_views
 from .views import auth
 from .views import debug
+from .views import management as management_views
 
 urlpatterns = [
     path("debug-cart/", debug.debug_cart, name="debug_cart"),
@@ -39,5 +42,19 @@ urlpatterns = [
 
     # assign to CART (session) before an order exists
     path("cart/assign_customer/", customers_views.cart_assign_customer, name="cart_assign_customer"),
+
+    #management part
+    path("manage/", manager_required(management_views.management_dashboard), name="management_dashboard"),
+
+path("manage/staff/", management_views.manage_staff, name="manage_staff"),
+path("manage/staff/new/", management_views.add_staff, name="add_staff"),
+path("manage/staff/<int:user_id>/edit/", management_views.edit_staff, name="edit_staff"),
+    path("manage/customers/", manager_required(management_views.manage_customers), name="manage_customers"),
+    path("manage/menu/", manager_required(management_views.manage_menu), name="manage_menu"),
+    path("manage/modifiers/", manager_required(management_views.manage_modifiers), name="manage_modifiers"),
+    path("manage/reports/", manager_required(management_views.sales_reports), name="sales_reports"),
+    path("manage/staff/", manager_required(management_views.manage_staff), name="manage_staff"),
+
+
 
 ]

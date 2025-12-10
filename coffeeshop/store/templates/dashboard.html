@@ -1,0 +1,70 @@
+{% extends "pos-base.html" %}
+{% load static %}
+
+{% block content %}
+
+<div class="dashboard-container">
+
+    <!-- LEFT SIDE -->
+    <div class="left-side">
+        <h1 class="title">Welcome to<br>Management Dashboard</h1>
+
+        <p class="subtitle">
+            Use the tools on the right to manage your store operations.
+        </p>
+
+        <img src="{% static 'pics/toronto-coffee-island.jpg' %}" class="dashboard-illustration">
+    </div>
+
+    <!-- RIGHT SIDE -->
+    <div class="right-side">
+
+        <div class="menu-grid">
+
+            {% if perms.can_manage_customers %}
+            <a href="{% url 'manage_customers' %}" class="card">
+                <h2>Customers</h2>
+                <p>Edit customers, loyalty, history</p>
+            </a>
+            {% endif %}
+
+            {% if perms.can_manage_categories or perms.can_manage_menu_items %}
+            <a href="{% url 'manage_menu' %}" class="card">
+                <h2>Menu</h2>
+                <p>Categories, items, variants</p>
+            </a>
+            {% endif %}
+
+            {% if perms.can_manage_modifier_groups or perms.can_manage_modifiers %}
+            <a href="{% url 'manage_modifiers' %}" class="card">
+                <h2>Modifiers</h2>
+                <p>Options, groups, pricing</p>
+            </a>
+            {% endif %}
+
+            {% if perms.can_change_order %}
+            <a href="/orders" class="card">
+                <h2>Orders</h2>
+                <p>Search, edit, refund</p>
+            </a>
+            {% endif %}
+
+            {% if perms.can_view_sales_reports %}
+            <a href="{% url 'sales_reports' %}" class="card">
+                <h2>Sales Reports</h2>
+                <p>Revenue, analytics, charts</p>
+            </a>
+            {% endif %}
+
+            {% if user.is_superuser %}
+            <a href="{% url 'manage_staff' %}" class="card">
+                <h2>Staff</h2>
+                <p>Create users, assign roles</p>
+            </a>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+
+{% endblock %}

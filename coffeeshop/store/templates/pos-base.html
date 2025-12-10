@@ -7,6 +7,7 @@
   {% load static %}
   <link rel="stylesheet" href="{% static 'css/styles.css' %}">
     <link rel="stylesheet" href="{% static 'css/orders.css' %}">
+     <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
 
   {% block extra_css %}{% endblock %}
 </head>
@@ -22,11 +23,13 @@
       <a href="https://github.com/markshmidt/coffee-shop-app" target="_blank">
   <button class="btn">GitHub</button>
 </a>
-
-        <form action="{% url 'logout' %}" method="post" style="display:inline">
-             {% if perms.store.view_sales_reports %}
+          <a href="{% url 'management_dashboard' %}">
+            {% if perms.store.view_sales_reports %}
           <button class="btn">Manage</button>
         {% endif %}
+          </a>
+
+        <form action="{% url 'logout' %}" method="post" style="display:inline">
     {% csrf_token %}<button class="btn">Logout</button>
 
   </form>
