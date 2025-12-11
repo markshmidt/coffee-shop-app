@@ -18,7 +18,7 @@
 /* ------------------------------------------------------------
    GLOBAL BACKGROUND
 ------------------------------------------------------------ */
-body[data-page="pos"] {
+body{
     margin: 0;
     font-family: "Roboto", sans-serif;
     color: var(--text-dark);
@@ -26,7 +26,7 @@ body[data-page="pos"] {
      background: var(--bg);
 }
 
-body[data-page="pos"]::before {
+body::before {
     content: "";
     position: fixed;
     top: var(--topbar-height);

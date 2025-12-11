@@ -8,6 +8,11 @@ def management_dashboard(request):
     perms = compute_order_permissions(request.user)
     return render(request, "dashboard.html", {"perms": perms})
 
+
+def customers_manage(request):
+    perms = compute_order_permissions(request.user)
+    return render(request, "customers.html", {"perms": perms})
+
 def add_customer(request):
     if request.method == "POST":
         pass
@@ -21,8 +26,7 @@ def edit_customer(request):
     pass
 def edit_staff(request):
     pass
-def manage_customers(request):
-    return render(request, "management/placeholder.html", {"title": "Customer Management"})
+
 
 def manage_menu(request):
     return render(request, "management/placeholder.html", {"title": "Menu Management"})

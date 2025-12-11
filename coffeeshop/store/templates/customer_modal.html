@@ -1,0 +1,41 @@
+<div id="customer-modal" class="modal hidden">
+  <div class="modal-backdrop"></div>
+
+  <div class="modal-panel">
+
+      <button id="cust-modal-close" class="close-modal">&times;</button>
+
+      <h2 id="cust-modal-title">Customer</h2>
+
+      <div class="form-grid">
+          <label>First Name
+              <input id="cust-fname" type="text">
+          </label>
+
+          <label>Last Name
+              <input id="cust-lname" type="text">
+          </label>
+
+          <label>Phone
+              <input id="cust-phone" type="text">
+          </label>
+
+          <label>Email
+              <input id="cust-email" type="text">
+          </label>
+
+          <label>Points
+              <input id="cust-points" type="number">
+          </label>
+      </div>
+
+      <h3 style="margin-top:20px;">Recent Orders</h3>
+      <ul id="cust-recent-orders" class="simple-list"></ul>
+
+      <div class="controls-row">
+          <button id="btn-save-customer" class="btn primary">Save</button>
+          <button id="btn-delete-customer" class="btn danger hidden">Delete</button>
+      </div>
+
+  </div>
+</div>

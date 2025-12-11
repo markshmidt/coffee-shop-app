@@ -1,6 +1,6 @@
 
 from django.contrib.auth.decorators import login_required
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django.db.models import Count, Q, Subquery, OuterRef, Prefetch
 from django.db.models.functions import Coalesce
 from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseNotFound
@@ -157,56 +157,6 @@ def customer_orders(request, pk):
     out = [serialize_order_for_modal(o) for o in orders]
     next_cursor = out[-1]["id"] if len(out) == limit else None
     return JsonResponse({"ok": True, "orders": out, "next_cursor": next_cursor})
-#
-# @login_required
-# @require_POST
-# def customer_add(request):
-#     """
-#         Create a customer from a JSON or form POST.
-#         Returns: {ok, id, fname, lname, phone, email}
-#         """
-#     if request.content_type and "application/json" in request.content_type:
-#         try:
-#             payload = json.loads(request.body.decode("utf-8"))
-#         except Exception:
-#             return JsonResponse({"ok": False, "error": "Invalid JSON"}, status=400)
-#         fname = (payload.get("fname"))
-#         lname = (payload.get("lname"))
-#         email = (payload.get("email"))
-#         phone = (payload.get("phone"))
-#     else:
-#         fname = (request.POST.get("fname"))
-#         lname = (request.POST.get("lname"))
-#         email = (request.POST.get("email"))
-#         phone = (request.POST.get("phone"))
-#     if not (phone):
-#         return JsonResponse({"ok": False, "error": "Phone is required"}, status=400)
-#     try:
-#         with transaction.atomic():
-#             customer = Customer.objects.create(
-#                 fname=fname,
-#                 lname = lname,
-#                 phone=phone,
-#                 email=email,
-#             )
-#     except IntegrityError:
-#         # unique phone conflict
-#         return JsonResponse({"ok": False, "error": "Customer already exists:"}, status=409)
-#
-#     return JsonResponse(
-#             {
-#                 "ok": True,
-#                 "id": customer.id,
-#                 "first_name": customer.fname,
-#                 "last_name": customer.lname,
-#                 "phone": customer.phone,
-#                 "email": customer.email,
-#             },
-#             status=201,
-#         )
-#
-# def customer_edit(request, pk):
-#     pass
 
 @login_required
 @require_POST
@@ -335,7 +285,91 @@ def order_assign_customer(request, pk: int):
         return JsonResponse({"ok": True, "order": serialize_order_for_modal(order)})
 
     return HttpResponseBadRequest("Provide 'customer_id', 'customer_id': null, or 'create'")
-# def customer_edit(request, pk):
-#     pass
-# def customer_delete(request, pk):
-#     pass
+
+
+@login_required
+@require_POST
+def customer_add(request):
+    """
+        Create a customer from a JSON or form POST.
+        Returns: {ok, id, fname, lname, phone, email}
+        """
+    if request.content_type and "application/json" in request.content_type:
+        try:
+            payload = json.loads(request.body.decode("utf-8"))
+        except Exception:
+            return JsonResponse({"ok": False, "error": "Invalid JSON"}, status=400)
+        fname = (payload.get("fname"))
+        lname = (payload.get("lname"))
+        email = (payload.get("email"))
+        phone = (payload.get("phone"))
+    else:
+        fname = (request.POST.get("fname"))
+        lname = (request.POST.get("lname"))
+        email = (request.POST.get("email"))
+        phone = (request.POST.get("phone"))
+    if not (phone):
+        return JsonResponse({"ok": False, "error": "Phone is required"}, status=400)
+    try:
+        with transaction.atomic():
+            customer = Customer.objects.create(
+                fname=fname,
+                lname = lname,
+                phone=phone,
+                email=email,
+            )
+    except IntegrityError:
+        # unique phone conflict
+        return JsonResponse({"ok": False, "error": "Customer already exists:"}, status=409)
+
+    return JsonResponse(
+            {
+                "ok": True,
+                "id": customer.id,
+                "first_name": customer.fname,
+                "last_name": customer.lname,
+                "phone": customer.phone,
+                "email": customer.email,
+            },
+            status=201,
+        )
+
+@login_required
+@require_POST
+def customer_update(request, pk):
+    if not request.user.has_perm("store.manage_customers"):
+        return HttpResponseBadRequest("Missing permission: manage_customers")
+
+    try:
+        c = Customer.objects.get(pk=pk)
+    except Customer.DoesNotExist:
+        return JsonResponse({"ok": False, "error": "Customer not found"}, status=404)
+
+    payload = parse_json(request)
+    c.fname = (payload.get("fname") or "").strip()
+    c.lname = (payload.get("lname") or "").strip()
+    c.phone = (payload.get("phone") or "").strip()
+    c.email = (payload.get("email") or "").strip().lower()
+    c.points_balance = int(payload.get("points_balance") or 0)
+
+    try:
+        c.save()
+    except IntegrityError:
+        return JsonResponse({"ok": False, "error": "Phone already used by another customer"}, status=409)
+
+    return JsonResponse({"ok": True, "customer": customer_to_dict(c)})
+
+
+@login_required
+@require_POST
+def customer_delete(request, pk):
+    if not request.user.has_perm("store.manage_customers"):
+        return HttpResponseBadRequest("Missing permission: manage_customers")
+
+    try:
+        c = Customer.objects.get(pk=pk)
+    except Customer.DoesNotExist:
+        return JsonResponse({"ok": False, "error": "Customer not found"}, status=404)
+
+    c.delete()
+    return JsonResponse({"ok": True})
