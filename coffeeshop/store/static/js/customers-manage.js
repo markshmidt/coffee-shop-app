@@ -37,16 +37,37 @@ function wireEvents() {
   $("#btn-load-more")?.addEventListener("click", () => {
     loadCustomers(false);
   });
+  const searchInput = $("#cust-search");
+
+let searchTimeout = null;
+
+searchInput?.addEventListener("input", () => {
+  clearTimeout(searchTimeout);
+
+  searchTimeout = setTimeout(() => {
+    nextCursor = null;        // reset pagination
+    loadCustomers(true);     // reload from scratch
+  }, 300);                   // debounce
+});
 }
 
 
 let nextCursor = null;
 
 async function loadCustomers(reset = true) {
-  const url = nextCursor
-    ? `${API.LIST}?cursor=${nextCursor}`
-    : `${API.LIST}?limit=20`;
+  const q = $("#cust-search")?.value?.trim();
 
+  let url;
+
+  if (nextCursor) {
+    url = `${API.LIST}?cursor=${nextCursor}`;
+  } else {
+    url = `${API.LIST}?limit=20`;
+  }
+
+  if (q) {
+    url += (url.includes("?") ? "&" : "?") + `q=${encodeURIComponent(q)}`;
+  }
   const data = await getJSON(url);
 
   const feed = $("#customers-feed");
@@ -74,8 +95,7 @@ async function loadCustomers(reset = true) {
 });
 
 
-  nextCursor = data.next_cursor || null;
-
+   nextCursor = data.next_cursor || null;
   $("#customers-more")?.classList.toggle("hidden", !nextCursor);
 }
 
