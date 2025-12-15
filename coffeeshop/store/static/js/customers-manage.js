@@ -23,26 +23,60 @@ function wireEvents() {
   $("#btn-add-customer")?.addEventListener("click", () => openManageModal(null));
   $("#manage-modal-close")?.addEventListener("click", closeManageModal);
   $("#manage-save")?.addEventListener("click", saveCustomer);
-  $("#manage-delete")?.addEventListener("click", deleteCustomer);
+
+  // OPEN confirm modal instead of deleting immediately
+  $("#manage-delete")?.addEventListener("click", openConfirmDelete);
+
+  $("#btn-confirm-yes")?.addEventListener("click", confirmDelete);
+  $("#btn-confirm-no")?.addEventListener("click", closeConfirmModal);
 
   on(document, "click", ".customer-card", (_, el) => {
     openManageModal(Number(el.dataset.id));
   });
+
+  $("#btn-load-more")?.addEventListener("click", () => {
+    loadCustomers(false);
+  });
 }
 
-async function loadCustomers() {
-  const { customers } = await getJSON(`${API.LIST}?limit=20`);
-  const feed = $("#customers-feed");
-  feed.innerHTML = "";
 
-  customers.forEach(c => {
-    feed.insertAdjacentHTML("beforeend", `
-      <div class="customer-card" data-id="${c.id}">
-        <h3>${c.name || "Unnamed"}</h3>
-        <div class="muted">${c.phone || ""}</div>
+let nextCursor = null;
+
+async function loadCustomers(reset = true) {
+  const url = nextCursor
+    ? `${API.LIST}?cursor=${nextCursor}`
+    : `${API.LIST}?limit=20`;
+
+  const data = await getJSON(url);
+
+  const feed = $("#customers-feed");
+  if (reset) feed.innerHTML = "";
+
+  data.customers.forEach(c => {
+  feed.insertAdjacentHTML("beforeend", `
+    <div class="customer-card" data-id="${c.id}">
+      <header class="customer-card__header">
+        <div>
+          <h3>${c.name || "Unnamed"}</h3>
+          <div class="muted">ID #${c.id}</div>
+        </div>
+        <span class="points-pill">
+          ⭐ ${c.points_balance ?? 0} pts
+        </span>
+      </header>
+
+      <div class="customer-card__body">
+        ${c.phone ? `<div class="row"><span>📞</span><span>${c.phone}</span></div>` : ""}
+        ${c.email ? `<div class="row"><span>✉️</span><span>${c.email}</span></div>` : ""}
       </div>
-    `);
-  });
+    </div>
+  `);
+});
+
+
+  nextCursor = data.next_cursor || null;
+
+  $("#customers-more")?.classList.toggle("hidden", !nextCursor);
 }
 
 async function openManageModal(id) {
@@ -52,7 +86,11 @@ async function openManageModal(id) {
   modal.classList.remove("hidden");
   document.body.style.overflow = "hidden";
 
-  $("#manage-delete").style.display = id ? "inline-block" : "none";
+  const deleteBtn = $("#manage-delete");
+if (deleteBtn) {
+  deleteBtn.classList.toggle("hidden", !id);
+}
+
   $("#manage-modal-title").textContent = id ? `Customer #${id}` : "New customer";
 
   $("#manage-recent-orders").innerHTML = "";
@@ -111,6 +149,22 @@ async function saveCustomer() {
 async function deleteCustomer() {
   if (!editingId) return;
   await postJSON(API.DELETE(editingId), {});
+  closeManageModal();
+  loadCustomers();
+}
+function openConfirmDelete() {
+  $("#confirm-modal")?.classList.remove("hidden");
+}
+
+function closeConfirmModal() {
+  $("#confirm-modal")?.classList.add("hidden");
+}
+
+async function confirmDelete() {
+  if (!editingId) return;
+
+  await postJSON(API.DELETE(editingId), {});
+  closeConfirmModal();
   closeManageModal();
   loadCustomers();
 }

@@ -1,106 +1,131 @@
-.cards-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
-    gap: 20px;
-    margin-top: 20px;
-}
-
-.customer-card {
-    background: #fff8ee;
-    border-radius: 14px;
-    padding: 18px;
-    box-shadow: 0px 2px 6px rgba(0,0,0,0.2);
-    cursor: pointer;
-    transition: transform 0.1s ease;
-}
-
-.customer-card:hover {
-    transform: translateY(-3px);
-}
-
-.customer-card .name {
-    font-size: 1.3rem;
-    font-weight: 700;
-    margin-bottom: 6px;
-}
-
-.customer-card .row {
-    font-size: 0.95rem;
-    opacity: 0.8;
-}
-
-.controls-row {
-    display: flex;
-    gap: 15px;
-    margin-top: 15px;
-}
-.customers-feed {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 22px;
-    margin-top: 25px;
-}
-
-.customer-card h3 {
-    margin: 0;
-    font-size: 1.1rem;
-    color: var(--text-dark);
-}
-
-.customer-card .muted {
-    font-size: .85rem;
-    opacity: .8;
-}
-
-.customer-card .section {
-    margin-top: 10px;
-    font-size: .9rem;
-}
-
-.customer-card .pill {
-    display: inline-block;
-    padding: 4px 10px;
-    border-radius: 999px;
-    font-size: .75rem;
-    font-weight: 600;
-    background: var(--panel-dark);
-}
+/* ===============================
+   PAGE BASICS
+================================ */
 .customers-page {
-  margin-top: 18px;
+  margin-top: 20px;
 }
 
+.page-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.page-subtitle {
+  margin-top: 6px;
+  font-size: 0.95rem;
+  opacity: 0.75;
+}
+
+/* ===============================
+   TOP BAR (matches Orders bar)
+================================ */
 .customers-bar {
+  margin-top: 18px;
   display: flex;
-  gap: 12px;
+  gap: 14px;
   align-items: center;
+}
+
+.customers-bar .btn.primary {
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-weight: 600;
+  background: #2f4f2f;
+  color: #fff;
+  box-shadow: 0 4px 10px rgba(0,0,0,.2);
 }
 
 .customers-bar .search-input {
   flex: 1;
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  border: 1px solid rgba(150,105,44,.3);
+  background: #fffaf2;
 }
 
-.customers-more {
-  margin-top: 18px;
-}
+/* ================= CUSTOMER CARDS ================= */
 
 .customers-feed {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 22px;
-  margin-top: 22px;
+  margin-top: 20px;
 }
 
-.customer-card header {
+.customer-card {
+  background: var(--panel);
+  border-radius: 16px;
+  padding: 16px 18px;
+  border: 1px solid rgba(150,105,44,.25);
+  box-shadow: 0 8px 20px rgba(0,0,0,.15);
+  cursor: pointer;
+  transition: transform .12s ease, box-shadow .15s ease;
+}
+
+.customer-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 26px rgba(0,0,0,.25);
+}
+
+.customer-card__header {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: start;
+  margin-bottom: 10px;
 }
 
-.simple-list {
-  margin: 6px 0 0;
-  padding-left: 18px;
-  font-size: .9rem;
+.customer-card__header h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #4b3a23;
 }
+
+.customer-card__body .row {
+  display: flex;
+  gap: 8px;
+  font-size: .9rem;
+  margin-top: 4px;
+  color: var(--text-muted);
+}
+
+.points-pill {
+  background: rgba(5,150,105,.15);
+  color: #065f46;
+  border: 1px solid rgba(5,150,105,.3);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: .75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+
+/* ===============================
+   LOAD MORE (conditional)
+================================ */
+.customers-more {
+  margin: 26px 0 10px;
+  display: flex;
+  justify-content: center;
+}
+
+.customers-more.hidden {
+  display: none;
+}
+
+.customers-more .btn {
+  padding: 10px 18px;
+  border-radius: 999px;
+  opacity: .85;
+}
+
+/* ===============================
+   MANAGE MODAL (Edit / Create)
+================================ */
 .manage-modal {
   position: fixed;
   inset: 0;
@@ -118,6 +143,7 @@
   position: absolute;
   inset: 0;
   background: rgba(0,0,0,.55);
+  backdrop-filter: blur(3px);
 }
 
 .manage-modal__panel {
@@ -137,6 +163,10 @@
   align-items: center;
 }
 
+.manage-modal__header h3 {
+  margin: 0;
+}
+
 .manage-modal__body {
   margin-top: 14px;
 }
@@ -147,38 +177,62 @@
   margin-top: 18px;
 }
 
+/* form grid */
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
-.modal-panel.small {
-    max-width: 350px;
-    padding: 20px;
-}
+
+/* ===============================
+   CONFIRM DELETE MODAL
+================================ */
 .confirm-modal {
-  z-index: 11000;
-  background: transparent;
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 13000;
+}
+
+.confirm-modal.hidden {
+  display: none;
 }
 
 .confirm-modal .modal-panel {
   max-width: 320px;
   padding: 18px 20px;
   text-align: center;
-  box-shadow: 0 12px 32px rgba(0,0,0,0.35);
+  border-radius: 14px;
+  background: var(--panel);
+  box-shadow: 0 12px 32px rgba(0,0,0,.35);
   animation: pop .15s ease-out;
 }
 
 .controls-row.center {
+  display: flex;
   justify-content: center;
+  gap: 12px;
 }
 
+/* ===============================
+   BUTTON VARIANTS
+================================ */
 .btn.ghost {
   background: transparent;
-  border: 1px solid var(--panel-dark);
+  border: 1px solid rgba(0,0,0,.25);
   color: var(--text-dark);
 }
 
+.btn.danger {
+  background: #7a2f1d;
+  color: #fff;
+}
+
+/* ===============================
+   ANIMATION
+================================ */
 @keyframes pop {
   from { transform: scale(.96); opacity: 0; }
   to   { transform: scale(1); opacity: 1; }
