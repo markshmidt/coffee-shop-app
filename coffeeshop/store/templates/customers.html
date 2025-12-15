@@ -27,6 +27,17 @@
     </div>
 
 </div>
+<div id="confirm-modal" class="modal hidden confirm-modal">
+  <div class="modal-panel small">
+    <h3>Delete customer?</h3>
+    <p>This action cannot be undone.</p>
+
+    <div class="controls-row center">
+      <button id="btn-confirm-yes" class="btn danger">Delete</button>
+      <button id="btn-confirm-no" class="btn ghost">Cancel</button>
+    </div>
+  </div>
+</div>
 
 {% include "customer_modal.html" %}
 {% endblock %}

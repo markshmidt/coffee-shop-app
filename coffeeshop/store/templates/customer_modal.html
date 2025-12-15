@@ -1,41 +1,30 @@
-<div id="customer-modal" class="modal hidden">
-  <div class="modal-backdrop"></div>
+<div id="customer-manage-modal" class="manage-modal hidden">
+  <div class="manage-modal__backdrop"></div>
 
-  <div class="modal-panel">
+  <div class="manage-modal__panel">
+    <header class="manage-modal__header">
+      <h3 id="manage-modal-title">Customer</h3>
+      <button id="manage-modal-close" class="x">✕</button>
+    </header>
 
-      <button id="cust-modal-close" class="close-modal">&times;</button>
-
-      <h2 id="cust-modal-title">Customer</h2>
-
+    <div class="manage-modal__body">
       <div class="form-grid">
-          <label>First Name
-              <input id="cust-fname" type="text">
-          </label>
-
-          <label>Last Name
-              <input id="cust-lname" type="text">
-          </label>
-
-          <label>Phone
-              <input id="cust-phone" type="text">
-          </label>
-
-          <label>Email
-              <input id="cust-email" type="text">
-          </label>
-
-          <label>Points
-              <input id="cust-points" type="number">
-          </label>
+        <input id="manage-fname" placeholder="First name">
+        <input id="manage-lname" placeholder="Last name">
+        <input id="manage-phone" placeholder="Phone">
+        <input id="manage-email" placeholder="Email">
+        <input id="manage-points" type="number" placeholder="Points">
       </div>
 
-      <h3 style="margin-top:20px;">Recent Orders</h3>
-      <ul id="cust-recent-orders" class="simple-list"></ul>
+      <section>
+        <h4>Recent orders</h4>
+        <ul id="manage-recent-orders"></ul>
+      </section>
+    </div>
 
-      <div class="controls-row">
-          <button id="btn-save-customer" class="btn primary">Save</button>
-          <button id="btn-delete-customer" class="btn danger hidden">Delete</button>
-      </div>
-
+    <footer class="manage-modal__footer">
+      <button id="manage-delete" class="btn warn">Delete</button>
+      <button id="manage-save" class="btn primary">Save</button>
+    </footer>
   </div>
 </div>

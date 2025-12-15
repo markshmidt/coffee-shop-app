@@ -561,34 +561,34 @@ input[type="search"] {
 #customer-modal {
     position: fixed !important;
     inset: 0;
-    display: none;
+     display: flex;
     justify-content: center;
     align-items: center;
     background: rgba(0,0,0,.55);
     backdrop-filter: blur(3px);
     z-index: 9999;
 }
-
-/* Center the whole dialog */
+#customer-modal.hidden {
+    display: none;
+}
 #customer-modal .modal__dialog {
     margin: auto;
     width: min(600px, 92vw);
     padding: 24px;
 }
 
-/* Center the 2-column grid inside */
 #customer-modal .modal__body .grid {
     display: grid;
     grid-template-columns: 1fr 260px;
     gap: 24px;
     width: 100%;
-    max-width: 560px;   /* prevents left push */
-    margin: 0 auto;     /* THIS is the key */
+    max-width: 560px;
+    margin: 0 auto;
     justify-content: center;
     align-items: start;
 }
 
-/* Make the right panel visually consistent */
+
 #customer-modal form.panel {
     background: var(--panel);
     border-radius: 12px;

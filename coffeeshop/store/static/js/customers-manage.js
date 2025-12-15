@@ -1,231 +1,116 @@
-// customers-manage.js (module)
+import { $, on } from "./dom.js";
+import { getJSON, postJSON } from "./api.js";
 
-import { $, $$, on } from "./dom.js";
-import { getJSON, postJSON, CSRF } from "./api.js";
-
-let customers = [];
-let nextCursor = null;
-let currentQuery = "";
 let editingId = null;
 
-// API endpoints
 const API = {
-    LIST: "/api/customers/",
-    DETAIL: id => `/api/customers/${id}/`,
-    ORDERS: id => `/api/customers/${id}/orders/`,
-    UPDATE: id => `/api/customers/${id}/update/`,
-    DELETE: id => `/api/customers/${id}/delete/`,
-    CREATE: "/api/customers/add/",
-}
-// ============================================================================
-// INIT ENTRY
-// ============================================================================
+  LIST: "/api/customers/",
+  DETAIL: id => `/api/customers/${id}/`,
+  ORDERS: id => `/api/customers/${id}/orders/?limit=5`,
+  CREATE: "/api/customers/add/",
+  UPDATE: id => `/api/customers/${id}/update/`,
+  DELETE: id => `/api/customers/${id}/delete/`,
+};
+
 export function initCustomersManage() {
-    console.log("Customers Manage INIT");
+  if (!$("#customers-feed")) return;
 
-    if (!$("#customers-feed")) return;
-
-    setupEvents();
-    loadCustomers();
+  loadCustomers();
+  wireEvents();
 }
 
-// ============================================================================
-// EVENT SETUP
-// ============================================================================
-function setupEvents() {
-    const searchInput = $("#cust-search");
+function wireEvents() {
+  $("#btn-add-customer")?.addEventListener("click", () => openManageModal(null));
+  $("#manage-modal-close")?.addEventListener("click", closeManageModal);
+  $("#manage-save")?.addEventListener("click", saveCustomer);
+  $("#manage-delete")?.addEventListener("click", deleteCustomer);
 
-    // Search with debounce
-    let timer = null;
-    searchInput?.addEventListener("input", () => {
-        clearTimeout(timer);
-        timer = setTimeout(() => {
-            currentQuery = searchInput.value.trim();
-            customers = [];
-            nextCursor = null;
-            $("#customers-feed").innerHTML = "";
-            loadCustomers();
-        }, 250);
-    });
-
-    $("#btn-load-more")?.addEventListener("click", () => {
-        if (nextCursor) loadCustomers();
-    });
-
-    $("#btn-add-customer")?.addEventListener("click", () => openCustomerModal(null));
-
-    // Delegated: clicking a customer-card opens modal
-    on(document, "click", ".customer-card", (_, card) => {
-        openCustomerModal(Number(card.dataset.id));
-    });
-
-    // Modal controls
-    $("#cust-modal-close").addEventListener("click", hideModal);
-    $("#customer-modal .modal-backdrop").addEventListener("click", hideModal);
-
-    $("#btn-save-customer").addEventListener("click", saveCustomer);
-    $("#btn-delete-customer").addEventListener("click", deleteCustomer);
+  on(document, "click", ".customer-card", (_, el) => {
+    openManageModal(Number(el.dataset.id));
+  });
 }
 
-// ============================================================================
-// LOAD CUSTOMERS
-// ============================================================================
 async function loadCustomers() {
-    let url = `${API.LIST}?limit=16&with_orders=brief`;
+  const { customers } = await getJSON(`${API.LIST}?limit=20`);
+  const feed = $("#customers-feed");
+  feed.innerHTML = "";
 
-    if (currentQuery) url += `&q=${encodeURIComponent(currentQuery)}`;
-    if (nextCursor) url += `&cursor=${nextCursor}`;
-
-    console.log("📡 Loading:", url);
-    const data = await getJSON(url);
-
-    if (!data.ok) return;
-
-    customers = customers.concat(data.customers);
-    nextCursor = data.next_cursor;
-
-    renderCustomers();
+  customers.forEach(c => {
+    feed.insertAdjacentHTML("beforeend", `
+      <div class="customer-card" data-id="${c.id}">
+        <h3>${c.name || "Unnamed"}</h3>
+        <div class="muted">${c.phone || ""}</div>
+      </div>
+    `);
+  });
 }
 
-// ============================================================================
-// RENDER LIST
-// ============================================================================
-function renderCustomers() {
-    const feed = $("#customers-feed");
-    feed.innerHTML = "";
+async function openManageModal(id) {
+  const modal = $("#customer-manage-modal");
+  editingId = id;
 
-    customers.forEach(c => {
-        const last = c.last_order
-            ? `${c.last_order.when} — ${c.last_order.total_label}`
-            : "No recent orders";
+  modal.classList.remove("hidden");
+  document.body.style.overflow = "hidden";
 
-        feed.insertAdjacentHTML("beforeend", `
-            <div class="customer-card" data-id="${c.id}">
-                <header><h3>${c.name || "(No name)"}</h3></header>
+  $("#manage-delete").style.display = id ? "inline-block" : "none";
+  $("#manage-modal-title").textContent = id ? `Customer #${id}` : "New customer";
 
-                <div class="section">
-                    <div class="muted">📞 ${c.phone || "-"}</div>
-                    <div class="muted">✉️ ${c.email || "-"}</div>
-                </div>
+  $("#manage-recent-orders").innerHTML = "";
 
-                <div class="section">
-                    <span class="pill">Points: ${c.points_balance ?? 0}</span>
-                    <span class="pill">Orders: ${c.order_count ?? 0}</span>
-                </div>
+  if (!id) {
+    clearForm();
+    return;
+  }
 
-                <div class="section muted">Last: ${last}</div>
-            </div>
-        `);
-    });
+  const { customer } = await getJSON(API.DETAIL(id));
+  fillForm(customer);
+
+  const orders = await getJSON(API.ORDERS(id));
+  orders.orders.forEach(o => {
+    $("#manage-recent-orders").insertAdjacentHTML(
+      "beforeend",
+      `<li>#${o.id} · ${o.totals.grand_total_label}</li>`
+    );
+  });
 }
 
-// ============================================================================
-// MODAL
-// ============================================================================
-function showModal() {
-    const modal = $("#customer-modal");
-    modal.classList.remove("hidden");
-    modal.style.display = "flex";
-    document.body.style.overflow = "hidden";
+function closeManageModal() {
+  $("#customer-manage-modal").classList.add("hidden");
+  document.body.style.overflow = "";
+  editingId = null;
 }
 
-function hideModal() {
-    const modal = $("#customer-modal");
-    modal.classList.add("hidden");
-    modal.style.display = "none";
-    document.body.style.overflow = "";
-    editingId = null;
+function fillForm(c) {
+  $("#manage-fname").value = c.fname || "";
+  $("#manage-lname").value = c.lname || "";
+  $("#manage-phone").value = c.phone || "";
+  $("#manage-email").value = c.email || "";
+  $("#manage-points").value = c.points_balance || 0;
 }
 
-
-async function openCustomerModal(id) {
-    showModal();
-    console.log("openCustomerModal worked!")
-
-    editingId = id;
-
-    const title = $("#cust-modal-title");
-    const delBtn = $("#btn-delete-customer");
-
-
-    if (id === null) {
-        title.textContent = "New Customer";
-        delBtn.classList.add("hidden");
-        fillModalFields({ fname: "", lname: "", phone: "", email: "", points_balance: 0 });
-        $("#cust-recent-orders").innerHTML = "";
-        return;
-    }
-
-    title.textContent = `Customer #${id}`;
-    delBtn.classList.remove("hidden");
-
-    const data = await getJSON(API.DETAIL(id));
-    if (!data.ok) return alert("Customer not found");
-
-    fillModalFields(data.customer);
-
-    const orderData = await getJSON(API.ORDERS(id));
-    renderCustomerOrders(orderData.orders);
+function clearForm() {
+  fillForm({});
 }
 
-function fillModalFields(c) {
-    $("#cust-fname").value = c.fname || "";
-    $("#cust-lname").value = c.lname || "";
-    $("#cust-phone").value = c.phone || "";
-    $("#cust-email").value = c.email || "";
-    $("#cust-points").value = c.points_balance ?? 0;
-}
-
-function renderCustomerOrders(list) {
-    const ul = $("#cust-recent-orders");
-    ul.innerHTML = "";
-
-    list.forEach(o => {
-        ul.insertAdjacentHTML("beforeend", `
-            <li>#${o.id} • ${o.created_at} • ${o.total_label}</li>
-        `);
-    });
-}
-
-// ============================================================================
-// SAVE CUSTOMER
-// ============================================================================
 async function saveCustomer() {
-    const payload = {
-        fname: $("#cust-fname").value.trim(),
-        lname: $("#cust-lname").value.trim(),
-        phone: $("#cust-phone").value.trim(),
-        email: $("#cust-email").value.trim(),
-        points_balance: Number($("#cust-points").value) || 0,
-        csrfmiddlewaretoken: CSRF,
-    };
+  const payload = {
+    fname: $("#manage-fname").value,
+    lname: $("#manage-lname").value,
+    phone: $("#manage-phone").value,
+    email: $("#manage-email").value,
+    points_balance: Number($("#manage-points").value || 0),
+  };
 
-    let url = editingId ? API.UPDATE(editingId) : API.CREATE;
+  const url = editingId ? API.UPDATE(editingId) : API.CREATE;
+  await postJSON(url, payload);
 
-    const res = await postJSON(url, payload);
-    if (!res.ok) return alert("Save failed!");
-
-    hideModal();
-
-    // Better UX: reload customers list without page refresh
-    customers = [];
-    nextCursor = null;
-    loadCustomers();
+  closeManageModal();
+  loadCustomers();
 }
 
-// ============================================================================
-// DELETE CUSTOMER
-// ============================================================================
 async function deleteCustomer() {
-    if (!editingId) return;
-
-    if (!confirm("Delete customer?")) return;
-
-    const res = await postJSON(API.DELETE(editingId), { csrfmiddlewaretoken: CSRF });
-    if (!res.ok) return alert("Delete failed!");
-
-    hideModal();
-
-    customers = customers.filter(c => c.id !== editingId);
-    renderCustomers();
+  if (!editingId) return;
+  await postJSON(API.DELETE(editingId), {});
+  closeManageModal();
+  loadCustomers();
 }
