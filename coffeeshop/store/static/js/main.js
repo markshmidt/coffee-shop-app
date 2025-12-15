@@ -6,9 +6,10 @@ import { initCustomers } from './customers.js';
 import { startClocks, isPOS } from './utils.js';
 import { initCategories } from './categories.js';
 import { initModals } from './items.js';
-
+import { initCustomersManage } from './customers-manage.js';
 function bootstrap() {
-  if (!isPOS()) return;
+console.log("BOOTSTRAP: page =", document.body.dataset.page);
+console.log("Has customers-page?", !!document.querySelector("[data-page='customers']"));
 
   startClocks(['clock', 'clock2']);
   initCategories();
@@ -29,6 +30,11 @@ function bootstrap() {
     renderCart,
     getCartSubtotal: (cart) => cart?.subtotal_cents ?? 0,
   });
+if (document.querySelector("[data-page='customers']")) {
+    import("./customers-manage.js").then(m => m.initCustomersManage());
+}
+
+
 
   // skeleton then load real cart
   renderCart({

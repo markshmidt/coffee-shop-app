@@ -359,7 +359,8 @@ def order_detail(request, pk):
 
     #modal payload and attaching user-specific permissions
     data = serialize_order_for_modal(order)
-    data["permissions"] = compute_order_permissions(order, request.user)
+    data["permissions"] = compute_order_permissions(request.user, order)
+
     return JsonResponse({"ok": True, "order": data})
 
 @login_required

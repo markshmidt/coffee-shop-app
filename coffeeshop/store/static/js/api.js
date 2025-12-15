@@ -12,21 +12,32 @@ export async function parseJsonSafe(r) {
 }
 
 export async function getJSON(url) {
-  const r = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' });
-  const data = await parseJsonSafe(r);
-  if (!r.ok || !data || data.ok === false) throw new Error(data?.error || 'Request failed');
-  return data;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error("Request failed");
+  return r.json();
 }
 
-export async function postJSON(url, body) {
+export async function postJSON(url, data = {}) {
   const r = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
-    credentials: 'same-origin',
-    body: JSON.stringify(body || {}),
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRFToken": CSRF,
+    },
+    body: JSON.stringify(data),
   });
-  const data = await parseJsonSafe(r);
-  if (!r.ok || !data || data.ok === false) throw new Error(data?.error || 'Request failed');
-  return data;
-}
 
+  const json = await r.json().catch(() => {
+    throw new Error("Invalid JSON");
+  });
+
+  if (!r.ok || json.ok === false) {
+    throw new Error(json.error || "Request failed");
+  }
+  return json;
+}
+const isPOS = () => {
+  const page = document.body?.dataset?.page;
+  if (!page) console.warn('⚠️ data-page is missing on <body>');
+  return page === 'pos';
+};

@@ -7,10 +7,12 @@
   {% load static %}
   <link rel="stylesheet" href="{% static 'css/styles.css' %}">
     <link rel="stylesheet" href="{% static 'css/orders.css' %}">
+     <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+      <link rel="stylesheet" href="{% static 'css/customers-manage.css' %}">
 
   {% block extra_css %}{% endblock %}
 </head>
-<body data-page="pos">
+<body data-page="{% block page %}{% endblock %}">
   <header class="topbar">
       <div class="brand">
          <img src="{% static 'pics/coffee-island-logo.png' %}" class="coffee-photo" style="width: 400px;">
@@ -22,11 +24,13 @@
       <a href="https://github.com/markshmidt/coffee-shop-app" target="_blank">
   <button class="btn">GitHub</button>
 </a>
-
-        <form action="{% url 'logout' %}" method="post" style="display:inline">
-             {% if perms.orders.view_sales_reports %}
+          <a href="{% url 'management_dashboard' %}">
+            {% if perms.store.view_sales_reports %}
           <button class="btn">Manage</button>
         {% endif %}
+          </a>
+
+        <form action="{% url 'logout' %}" method="post" style="display:inline">
     {% csrf_token %}<button class="btn">Logout</button>
 
   </form>
@@ -39,6 +43,7 @@
 
   <div id="toast-container"></div>
   {% include "_customer_modal.html" %}
+
 
   <script type="module" src="{% static 'js/main.js' %}"></script>
   {% block extra_scripts %}{% endblock %}

@@ -1,0 +1,30 @@
+<div id="customer-manage-modal" class="manage-modal hidden">
+  <div class="manage-modal__backdrop"></div>
+
+  <div class="manage-modal__panel">
+    <header class="manage-modal__header">
+      <h3 id="manage-modal-title">Customer</h3>
+      <button id="manage-modal-close" class="x">✕</button>
+    </header>
+
+    <div class="manage-modal__body">
+      <div class="form-grid">
+        <input id="manage-fname" placeholder="First name">
+        <input id="manage-lname" placeholder="Last name">
+        <input id="manage-phone" placeholder="Phone">
+        <input id="manage-email" placeholder="Email">
+        <input id="manage-points" type="number" placeholder="Points">
+      </div>
+
+      <section>
+        <h4>Recent orders</h4>
+        <ul id="manage-recent-orders"></ul>
+      </section>
+    </div>
+
+    <footer class="manage-modal__footer">
+      <button id="manage-delete" class="btn warn">Delete</button>
+      <button id="manage-save" class="btn primary">Save</button>
+    </footer>
+  </div>
+</div>

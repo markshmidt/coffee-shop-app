@@ -1,0 +1,43 @@
+{% extends "pos-base.html" %}
+{% load static %}
+
+{% block title %}Customer Management{% endblock %}
+
+{% block content %}
+<div class="customers-page" data-page="customers">
+
+    <h2 class="page-title">Customer Management</h2>
+
+    <p class="page-subtitle">
+        Search, view details, edit, delete, and analyze customer activity.
+    </p>
+
+    <div class="customers-bar">
+        <button id="btn-add-customer" class="btn primary">+ Add New Customer</button>
+        <input id="cust-search"
+               type="text"
+               class="search-input"
+               placeholder="Search by name, phone, or email...">
+    </div>
+
+    <div id="customers-feed" class="customers-feed"></div>
+
+    <div class="customers-more">
+        <button id="btn-load-more hidden" class="btn">Load More</button>
+    </div>
+
+</div>
+<div id="confirm-modal" class="modal hidden confirm-modal">
+  <div class="modal-panel small">
+    <h3>Delete customer?</h3>
+    <p>This action cannot be undone.</p>
+
+    <div class="controls-row center">
+      <button id="btn-confirm-yes" class="btn danger">Delete</button>
+      <button id="btn-confirm-no" class="btn ghost">Cancel</button>
+    </div>
+  </div>
+</div>
+
+{% include "customer_modal.html" %}
+{% endblock %}

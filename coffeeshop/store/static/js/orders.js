@@ -294,8 +294,8 @@ const btnAssign = m.querySelector('#order-btn-assign');
 const btnPrint  = m.querySelector('#order-btn-print');
 const btnEmail  = m.querySelector('#order-btn-email');
 
-  btnRefund.classList.toggle('is-disabled', !perms.can_refund);
-  btnRefund.setAttribute('aria-disabled', String(!perms.can_refund))
+  btnRefund.classList.toggle('is-disabled', !perms.can_refund_order);
+  btnRefund.setAttribute('aria-disabled', String(!perms.can_refund_order))
   btnAssign.disabled = !perms.can_assign_customer;
   btnRefund.onclick = () => {
   if (btnRefund.getAttribute('aria-disabled') === 'true') {
