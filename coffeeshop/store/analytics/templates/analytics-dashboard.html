@@ -1,0 +1,53 @@
+{% extends "pos-base.html" %}
+{% load static %}
+
+{% block title %}Analytics{% endblock %}
+
+{% block content %}
+<div class="analytics-page">
+
+  <header class="analytics-header">
+    <h2>Analytics Dashboard</h2>
+    <p>Live overview (auto-refresh)</p>
+  </header>
+<div class="analytics-header">
+    <h2>All time statistics</h2>
+    <p>Done with Chart.js + db questy</p>
+  </div>
+  <!-- KPI ROW -->
+  <section class="analytics-kpis">
+    <div class="kpi-card">
+      <span class="kpi-label">All time orders</span>
+      <span class="kpi-value" id="kpi-orders">--</span>
+    </div>
+
+    <div class="kpi-card">
+      <span class="kpi-label">Total revenue</span>
+      <span class="kpi-value" id="kpi-total">$0.00</span>
+    </div>
+
+    <div class="kpi-meta">
+      Updated at <strong id="server-time">--</strong>
+    </div>
+  </section>
+
+  <!-- CHART -->
+  <section class="analytics-card">
+    <h3>Payment Split</h3>
+
+    <div class="chart-wrapper">
+      <canvas id="paymentChart"></canvas>
+    </div>
+  </section>
+
+      <section class="analytics-kpis">
+    <div class="kpi-card">
+      <span class="kpi-label">Orders (last <span id="win-min">--</span> min)</span>
+      <span class="kpi-value" id="monthly-orders">--</span>
+    </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script type="module" src="{% static 'js/analytics-dashboard.js' %}"></script>
+{% endblock %}

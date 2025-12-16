@@ -49,12 +49,13 @@
             </a>
             {% endif %}
 
-            {% if perms.can_view_sales_reports %}
-            <a href="{% url 'sales_reports' %}" class="card">
-                <h2>Sales Reports</h2>
-                <p>Revenue, analytics, charts</p>
+           {% if perms.can_view_sales_reports %}
+            <a href="{% url 'analytics_dashboard' %}" class="card">
+                <h2>Analytics</h2>
+                <p>Live totals, sales charts, trends</p>
             </a>
             {% endif %}
+
 
             {% if user.is_superuser %}
             <a href="{% url 'manage_staff' %}" class="card">

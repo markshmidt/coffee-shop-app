@@ -1,0 +1,83 @@
+/* PAGE */
+.analytics-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* HEADER */
+.analytics-header {
+  margin-bottom: 18px;
+      display: block;
+    font-size: 1.5em;
+    margin-block-start: 0.83em;
+    margin-block-end: 0.83em;
+    margin-inline-start: 0px;
+    margin-inline-end: 0px;
+    font-weight: bold;
+    unicode-bidi: isolate;
+}
+
+.analytics-header h2 {
+  margin: 0;
+}
+
+.analytics-header p {
+  margin: 4px 0 0;
+  opacity: 0.7;
+}
+
+/* KPI ROW */
+.analytics-kpis {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 22px;
+}
+
+.kpi-card {
+  background: #fbf3e7;
+  border-radius: 14px;
+  padding: 14px 18px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+}
+
+.kpi-label {
+  display: block;
+  font-size: 0.85rem;
+  opacity: 0.65;
+}
+
+.kpi-value {
+  font-size: 1.8rem;
+  font-weight: 600;
+  margin-top: 6px;
+  display: block;
+}
+
+.kpi-meta {
+  font-size: 0.8rem;
+  opacity: 0.6;
+  text-align: right;
+}
+
+/* ANALYTICS CARD */
+.analytics-card {
+  background: #fbf3e7;
+  border-radius: 18px;
+  padding: 18px 22px 22px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+}
+
+.analytics-card h3 {
+  margin: 0 0 14px;
+}
+
+/* CHART */
+.chart-wrapper {
+  height: 260px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
