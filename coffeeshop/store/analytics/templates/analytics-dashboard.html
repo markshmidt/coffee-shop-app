@@ -7,47 +7,122 @@
 <div class="analytics-page">
 
   <header class="analytics-header">
-    <h2>Analytics Dashboard</h2>
-    <p>Live overview (auto-refresh)</p>
+    <div>
+      <h2>Analytics Dashboard</h2>
+      <p>Live overview · auto-refresh</p>
+    </div>
+    <div class="analytics-meta">
+      Updated: <strong id="server-time">--</strong>
+    </div>
   </header>
-<div class="analytics-header">
-    <h2>All time statistics</h2>
-    <p>Done with Chart.js + db questy</p>
+
+  <!-- ======================
+       ALL-TIME STATISTICS
+  ======================= -->
+  <section class="analytics-section">
+    <div class="section-head">
+      <h3>All-Time Statistics</h3>
+      <span class="hint">Entire store history</span>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Total Orders</div>
+        <div class="kpi-value" id="kpi-orders">--</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-label">Total Revenue</div>
+        <div class="kpi-value" id="kpi-total">$0.00</div>
+      </div>
+
+      <div class="kpi-card danger">
+        <div class="kpi-label">Refunded Orders</div>
+        <div class="kpi-value" id="kpi-refunded">--</div>
+        <div class="kpi-sub">Rate: <span id="kpi-refund-rate">--%</span></div>
+      </div>
+
+      <div class="kpi-card subtle">
+        <div class="kpi-label">Window</div>
+        <div class="kpi-value"><span id="win-min">--</span> min</div>
+        <div class="kpi-sub">Live refresh (5s)</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h4>Payment Split</h4>
+        <span class="pill">click legend to filter</span>
+      </div>
+
+      <div class="chart-wrapper">
+  <div class="chart-empty hidden" id="payment-empty">
+    No payments yet
   </div>
-  <!-- KPI ROW -->
-  <section class="analytics-kpis">
-    <div class="kpi-card">
-      <span class="kpi-label">All time orders</span>
-      <span class="kpi-value" id="kpi-orders">--</span>
-    </div>
+  <canvas id="paymentChart"></canvas>
+</div>
 
-    <div class="kpi-card">
-      <span class="kpi-label">Total revenue</span>
-      <span class="kpi-value" id="kpi-total">$0.00</span>
-    </div>
-
-    <div class="kpi-meta">
-      Updated at <strong id="server-time">--</strong>
     </div>
   </section>
 
-  <!-- CHART -->
+  <!-- ======================
+       DAILY / MONTHLY TRENDS
+  ======================= -->
   <section class="analytics-card">
-    <h3>Payment Split</h3>
+  <h4>Daily Orders (Cash vs Card)</h4>
+  <div id="dailyChart" style="height:320px;"></div>
+</section>
 
-    <div class="chart-wrapper">
-      <canvas id="paymentChart"></canvas>
+
+
+
+  <section class="analytics-card">
+  <h4>Monthly Revenue</h4>
+  <img src="/analytics/api/monthly-revenue-chart/" alt="Monthly Revenue">
+</section>
+
+  </section>
+
+  <!-- ======================
+       PRODUCT PERFORMANCE
+  ======================= -->
+  <section class="analytics-section">
+    <div class="section-head">
+      <h3>Popular & Least Popular Drinks</h3>
+      <span class="hint">Top / Bottom by quantity sold</span>
+    </div>
+
+    <div class="grid-2">
+      <div class="card placeholder">
+        <h4>Top 5 Drinks</h4>
+        <p>Horizontal bar chart.</p>
+      </div>
+      <div class="card placeholder">
+        <h4>Bottom 5 Drinks</h4>
+        <p>Horizontal bar chart.</p>
+      </div>
     </div>
   </section>
 
-      <section class="analytics-kpis">
-    <div class="kpi-card">
-      <span class="kpi-label">Orders (last <span id="win-min">--</span> min)</span>
-      <span class="kpi-value" id="monthly-orders">--</span>
+  <!-- ======================
+       EXPORTS
+  ======================= -->
+  <section class="analytics-section">
+    <div class="section-head">
+      <h3>Exports</h3>
+      <span class="hint">Accounting & reporting</span>
     </div>
+
+    <div class="card placeholder">
+      <h4>Coming next</h4>
+      <p>Export CSV (orders), export monthly PDF report, etc.</p>
+    </div>
+  </section>
 
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<link rel="stylesheet" href="{% static 'css/dashboard-analytics.css' %}">
 <script type="module" src="{% static 'js/analytics-dashboard.js' %}"></script>
 {% endblock %}

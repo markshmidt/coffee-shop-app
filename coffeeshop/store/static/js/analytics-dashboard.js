@@ -1,45 +1,80 @@
 import { getJSON } from "./api.js";
 
-let paymentChart;
+/* =========================================================
+   State
+========================================================= */
+let paymentChart = null;
 
-/* -------------------------
-   Helpers
--------------------------- */
-const $ = id => document.getElementById(id);
+/* =========================================================
+   DOM helpers (safe)
+========================================================= */
+const $ = (id) => document.getElementById(id);
 
+function setText(id, value, fallback = "--") {
+  const el = $(id);
+  if (!el) return;
+
+  el.textContent =
+    value === null || value === undefined || value === ""
+      ? fallback
+      : value;
+}
+
+/* =========================================================
+   Format helpers
+========================================================= */
 function centsToDollars(cents) {
   return `$${(Number(cents || 0) / 100).toFixed(2)}`;
 }
 
+/* =========================================================
+   Payment normalization
+   Converts backend rows → { Cash, Card, Other }
+========================================================= */
 function normalizePayments(rows) {
-  const map = { Cash: 0, Card: 0, Other: 0 };
+  const result = {
+    Cash: 0,
+    Card: 0,
+    Other: 0,
+  };
 
-  rows.forEach(r => {
-    const m = (r.payment_method || "").toLowerCase();
-    if (m.includes("cash")) map.Cash += r.count;
-    else if (m.includes("card")) map.Card += r.count;
-    else map.Other += r.count;
+  if (!Array.isArray(rows)) return result;
+
+  rows.forEach((row) => {
+    const method = (row.payment_method || "").toLowerCase();
+    const count = Number(row.count) || 0;
+
+    if (method.includes("cash")) result.Cash += count;
+    else if (method.includes("card")) result.Card += count;
+    else result.Other += count;
   });
 
-  return map;
+  return result;
 }
 
-/* -------------------------
-   Payment Chart
--------------------------- */
+/* =========================================================
+   Payment Split Chart (Chart.js)
+========================================================= */
 function renderPaymentChart(counts) {
   const canvas = $("paymentChart");
-  const wrapper = canvas.parentElement;
+  const empty = $("payment-empty");
+
+  if (!canvas) return;
 
   const labels = Object.keys(counts);
   const values = Object.values(counts);
   const total = values.reduce((a, b) => a + b, 0);
 
-  // No data state
+  // ---------- EMPTY ----------
   if (!total) {
-    wrapper.innerHTML = `<div class="chart-empty">No payments yet</div>`;
+    if (empty) empty.classList.remove("hidden");
+    canvas.style.display = "none";
     return;
   }
+
+  // ---------- HAS DATA ----------
+  if (empty) empty.classList.add("hidden");
+  canvas.style.display = "block";
 
   const percents = values.map(v =>
     ((v / total) * 100).toFixed(1)
@@ -83,8 +118,7 @@ function renderPaymentChart(counts) {
             }
           },
           onClick(_, item, legend) {
-            const index = item.index;
-            legend.chart.toggleDataVisibility(index);
+            legend.chart.toggleDataVisibility(item.index);
             legend.chart.update();
           }
         },
@@ -100,23 +134,117 @@ function renderPaymentChart(counts) {
   });
 }
 
-/* -------------------------
-   Dashboard Refresh
--------------------------- */
+
+/* =========================================================
+   Dashboard refresh
+========================================================= */
 async function refreshDashboard() {
-  const data = await getJSON("/analytics/api/summary/?minutes=60");
+  try {
+    const response = await getJSON("/analytics/api/summary/?minutes=60");
 
-  $("kpi-orders").textContent = data.last.orders;
-  $("kpi-total").textContent = centsToDollars(data.last.total_cents);
-  $("server-time").textContent = data.server_time;
-  $("win-min").textContent = data.window_minutes;
+    /* =========================
+       KPIs
+    ========================= */
+    setText("kpi-orders", response?.all_time?.orders);
+    setText(
+      "kpi-total",
+      centsToDollars(response?.all_time?.revenue_cents)
+    );
+    setText("kpi-refunded", response?.all_time?.refunded_orders);
+    setText(
+      "kpi-refund-rate",
+      response?.all_time?.refund_rate != null
+        ? `${response.all_time.refund_rate}%`
+        : "--%"
+    );
 
-  const payments = normalizePayments(data.payment);
-  renderPaymentChart(payments);
+    setText("server-time", response?.server_time);
+    setText("win-min", response?.window_minutes);
+
+    /* =========================
+       Payment Split (Chart.js)
+    ========================= */
+    const paymentCounts = normalizePayments(response?.payment);
+    renderPaymentChart(paymentCounts);
+
+    /* =========================
+       Daily Trends (Plotly)
+    ========================= */
+    renderDailyPlotly(response?.data);
+
+  } catch (error) {
+    console.error("Analytics refresh failed:", error);
+  }
 }
 
-/* -------------------------
+function buildDailySeries(rows) {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return null;
+  }
+
+  const days = [...new Set(rows.map(r => r.day))].sort();
+
+  const cash = {};
+  const card = {};
+
+  days.forEach(d => {
+    cash[d] = 0;
+    card[d] = 0;
+  });
+
+  rows.forEach(r => {
+    if (r.payment_method === "CASH") cash[r.day] += r.orders;
+    if (r.payment_method === "CARD") card[r.day] += r.orders;
+  });
+
+  return {
+    days,
+    cash: days.map(d => cash[d]),
+    card: days.map(d => card[d]),
+  };
+}
+function renderDailyPlotly(rows) {
+  const container = document.getElementById("dailyChart");
+  if (!container) return;
+
+  const series = buildDailySeries(rows);
+  if (!series) {
+    container.innerHTML = "<div class='chart-empty'>No daily data yet</div>";
+    return;
+  }
+
+  const traces = [
+    {
+      x: series.days,
+      y: series.cash,
+      name: "Cash",
+      type: "bar",
+      marker: { color: "#c9a46b" }
+    },
+    {
+      x: series.days,
+      y: series.card,
+      name: "Card",
+      type: "bar",
+      marker: { color: "#8b5e3c" }
+    }
+  ];
+
+  const layout = {
+    barmode: "stack",
+    margin: { t: 20 },
+    legend: { orientation: "h", y: -0.25 },
+    xaxis: { title: "Date" },
+    yaxis: { title: "Orders" },
+    paper_bgcolor: "rgba(0,0,0,0)",
+    plot_bgcolor: "rgba(0,0,0,0)"
+  };
+
+  Plotly.newPlot(container, traces, layout, { responsive: true });
+}
+
+/* =========================================================
    Boot
--------------------------- */
+========================================================= */
 refreshDashboard();
 setInterval(refreshDashboard, 5000);

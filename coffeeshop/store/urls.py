@@ -59,22 +59,6 @@ urlpatterns = [
     ),
 
     path(
-        "manage/staff/",
-        manager_required(management_views.manage_staff),
-        name="manage_staff",
-    ),
-    path(
-        "manage/staff/new/",
-        manager_required(management_views.add_staff),
-        name="add_staff",
-    ),
-    path(
-        "manage/staff/<int:user_id>/edit/",
-        manager_required(management_views.edit_staff),
-        name="edit_staff",
-    ),
-
-    path(
         "manage/customers/",
         manager_required(management_views.customers_manage),
         name="manage_customers",
