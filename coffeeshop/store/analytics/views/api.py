@@ -1,8 +1,8 @@
 import io
 
 from django.contrib.auth.decorators import login_required
-from django.db.models import Sum, Count
-from django.db.models.functions import Coalesce, TruncDate, TruncHour
+from django.db.models import Sum, Count, Q
+from django.db.models.functions import Coalesce, TruncDate, TruncHour, TruncMonth
 from django.http import JsonResponse, FileResponse
 from django.utils import timezone
 from datetime import timedelta
@@ -46,6 +46,19 @@ def summary(request):
         .annotate(orders=Count("id"))
         .order_by("day")
     )
+    daily_kpis = (
+        Order.objects
+        .filter(created_at__gte=since)
+        .annotate(day=TruncDate("created_at"))
+        .values("day")
+        .annotate(
+            orders=Count("id"),
+            revenue=Sum("total_cents"),
+            refunds=Count("id", filter=Q(status="REFUNDED")),
+            new_customers=Count("customer", distinct=True),
+        )
+        .order_by("day")
+    )
 
     return JsonResponse({
         "ok": True,
@@ -76,10 +89,17 @@ def monthly_revenue_chart(request):
 
     fig, ax = plt.subplots(figsize=(8, 4))
     monthly.plot(kind="bar", ax=ax, color="#8b5e3c")
+    plt.xticks(rotation=0)
 
     ax.set_title("Monthly Revenue")
     ax.set_ylabel("Revenue ($)")
     ax.set_xlabel("Month")
+    for container in ax.containers:
+        labels = [
+            f"{int(v)}" if v != 0 else ""
+            for v in container.datavalues
+        ]
+        ax.bar_label(container, labels=labels, label_type="center")
 
     buf = io.BytesIO()
     plt.tight_layout()
@@ -88,9 +108,26 @@ def monthly_revenue_chart(request):
 
     buf.seek(0)
     return FileResponse(buf, content_type="image/png")
+
+@login_required
+def monthly_stats(request):
+    qs = (
+        Order.objects
+        .annotate(month=TruncMonth("created_at"))
+        .values("month")
+        .annotate(
+            revenue=Sum("total_cents"),
+            orders=Count("id"),
+        )
+        .order_by("month")
+    )
+
+    return JsonResponse({
+        "months": list(qs)
+    })
 @login_required
 def daily_stats(request):
-    today = timezone.now().date()
+    today = timezone.localdate()
 
     orders_today = Order.objects.filter(created_at__date=today)
 
@@ -101,31 +138,60 @@ def daily_stats(request):
 
     refunded = orders_today.filter(status="REFUNDED").count()
 
-    avg_order = (
-        total_revenue / total_orders if total_orders else 0
-    )
+    avg_order = total_revenue / total_orders if total_orders else 0
 
-    # Orders per hour (revenue)
-    hourly = (
+    new_customers = (
         orders_today
-        .annotate(hour=TruncHour("created_at"))
-        .values("hour")
-        .annotate(revenue=Sum("total_cents"))
-        .order_by("hour")
+        .exclude(customer__isnull=True)
+        .values("customer")
+        .distinct()
+        .count()
     )
-
-    # Payment split
     payment = (
         orders_today
         .values("payment_method")
-        .annotate(count=Count("id"))
+        .annotate(revenue=Sum("total_cents"))
     )
+
+    payment_map = {
+        p["payment_method"]: (p["revenue"] or 0) / 100
+        for p in payment
+    }
+
+    # ---- RAW hourly data ----
+    qs = (
+        orders_today
+        .annotate(hour=TruncHour("created_at"))
+        .values("hour")
+        .annotate(
+            revenue=Sum("total_cents"),
+            orders=Count("id"),
+        )
+    )
+
+    raw = {
+        h["hour"].hour: {
+            "revenue": (h["revenue"] or 0) / 100,
+            "orders": h["orders"]
+        }
+        for h in qs
+    }
+
+    # ---- FULL 24 HOURS ----
+    hourly = []
+    for h in range(24):
+        hourly.append({
+            "hour": f"{h:02d}:00",
+            "revenue": raw.get(h, {}).get("revenue", 0),
+            "orders": raw.get(h, {}).get("orders", 0),
+        })
 
     return JsonResponse({
         "orders": total_orders,
-        "revenue_cents": total_revenue,
-        "avg_order_cents": avg_order,
-        "refunded": refunded,
-        "hourly": list(hourly),
-        "payment": list(payment),
+        "revenue": total_revenue / 100,
+        "avg_order": avg_order / 100,
+        "refunds": refunded,
+        "new_customers": new_customers,
+        "hourly": hourly,
+        "payment": payment_map
     })

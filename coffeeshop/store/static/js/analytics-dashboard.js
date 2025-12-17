@@ -177,74 +177,90 @@ async function refreshDashboard() {
   }
 }
 
-function buildDailySeries(rows) {
-  if (!Array.isArray(rows) || rows.length === 0) {
-    return null;
-  }
+function renderDailyKPIs(data) {
+  setText("daily-orders", data.orders);
+  setText("daily-revenue", `$${data.revenue.toFixed(2)}`);
+  setText("daily-avg", `$${data.avg_order.toFixed(2)}`);
+  setText("daily-customers", data.new_customers);
+  setText("daily-refunds", data.refunds);
 
-  const days = [...new Set(rows.map(r => r.day))].sort();
-
-  const cash = {};
-  const card = {};
-
-  days.forEach(d => {
-    cash[d] = 0;
-    card[d] = 0;
-  });
-
-  rows.forEach(r => {
-    if (r.payment_method === "CASH") cash[r.day] += r.orders;
-    if (r.payment_method === "CARD") card[r.day] += r.orders;
-  });
-
-  return {
-    days,
-    cash: days.map(d => cash[d]),
-    card: days.map(d => card[d]),
-  };
+  setText("daily-cash", `$${(data.payment?.CASH || 0).toFixed(2)}`);
+  setText("daily-card", `$${(data.payment?.CARD || 0).toFixed(2)}`);
 }
-function renderDailyPlotly(rows) {
-  const container = document.getElementById("dailyChart");
-  if (!container) return;
 
-  const series = buildDailySeries(rows);
-  if (!series) {
-    container.innerHTML = "<div class='chart-empty'>No daily data yet</div>";
+async function refreshDaily() {
+  const data = await getJSON("/analytics/api/daily-stats/");
+  renderDailyKPIs(data);
+  renderDailyHourlyChart(data.hourly);
+}
+function renderDailyHourlyChart(hourly) {
+  const el = document.getElementById("dailyChart");
+  if (!el) return;
+
+  if (!Array.isArray(hourly) || hourly.length === 0) {
+    el.innerHTML = "<div class='chart-empty'>No data today</div>";
     return;
   }
 
+  const hours = hourly.map(h => h.hour);
+  const revenue = hourly.map(h => h.revenue);
+  const orders = hourly.map(h => h.orders);
+
   const traces = [
     {
-      x: series.days,
-      y: series.cash,
-      name: "Cash",
+      x: hours,
+      y: revenue,
+      name: "Revenue ($)",
       type: "bar",
-      marker: { color: "#c9a46b" }
+      marker: { color: "#8b5e3c" },
+      yaxis: "y1",
     },
     {
-      x: series.days,
-      y: series.card,
-      name: "Card",
-      type: "bar",
-      marker: { color: "#8b5e3c" }
+      x: hours,
+      y: orders,
+      name: "Orders",
+      type: "scatter",
+      mode: "lines+markers",
+      line: { color: "#c9a46b", width: 3 },
+      yaxis: "y2",
     }
   ];
 
   const layout = {
-    barmode: "stack",
-    margin: { t: 20 },
-    legend: { orientation: "h", y: -0.25 },
-    xaxis: { title: "Date" },
-    yaxis: { title: "Orders" },
+    title: "Today — Revenue & Orders by Hour",
     paper_bgcolor: "rgba(0,0,0,0)",
-    plot_bgcolor: "rgba(0,0,0,0)"
+    plot_bgcolor: "rgba(0,0,0,0)",
+    margin: { t: 50, l: 50, r: 50, b: 50 },
+    legend: { orientation: "h", y: -0.25 },
+    xaxis: {
+      title: "Hour",
+      tickmode: "linear"
+    },
+    yaxis: {
+      title: "Revenue ($)",
+      rangemode: "tozero"
+    },
+    yaxis2: {
+      title: "Orders",
+      overlaying: "y",
+      side: "right",
+      rangemode: "tozero",
+      showgrid: false
+    }
   };
 
-  Plotly.newPlot(container, traces, layout, { responsive: true });
+  Plotly.newPlot(el, traces, layout, { responsive: true });
 }
+
 
 /* =========================================================
    Boot
 ========================================================= */
 refreshDashboard();
-setInterval(refreshDashboard, 5000);
+refreshDaily();
+
+setInterval(() => {
+  refreshDashboard();  // all-time
+  refreshDaily();      // today
+}, 5000);
+

@@ -167,3 +167,22 @@ canvas {
   width: 100% !important;
   height: 100% !important;
 }
+.analytics-card {
+  background: #fdf6e8;
+  border-radius: 16px;
+  padding: 18px;
+  margin-bottom: 20px;
+}
+
+.kpi-row {
+  display: flex;
+  gap: 16px;
+}
+
+.kpi-mini {
+  flex: 1;
+  background: #fff3e0;
+  border-radius: 12px;
+  padding: 12px;
+  text-align: center;
+}

@@ -69,11 +69,34 @@
        DAILY / MONTHLY TRENDS
   ======================= -->
   <section class="analytics-card">
-  <h4>Daily Orders (Cash vs Card)</h4>
-  <div id="dailyChart" style="height:320px;"></div>
+  <h4>Daily Revenue & Orders</h4>
+  <div id="dailyChart"></div>
 </section>
 
 
+
+   <section class="analytics-card">
+  <h4>Daily KPIs</h4>
+
+  <div class="kpi-row">
+    <div class="kpi-mini">
+      <span>Orders</span>
+      <strong id="daily-orders">--</strong>
+    </div>
+    <div class="kpi-mini">
+      <span>Revenue</span>
+      <strong id="daily-revenue">--</strong>
+    </div>
+    <div class="kpi-mini">
+      <span>New Customers</span>
+      <strong id="daily-customers">--</strong>
+    </div>
+    <div class="kpi-mini danger">
+      <span>Refunds</span>
+      <strong id="daily-refunds">--</strong>
+    </div>
+  </div>
+</section>
 
 
   <section class="analytics-card">
@@ -81,7 +104,6 @@
   <img src="/analytics/api/monthly-revenue-chart/" alt="Monthly Revenue">
 </section>
 
-  </section>
 
   <!-- ======================
        PRODUCT PERFORMANCE
