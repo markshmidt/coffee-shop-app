@@ -6,11 +6,11 @@ from django.db.models.functions import Coalesce, TruncDate, TruncHour, TruncMont
 from django.http import JsonResponse, FileResponse
 from django.utils import timezone
 from datetime import timedelta
-
+import matplotlib
 from matplotlib import pyplot as plt
 from store.models import Order
 import pandas as pd
-
+matplotlib.use("Agg")
 @login_required
 def summary(request):
     minutes = int(request.GET.get("minutes", 60))
@@ -109,22 +109,6 @@ def monthly_revenue_chart(request):
     buf.seek(0)
     return FileResponse(buf, content_type="image/png")
 
-@login_required
-def monthly_stats(request):
-    qs = (
-        Order.objects
-        .annotate(month=TruncMonth("created_at"))
-        .values("month")
-        .annotate(
-            revenue=Sum("total_cents"),
-            orders=Count("id"),
-        )
-        .order_by("month")
-    )
-
-    return JsonResponse({
-        "months": list(qs)
-    })
 @login_required
 def daily_stats(request):
     today = timezone.localdate()
@@ -238,3 +222,56 @@ def monthly_stats(request):
         "new_customers": new_customers,
         "avg_daily_revenue": revenue_per_day / 100,
     })
+@login_required
+def monthly_cumulative_chart(request):
+    now = timezone.now()
+    start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    qs = (
+        Order.objects
+        .filter(created_at__gte=start)
+        .annotate(day=TruncDate("created_at"))
+        .values("day")
+        .annotate(revenue=Sum("total_cents"))
+        .order_by("day")
+    )
+
+    if not qs.exists():
+        # return empty transparent image instead of JSON
+        fig, ax = plt.subplots(figsize=(8, 4))
+        ax.text(0.5, 0.5, "No data this month", ha="center", va="center")
+        ax.axis("off")
+
+        buf = io.BytesIO()
+        plt.savefig(buf, format="png")
+        plt.close(fig)
+        buf.seek(0)
+        return FileResponse(buf, content_type="image/png")
+
+    df = pd.DataFrame.from_records(qs)
+    df["revenue"] = df["revenue"] / 100
+    df["cumulative"] = df["revenue"].cumsum()
+
+    fig, ax = plt.subplots(figsize=(8, 4))
+
+    ax.plot(
+        df["day"],
+        df["cumulative"],
+        color="#8b5e3c",
+        linewidth=3,
+        marker="o"
+    )
+
+    ax.set_title("Cumulative Revenue (Current Month)")
+    ax.set_ylabel("Revenue ($)")
+    ax.set_xlabel("Date")
+    ax.grid(alpha=0.3)
+
+    plt.tight_layout()
+
+    buf = io.BytesIO()
+    plt.savefig(buf, format="png")
+    plt.close(fig)
+    buf.seek(0)
+
+    return FileResponse(buf, content_type="image/png")
