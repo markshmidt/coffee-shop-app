@@ -167,11 +167,6 @@ async function refreshDashboard() {
     const paymentCounts = normalizePayments(response?.payment);
     renderPaymentChart(paymentCounts);
 
-    /* =========================
-       Daily Trends (Plotly)
-    ========================= */
-    renderDailyPlotly(response?.data);
-
   } catch (error) {
     console.error("Analytics refresh failed:", error);
   }
@@ -251,6 +246,24 @@ function renderDailyHourlyChart(hourly) {
 
   Plotly.newPlot(el, traces, layout, { responsive: true });
 }
+function renderMonthlyKPIs(data) {
+  setText("monthly-orders", data.orders);
+  setText("monthly-revenue", `$${data.revenue.toFixed(2)}`);
+  setText("monthly-avg-order", `$${data.avg_order.toFixed(2)}`);
+  setText("monthly-refunds", data.refunds);
+  setText("monthly-refund-rate", `${data.refund_rate}%`);
+  setText("monthly-customers", data.new_customers);
+  setText("monthly-avg-daily", `$${data.avg_daily_revenue.toFixed(2)}`);
+}
+
+async function refreshMonthly() {
+  try {
+    const data = await getJSON("/analytics/api/monthly-stats/");
+    renderMonthlyKPIs(data);
+  } catch (e) {
+    console.error("Monthly KPIs failed:", e);
+  }
+}
 
 
 /* =========================================================
@@ -262,5 +275,8 @@ refreshDaily();
 setInterval(() => {
   refreshDashboard();  // all-time
   refreshDaily();      // today
+  refreshMonthly();
+setInterval(refreshMonthly, 5 * 60 * 1000);
+
 }, 5000);
 

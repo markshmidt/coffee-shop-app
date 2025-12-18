@@ -12,4 +12,5 @@ urlpatterns = [
     path("api/daily-stats/", daily_stats, name="analytics-daily"),
     path("api/monthly-revenue-chart/", monthly_revenue_chart, name="analytics-monthly-chart"),
     path("api/monthly-stats/", monthly_stats, name="analytics-monthly"),
+
 ]

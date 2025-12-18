@@ -195,3 +195,46 @@ def daily_stats(request):
         "hourly": hourly,
         "payment": payment_map
     })
+@login_required
+def monthly_stats(request):
+    now = timezone.now()
+    start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    qs = Order.objects.filter(created_at__gte=start_of_month)
+
+    total_orders = qs.count()
+
+    total_revenue = qs.aggregate(
+        total=Coalesce(Sum("total_cents"), 0)
+    )["total"]
+
+    refunded = qs.filter(status="REFUNDED").count()
+
+    new_customers = (
+        qs.exclude(customer__isnull=True)
+          .values("customer")
+          .distinct()
+          .count()
+    )
+
+    days_passed = max((now.date() - start_of_month.date()).days + 1, 1)
+
+    avg_order_value = (
+        total_revenue / total_orders if total_orders else 0
+    )
+
+    revenue_per_day = total_revenue / days_passed
+
+    refund_rate = (
+        (refunded / total_orders) * 100 if total_orders else 0
+    )
+
+    return JsonResponse({
+        "orders": total_orders,
+        "revenue": total_revenue / 100,
+        "avg_order": avg_order_value / 100,
+        "refunds": refunded,
+        "refund_rate": round(refund_rate, 2),
+        "new_customers": new_customers,
+        "avg_daily_revenue": revenue_per_day / 100,
+    })
