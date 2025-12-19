@@ -8,8 +8,10 @@ from django.utils import timezone
 from datetime import timedelta
 import matplotlib
 from matplotlib import pyplot as plt
-from store.models import Order
+from store.models import Order, OrderItem
 import pandas as pd
+
+
 matplotlib.use("Agg")
 @login_required
 def summary(request):
@@ -275,3 +277,45 @@ def monthly_cumulative_chart(request):
     buf.seek(0)
 
     return FileResponse(buf, content_type="image/png")
+@login_required
+def monthly_popular_items(request):
+    now = timezone.now()
+    start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    qs = (
+        OrderItem.objects
+        .filter(order__created_at__gte=start)
+        .values("name_snapshot")
+        .annotate(qty=Sum("qty"))
+        .order_by("-qty")
+    )
+
+    return JsonResponse({
+        "most": qs.first(),
+        "least": qs.last(),
+    })
+
+@login_required
+def monthly_top_customer(request):
+    now = timezone.now()
+    start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    qs = (
+        Order.objects
+        .filter(created_at__gte=start)
+        .exclude(customer__isnull=True)
+        .values("customer__id", "customer__fname",)
+        .annotate(
+            orders=Count("id"),
+            revenue=Sum("total_cents")
+        )
+        .order_by("-orders")
+    )
+
+    top = qs.first()
+
+    return JsonResponse({
+        "customer": top["customer__fname"] if top else None,
+        "orders": top["orders"] if top else 0,
+        "revenue": (top["revenue"] or 0) / 100 if top else 0,
+    })

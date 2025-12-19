@@ -265,18 +265,62 @@ async function refreshMonthly() {
   }
 }
 
+async function renderMonthlyItems() {
+  const res = await getJSON("/analytics/api/monthly-top-item/");
+
+  setText(
+    "item-most",
+    res.most
+      ? `${res.most.name_snapshot} (${res.most.qty})`
+      : "No data"
+  );
+
+  setText(
+    "item-least",
+    res.least
+      ? `${res.least.name_snapshot} (${res.least.qty})`
+      : "No data"
+  );
+}
+
+async function renderTopCustomer() {
+  const data = await getJSON("/analytics/api/monthly-top-customers/");
+
+  if (!data.customer) {
+    setText("top-customer", "No customer data");
+    return;
+  }
+
+  setText(
+    "top-customer",
+    `${data.customer} — ${data.orders} orders ($${data.revenue.toFixed(2)})`
+  );
+}
+
 
 /* =========================================================
    Boot
 ========================================================= */
+// Initial load
 refreshDashboard();
 refreshDaily();
+refreshMonthly();
+renderTopCustomer();
+renderMonthlyItems();
 
+// Fast refresh (every 5s)
 setInterval(() => {
-  refreshDashboard();  // all-time
-  refreshDaily();      // today
-  refreshMonthly();
-setInterval(refreshMonthly, 5 * 60 * 1000);
-
+  refreshDashboard();
+  refreshDaily();
 }, 5000);
+
+// Monthly stuff refresh (every 5 minutes)
+setInterval(() => {
+  refreshMonthly();
+  renderTopCustomer();
+  renderMonthlyItems();
+}, 5 * 60 * 1000);
+
+
+
 

@@ -154,16 +154,31 @@
 
 </div>
 
+        <section class="analytics-card">
+  <h4>Top Customer (This Month)</h4>
+  <p id="top-customer">—</p>
+</section>
+
+<section class="analytics-card">
+  <h4>Popular Items (This Month)</h4>
+
+  <p>
+    <strong>Most popular:</strong>
+    <span id="item-most">—</span>
+  </p>
+
+  <p>
+    <strong>Least popular:</strong>
+    <span id="item-least">—</span>
+  </p>
+</section>
+
+
 
 
   <!-- ======================
        PRODUCT PERFORMANCE
   ======================= -->
-  <section class="analytics-section">
-    <div class="section-head">
-      <h3>Popular & Least Popular Drinks</h3>
-      <span class="hint">Top / Bottom by quantity sold</span>
-    </div>
 
     <div class="grid-2">
       <div class="card placeholder">
@@ -180,19 +195,31 @@
   <!-- ======================
        EXPORTS
   ======================= -->
-  <section class="analytics-section">
-    <div class="section-head">
-      <h3>Exports</h3>
-      <span class="hint">Accounting & reporting</span>
-    </div>
+  <section class="card">
+  <h3>Exports</h3>
 
-    <div class="card placeholder">
-      <h4>Coming next</h4>
-      <p>Export CSV (orders), export monthly PDF report, etc.</p>
-    </div>
-  </section>
+  <div class="export-actions">
+    <a
+      href="/analytics/api/export/orders-csv/"
+      class="btn btn-outline"
+    >
+      ⬇ Export Orders (CSV)
+    </a>
 
-</div>
+    <a
+      href="/analytics/api/export/monthly-report/"
+      class="btn btn-outline"
+    >
+      ⬇ Monthly Analytics Report (PDF)
+    </a>
+  </div>
+
+  <p class="muted">
+    Use CSV for accounting and Excel analysis.
+    PDF contains charts & KPIs for management.
+  </p>
+</section>
+
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>

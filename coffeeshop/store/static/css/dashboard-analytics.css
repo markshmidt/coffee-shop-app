@@ -188,3 +188,27 @@ canvas {
   padding: 12px;
   text-align: center;
 }
+.card{
+margin: 10px;
+}
+.export-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.btn-outline {
+  border: 1px solid #8b5e3c;
+  padding: 8px 14px;
+  border-radius: 8px;
+  color: #8b5e3c;
+  background: transparent;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.btn-outline:hover {
+  background: #8b5e3c;
+  color: white;
+}
