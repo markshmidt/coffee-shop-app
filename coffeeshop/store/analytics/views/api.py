@@ -10,7 +10,10 @@ import matplotlib
 from matplotlib import pyplot as plt
 from store.models import Order, OrderItem
 import pandas as pd
-
+import csv
+from django.http import HttpResponse
+from django.utils.timezone import localtime
+from matplotlib.backends.backend_pdf import PdfPages
 
 matplotlib.use("Agg")
 @login_required
@@ -319,3 +322,120 @@ def monthly_top_customer(request):
         "orders": top["orders"] if top else 0,
         "revenue": (top["revenue"] or 0) / 100 if top else 0,
     })
+
+@login_required
+def export_orders_csv(request):
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = 'attachment; filename="orders.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow([
+        "Order ID",
+        "Date",
+        "Customer",
+        "Payment",
+        "Total ($)",
+        "Status",
+    ])
+
+    orders = (
+        Order.objects
+        .select_related("customer")
+        .order_by("-created_at")
+    )
+
+    for o in orders:
+        writer.writerow([
+            o.id,
+            localtime(o.created_at).strftime("%Y-%m-%d %H:%M"),
+            o.customer.phone if o.customer else "",
+            o.payment_method,
+            f"{o.total_cents / 100:.2f}",
+            o.status,
+        ])
+
+    return response
+
+
+@login_required
+def export_monthly_report(request):
+    now = timezone.now()
+    start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    qs = Order.objects.filter(created_at__gte=start)
+
+    revenue = qs.aggregate(total=Sum("total_cents"))["total"] or 0
+    orders = qs.count()
+    refunds = qs.filter(status="REFUNDED").count()
+
+    daily = (
+        qs.annotate(day=TruncDate("created_at"))
+          .values("day")
+          .annotate(revenue=Sum("total_cents"))
+          .order_by("day")
+    )
+
+    df = pd.DataFrame(daily)
+    if not df.empty:
+        df["revenue"] = df["revenue"] / 100
+        df["cumulative"] = df["revenue"].cumsum()
+
+    buffer = io.BytesIO()
+
+    with PdfPages(buffer) as pdf:
+        # ---- PAGE 1: KPIs ----
+        fig, ax = plt.subplots(figsize=(8.5, 11))
+        ax.axis("off")
+
+        ax.text(0.05, 0.9, "Monthly Analytics Report", fontsize=18, weight="bold")
+        ax.text(0.05, 0.82, f"Orders: {orders}")
+        ax.text(0.05, 0.78, f"Revenue: ${revenue / 100:.2f}")
+        ax.text(0.05, 0.74, f"Refunds: {refunds}")
+
+        pdf.savefig(fig)
+        plt.close(fig)
+
+        # ---- PAGE 2: Cumulative Revenue ----
+        if not df.empty:
+            fig, ax = plt.subplots(figsize=(8.5, 5))
+            ax.plot(df["day"], df["cumulative"], color="#8b5e3c", linewidth=3)
+            ax.set_title("Cumulative Revenue (This Month)")
+            ax.set_ylabel("Revenue ($)")
+            ax.grid(alpha=0.3)
+
+            pdf.savefig(fig)
+            plt.close(fig)
+
+    buffer.seek(0)
+
+    return FileResponse(
+        buffer,
+        as_attachment=True,
+        filename="monthly_report.pdf",
+        content_type="application/pdf"
+    )
+@login_required
+def top_drinks_all_time(request):
+    qs = (
+        OrderItem.objects
+        .values("menu_item__name")
+        .annotate(qty=Sum("qty"))
+        .order_by("-qty")[:5]
+    )
+
+    return JsonResponse({
+        "items": list(qs)
+    })
+@login_required
+def bottom_drinks_all_time(request):
+    qs = (
+        OrderItem.objects
+        .values("menu_item__name")
+        .annotate(qty=Sum("qty"))
+        .order_by("qty")[:5]
+    )
+
+    return JsonResponse({
+        "items": list(qs)
+    })
+

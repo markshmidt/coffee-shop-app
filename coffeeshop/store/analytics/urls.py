@@ -1,7 +1,8 @@
 from django.urls import path, include
 
 from .views.api import summary, monthly_revenue_chart, daily_stats, monthly_stats, monthly_cumulative_chart, \
-    monthly_top_customer, monthly_popular_items
+    monthly_top_customer, monthly_popular_items, export_orders_csv, export_monthly_report, top_drinks_all_time, \
+    bottom_drinks_all_time
 from .views.dashboard import dashboard
 
 urlpatterns = [
@@ -24,5 +25,13 @@ path(
     monthly_popular_items,
     name="monthly-popular-items"
 ),
+path("api/export/orders-csv/", export_orders_csv, name="export-orders-csv"),
+path("api/export/monthly-report/", export_monthly_report, name="export-monthly-report"),
+path(
+    "api/top-drinks/",
+    top_drinks_all_time,
+    name="top-drinks-all-time"
+),
+path("api/bottom-drinks/", bottom_drinks_all_time),
 
 ]

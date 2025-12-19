@@ -296,6 +296,63 @@ async function renderTopCustomer() {
     `${data.customer} — ${data.orders} orders ($${data.revenue.toFixed(2)})`
   );
 }
+async function renderTopDrinks() {
+  const res = await getJSON("/analytics/api/top-drinks/");
+  const el = document.getElementById("topDrinksChart");
+  if (!el) return;
+
+  if (!res.items || res.items.length === 0) {
+    el.innerHTML = "<div class='chart-empty'>No data</div>";
+    return;
+  }
+
+  const names = res.items.map(i => i.menu_item__name);
+  const qtys = res.items.map(i => i.qty);
+
+  const trace = {
+    x: qtys,
+    y: names,
+    type: "bar",
+    orientation: "h",
+    marker: { color: "#8b5e3c" },
+  };
+
+  const layout = {
+    title: "Top 5 Drinks by Quantity",
+    paper_bgcolor: "rgba(0,0,0,0)",
+    plot_bgcolor: "rgba(0,0,0,0)",
+    margin: { l: 140, r: 20, t: 50, b: 40 },
+    xaxis: { title: "Units sold" },
+  };
+
+  Plotly.newPlot(el, [trace], layout, { responsive: true });
+}
+async function renderBottomDrinks() {
+  const res = await getJSON("/analytics/api/bottom-drinks/");
+  const el = document.getElementById("bottomDrinksChart");
+  if (!el) return;
+
+  if (!res.items || res.items.length === 0) {
+    el.innerHTML = "<div class='chart-empty'>No data</div>";
+    return;
+  }
+
+  const names = res.items.map(i => i.menu_item__name);
+  const qtys = res.items.map(i => i.qty);
+
+  Plotly.newPlot(el, [{
+    x: qtys,
+    y: names,
+    type: "bar",
+    orientation: "h",
+    marker: { color: "#c9a46b" },
+  }], {
+    title: "Bottom 5 Items by Quantity",
+    paper_bgcolor: "rgba(0,0,0,0)",
+    plot_bgcolor: "rgba(0,0,0,0)",
+    margin: { l: 140, r: 20, t: 50, b: 40 },
+  }, { responsive: true });
+}
 
 
 /* =========================================================
@@ -307,19 +364,18 @@ refreshDaily();
 refreshMonthly();
 renderTopCustomer();
 renderMonthlyItems();
+renderTopDrinks();
+renderBottomDrinks();
 
 // Fast refresh (every 5s)
 setInterval(() => {
   refreshDashboard();
   refreshDaily();
-}, 5000);
-
-// Monthly stuff refresh (every 5 minutes)
-setInterval(() => {
   refreshMonthly();
   renderTopCustomer();
   renderMonthlyItems();
-}, 5 * 60 * 1000);
+}, 5000);
+
 
 
 

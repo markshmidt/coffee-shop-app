@@ -124,7 +124,8 @@
     class="chart-img"
   />
 </section>
-
+  <section class="analytics-card">
+      <h4>Monthly KPIs</h4>
     <div class="kpi-row">
         <div class="kpi-mini danger">
       <span>Monthly orders</span>
@@ -153,7 +154,7 @@
     </div>
 
 </div>
-
+  </section>
         <section class="analytics-card">
   <h4>Top Customer (This Month)</h4>
   <p id="top-customer">—</p>
@@ -181,16 +182,17 @@
   ======================= -->
 
     <div class="grid-2">
-      <div class="card placeholder">
-        <h4>Top 5 Drinks</h4>
-        <p>Horizontal bar chart.</p>
-      </div>
-      <div class="card placeholder">
-        <h4>Bottom 5 Drinks</h4>
-        <p>Horizontal bar chart.</p>
-      </div>
-    </div>
-  </section>
+  <div class="card">
+    <h4>Top 5 Drinks (All Time)</h4>
+    <div id="topDrinksChart" class="plotly-chart"></div>
+  </div>
+
+  <div class="card">
+    <h4>Bottom 5 Drinks (All Time)</h4>
+    <div id="bottomDrinksChart" class="plotly-chart"></div>
+  </div>
+</div>
+
 
   <!-- ======================
        EXPORTS
