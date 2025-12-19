@@ -321,7 +321,7 @@ async function renderTopDrinks() {
     title: "Top 5 Drinks by Quantity",
     paper_bgcolor: "rgba(0,0,0,0)",
     plot_bgcolor: "rgba(0,0,0,0)",
-    margin: { l: 140, r: 20, t: 50, b: 40 },
+    margin: { l: 143, r: 20, t: 50, b: 40 },
     xaxis: { title: "Units sold" },
   };
 

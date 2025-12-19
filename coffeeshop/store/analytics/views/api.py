@@ -108,7 +108,7 @@ def monthly_revenue_chart(request):
 
     buf = io.BytesIO()
     plt.tight_layout()
-    plt.savefig(buf, format="png")
+    plt.savefig(buf, format="png", transparent=True,)
     plt.close(fig)
 
     buf.seek(0)
@@ -266,6 +266,12 @@ def monthly_cumulative_chart(request):
         linewidth=3,
         marker="o"
     )
+    for container in ax.containers:
+        labels = [
+            f"{int(v)}" if v != 0 else ""
+            for v in container.datavalues
+        ]
+        ax.bar_label(container, labels=labels, label_type="center")
 
     ax.set_title("Cumulative Revenue (Current Month)")
     ax.set_ylabel("Revenue ($)")
@@ -275,7 +281,7 @@ def monthly_cumulative_chart(request):
     plt.tight_layout()
 
     buf = io.BytesIO()
-    plt.savefig(buf, format="png")
+    plt.savefig(buf, format="png", transparent=True,)
     plt.close(fig)
     buf.seek(0)
 
