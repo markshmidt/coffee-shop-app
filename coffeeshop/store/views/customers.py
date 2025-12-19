@@ -182,11 +182,15 @@ def cart_assign_customer(request):
         cid = payload["customer_id"]
         if cid is None:
             cart["customer_id"] = None
+            cart["redeem"] = False
+            cart["loyalty_redemption_cents"] = 0
         else:
             # to ensure the referenced customer actually exists
             if not Customer.objects.filter(pk=cid).exists():
                 return HttpResponseBadRequest("Customer not found")
             cart["customer_id"] = cid
+            cart["redeem"] = False  # reset on change
+            cart["loyalty_redemption_cents"] = 0
 
     #create new customer
     elif "create" in payload:

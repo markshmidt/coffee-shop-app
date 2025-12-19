@@ -630,9 +630,17 @@ input[type="search"] {
 }
 
 #redeem-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+#redeem {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
 }
 
 #redeem-label input[type="checkbox"] {

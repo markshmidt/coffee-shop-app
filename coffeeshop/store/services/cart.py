@@ -149,7 +149,8 @@ def cart_snapshot(cart):
 
     loyalty = {"projected_points": projected_pts}
     cid = cart.get("customer_id")
-
+    has_customer = bool(cart.get("customer_id") or cart.get("create"))
+    can_redeem = False
     if cid:
         pts = (
                   Customer.objects
@@ -160,17 +161,22 @@ def cart_snapshot(cart):
 
         customer = Customer.objects.only("id", "points_balance").filter(pk=cid).first()
 
-        loyalty.update({"customer_id": cid, "points_balance": pts})
-
-        if customer and cart.get("redeem") and customer.can_redeem():
+        loyalty.update({"customer_id": cid, "points_balance": pts,  "can_redeem": customer.can_redeem() if customer else False})
+        if customer and cart.get("redeem") and loyalty["can_redeem"]:
             loyalty_preview_cents = max(0, subtotal - discount_cents)
-            loyalty_preview_cents = min(loyalty_preview_cents, POS_LOYALTY_PRICE_CAP_CENTS)
-
+            loyalty_preview_cents = min(
+                loyalty_preview_cents,
+                POS_LOYALTY_PRICE_CAP_CENTS
+            )
+            can_redeem = True
+    if not can_redeem:
+        cart["redeem"] = False
 
     return {
          "lines": cart.get("lines", []),
         "discount_code": cart.get("discount_code", "NONE"),
         "payment_method": cart.get("payment_method", "CARD"),
+        "has_customer": has_customer,
 
         # raw cents
         "subtotal_cents": subtotal,
@@ -190,6 +196,8 @@ def cart_snapshot(cart):
         "loyalty": loyalty,
         "loyalty_redemption_cents": loyalty_preview_cents,
         "loyalty_redemption_label": _fmt_cents(loyalty_preview_cents),
+        "redeem": bool(cart.get("redeem")),
+
     }
 
 
