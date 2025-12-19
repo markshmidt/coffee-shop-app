@@ -1,0 +1,230 @@
+{% extends "pos-base.html" %}
+{% load static %}
+
+{% block title %}Analytics{% endblock %}
+
+{% block content %}
+<div class="analytics-page">
+
+  <header class="analytics-header">
+    <div>
+      <h2>Analytics Dashboard</h2>
+      <p>Live overview · auto-refresh</p>
+    </div>
+    <div class="analytics-meta">
+      Updated: <strong id="server-time">--</strong>
+    </div>
+  </header>
+
+  <!-- ======================
+       ALL-TIME STATISTICS
+  ======================= -->
+  <section class="analytics-section">
+    <div class="section-head">
+      <h3>All-Time Statistics</h3>
+      <span class="hint">Entire store history</span>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Total Orders</div>
+        <div class="kpi-value" id="kpi-orders">--</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-label">Total Revenue</div>
+        <div class="kpi-value" id="kpi-total">$0.00</div>
+      </div>
+
+      <div class="kpi-card danger">
+        <div class="kpi-label">Refunded Orders</div>
+        <div class="kpi-value" id="kpi-refunded">--</div>
+        <div class="kpi-sub">Rate: <span id="kpi-refund-rate">--%</span></div>
+      </div>
+
+      <div class="kpi-card subtle">
+        <div class="kpi-label">Window</div>
+        <div class="kpi-value"><span id="win-min">--</span> min</div>
+        <div class="kpi-sub">Live refresh (5s)</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h4>Payment Split</h4>
+        <span class="pill">click legend to filter</span>
+      </div>
+
+      <div class="chart-wrapper">
+  <div class="chart-empty hidden" id="payment-empty">
+    No payments yet
+  </div>
+  <canvas id="paymentChart"></canvas>
+</div>
+
+    </div>
+  </section>
+
+  <!-- ======================
+       DAILY / MONTHLY TRENDS
+  ======================= -->
+  <section class="analytics-card">
+  <h4>Daily Revenue & Orders</h4>
+  <div id="dailyChart"></div>
+</section>
+
+
+
+   <section class="analytics-card">
+  <h4>Daily KPIs</h4>
+
+  <div class="kpi-row">
+    <div class="kpi-mini">
+      <span>Orders</span>
+      <strong id="daily-orders">--</strong>
+    </div>
+    <div class="kpi-mini">
+      <span>Revenue</span>
+      <strong id="daily-revenue">--</strong>
+    </div>
+    <div class="kpi-mini">
+      <span>New Customers</span>
+      <strong id="daily-customers">--</strong>
+    </div>
+    <div class="kpi-mini danger">
+      <span>Refunds</span>
+      <strong id="daily-refunds">--</strong>
+    </div>
+       <div class="kpi-mini danger">
+      <span>Average</span>
+      <strong id="daily-avg">--</strong>
+    </div>
+       <div class="kpi-mini danger">
+      <span>Cash</span>
+      <strong id="daily-cash">--</strong>
+    </div>
+       <div class="kpi-mini danger">
+      <span>Card</span>
+      <strong id="daily-card">--</strong>
+    </div>
+
+  </div>
+</section>
+
+
+  <section class="analytics-card">
+  <h4>Monthly Revenue</h4>
+  <img src="/analytics/api/monthly-revenue-chart/" alt="Monthly Revenue">
+</section>
+    <section class="card">
+  <h3>Monthly Cumulative Revenue</h3>
+  <img
+    src="/analytics/api/monthly-cumulative-chart/"
+    alt="Monthly cumulative revenue"
+    class="chart-img"
+  />
+</section>
+  <section class="analytics-card">
+      <h4>Monthly KPIs</h4>
+    <div class="kpi-row">
+        <div class="kpi-mini danger">
+      <span>Monthly orders</span>
+      <strong id="monthly-orders">--</strong>
+    </div>
+        <div class="kpi-mini danger">
+      <span>Monthly revenue</span>
+      <strong id="monthly-revenue">--</strong>
+    </div>
+         <div class="kpi-mini danger">
+      <span>Average order number</span>
+      <strong id="monthly-avg-order">--</strong>
+    </div>
+          <div class="kpi-mini danger">
+      <span>Monthly refunds</span>
+      <strong id="monthly-refunds">--</strong>
+              <div class="kpi-sub">Rate: <span id="monthly-refund-rate">--%</span></div>
+    </div>
+         <div class="kpi-mini danger">
+      <span>New customers</span>
+      <strong id="monthly-customers">--</strong>
+    </div>
+            <div class="kpi-mini danger">
+      <span>Average revenue per day</span>
+      <strong id="monthly-avg-daily">--</strong>
+    </div>
+
+</div>
+  </section>
+        <section class="analytics-card">
+  <h4>Top Customer (This Month)</h4>
+  <p id="top-customer">—</p>
+</section>
+
+<section class="analytics-card">
+  <h4>Popular Items (This Month)</h4>
+
+  <p>
+    <strong>Most popular:</strong>
+    <span id="item-most">—</span>
+  </p>
+
+  <p>
+    <strong>Least popular:</strong>
+    <span id="item-least">—</span>
+  </p>
+</section>
+
+
+
+
+  <!-- ======================
+       PRODUCT PERFORMANCE
+  ======================= -->
+
+    <div class="grid-2">
+  <div class="card">
+    <h4>Top 5 Drinks (All Time)</h4>
+    <div id="topDrinksChart" class="plotly-chart"></div>
+  </div>
+
+  <div class="card">
+    <h4>Bottom 5 Drinks (All Time)</h4>
+    <div id="bottomDrinksChart" class="plotly-chart"></div>
+  </div>
+</div>
+
+
+  <!-- ======================
+       EXPORTS
+  ======================= -->
+  <section class="card">
+  <h3>Exports</h3>
+
+  <div class="export-actions">
+    <a
+      href="/analytics/api/export/orders-csv/"
+      class="btn btn-outline"
+    >
+      ⬇ Export Orders (CSV)
+    </a>
+
+    <a
+      href="/analytics/api/export/monthly-report/"
+      class="btn btn-outline"
+    >
+      ⬇ Monthly Analytics Report (PDF)
+    </a>
+  </div>
+
+  <p class="muted">
+    Use CSV for accounting and Excel analysis.
+    PDF contains charts & KPIs for management.
+  </p>
+</section>
+
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<link rel="stylesheet" href="{% static 'css/dashboard-analytics.css' %}">
+<script type="module" src="{% static 'js/analytics-dashboard.js' %}"></script>
+{% endblock %}

@@ -419,6 +419,87 @@ def order_receipt(request, pk):
 
     #return inline for future preview
     return HttpResponse(html)
+
+@login_required
+@require_POST
+@transaction.atomic
+def order_refund(request, pk):
+    """
+    Refund an order (manager only).
+    - Zeroes monetary fields
+    - Restores / revokes loyalty points
+    - Marks order as REFUNDED
+    """
+
+    order = get_object_or_404(
+        Order.objects.select_for_update().select_related("customer"),
+        pk=pk
+    )
+
+    # ---- permissions ----
+    if not request.user.has_perm("store.refund_order"):
+        return JsonResponse({"ok": False, "error": "Permission denied"}, status=403)
+
+    if order.status == Order.STATUS_REFUNDED:
+        return JsonResponse({"ok": False, "error": "Order already refunded"}, status=400)
+
+    if order.status not in (Order.STATUS_PAID, Order.STATUS_COMPLETED):
+        return JsonResponse({"ok": False, "error": "Order cannot be refunded"}, status=400)
+
+    payload = parse_json(request)
+    reason = (payload.get("reason") or "").strip()
+
+    # ---- loyalty rollback ----
+    if order.customer_id:
+        if order.points_earned:
+            Customer.objects.filter(pk=order.customer_id).update(
+                points_balance=F("points_balance") - order.points_earned
+            )
+
+        if order.redeemed_points:
+            Customer.objects.filter(pk=order.customer_id).update(
+                points_balance=F("points_balance") + order.redeemed_points
+            )
+
+    # ---- zero money ----
+    order.subtotal_cents = 0
+    order.discount_cents = 0
+    order.manual_discount_cents = 0
+    order.tax_cents = 0
+    order.tip_cents = 0
+    order.total_cents = 0
+    order.loyalty_redemption_cents = 0
+    order.rounding_delta_cents = 0
+
+    # ---- zero loyalty fields ----
+    order.points_earned = 0
+    order.redeemed_points = 0
+
+    # ---- status ----
+    order.status = Order.STATUS_REFUNDED
+    order.refund_reason = reason
+
+    order.save(update_fields=[
+        "status",
+        "subtotal_cents",
+        "discount_cents",
+        "manual_discount_cents",
+        "tax_cents",
+        "tip_cents",
+        "total_cents",
+        "loyalty_redemption_cents",
+        "rounding_delta_cents",
+        "points_earned",
+        "redeemed_points",
+        "refund_reason",
+    ])
+
+    return JsonResponse({
+        "ok": True,
+        "order_id": order.id,
+        "status": order.status,
+    })
+
 @login_required
 def orders_page(request):
     return render(request, "orders_page.html")

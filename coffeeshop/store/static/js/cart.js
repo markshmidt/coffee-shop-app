@@ -159,27 +159,35 @@ export function renderCart(cart) {
     if (p) p.checked = true;
   }
 
-  // redeem toggle eligibility
-  const pts = Number(cart?.loyalty?.projected_points ?? 0);   // <- nil safe
-  const subC = Number(cart.subtotal_cents ?? 0);
-  const disC = Number(cart.discount_cents ?? 0);
-  const eligible = pts >= 80 && (subC - disC) > 0;
+ const redeem = document.getElementById('redeem');
+const redeemLabel = document.getElementById('redeem-label');
 
-  const redeem = document.getElementById('redeem');
-  const redeemLabel = document.getElementById('redeem-label');
+const loyalty = cart.loyalty || {};
+const canRedeem = loyalty.can_redeem === true;
+
+/* ---------------------------
+   GUEST → force hide + reset
+---------------------------- */
+if (!cart.has_customer) {
+  if (redeemLabel) redeemLabel.style.display = 'none';
+  if (redeem) {
+    redeem.checked = false;
+    redeem.disabled = true;
+  }
+} else {
+  // customer exists
   if (redeemLabel) {
-    redeemLabel.style.display = 'inline-flex';
-    redeemLabel.style.opacity = eligible ? '1' : '0.4';
-}
-
-if (redeem) {
-    redeem.disabled = !eligible;
-}
+    redeemLabel.style.display = canRedeem ? 'inline-flex' : 'none';
+  }
 
   if (redeem) {
-    redeem.disabled = !eligible;
-    redeem.checked  = lp > 0;
+    if (redeem.checked !== (cart.redeem === true)) {
+      redeem.checked = cart.redeem === true;
+    }
+    redeem.disabled = !canRedeem;
   }
+}
+
 }
 
 // ------- card buttons handlers ------

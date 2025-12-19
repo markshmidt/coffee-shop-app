@@ -302,8 +302,19 @@ const btnEmail  = m.querySelector('#order-btn-email');
     showToast?.('You do not have permission to refund this order.', { type: 'warning' });
     return;
   }
-  showToast?.('Not implemented yet', { type: 'info' });
-  };
+  if (order.status === 'REFUNDED') {
+    showToast?.('Order already refunded', { type: 'info' });
+    return;
+  }
+
+  const confirmRefund = confirm(
+    `Refund order #${order.id}?\n\nThis will zero all totals and cannot be undone.`
+  );
+
+  if (!confirmRefund) return;
+
+  refundOrder(order.id);
+};;
   btnAssign.onclick = () => openCustomerModal({ orderId: Number(order.id) });;
 
 
@@ -351,3 +362,40 @@ function openReceipt(orderId) {
   window.open(`/orders/${encodeURIComponent(id)}/receipt/`, '_blank', 'noopener,noreferrer');
 }
 
+async function refundOrder(orderId) {
+  const reason = prompt(
+    'Enter refund reason (optional):',
+    'Customer requested refund'
+  );
+
+  if (reason === null) return; // user cancelled
+
+  try {
+    const res = await fetch(`/orders/${orderId}/refund/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': CSRF,
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({ reason }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.ok === false) {
+      throw new Error(data?.error || `Refund failed (${res.status})`);
+    }
+
+    showToast?.(`Order #${orderId} refunded`, { type: 'success' });
+
+    window.dispatchEvent(
+      new CustomEvent('order:reload', { detail: { orderId } })
+    );
+
+    document.dispatchEvent(new Event('orders:refresh'));
+
+  } catch (err) {
+    console.error('refund failed', err);
+    showToast?.(err.message || 'Refund failed', { type: 'error' });
+  }
+}

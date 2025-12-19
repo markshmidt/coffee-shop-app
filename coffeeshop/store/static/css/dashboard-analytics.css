@@ -1,0 +1,214 @@
+.analytics-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 18px 60px;
+}
+
+.analytics-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.analytics-header h2 {
+  margin: 0;
+  font-size: 28px;
+  letter-spacing: 0.3px;
+}
+
+.analytics-header p {
+  margin: 6px 0 0;
+  opacity: 0.8;
+}
+
+.analytics-meta {
+  font-size: 14px;
+  opacity: 0.85;
+}
+
+.analytics-section {
+  margin-top: 18px;
+}
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 10px 0 10px;
+}
+
+.section-head h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.section-head .hint {
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.kpi-card {
+  background: rgba(255,255,255,0.55);
+  border: 1px solid rgba(0,0,0,0.05);
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+  min-height: 78px;
+}
+
+.kpi-card .kpi-label {
+  font-size: 12px;
+  opacity: 0.75;
+  margin-bottom: 6px;
+}
+
+.kpi-card .kpi-value {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.kpi-card .kpi-sub {
+  margin-top: 6px;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.kpi-card.danger {
+  border-color: rgba(231, 111, 138, 0.35);
+}
+
+.kpi-card.subtle {
+  opacity: 0.95;
+}
+
+.card {
+  background: rgba(255,255,255,0.55);
+  border: 1px solid rgba(0,0,0,0.05);
+  border-radius: 14px;
+  padding: 14px 16px;
+  box-shadow: 0 10px 26px rgba(0,0,0,0.10);
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.card h4 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.pill {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.06);
+  opacity: 0.85;
+}
+
+.chart-area {
+  position: relative;
+  height: 260px; /* keeps donut from becoming huge */
+}
+
+.chart-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  opacity: 0.75;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.placeholder {
+  opacity: 0.95;
+}
+
+@media (max-width: 980px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .grid-2 { grid-template-columns: 1fr; }
+}
+.chart-wrapper {
+  position: relative;
+  height: 260px;      /* ← REQUIRED */
+  width: 100%;
+}
+
+.chart-wrapper.small {
+  height: 220px;
+}
+
+canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+.analytics-card {
+    background: rgba(255, 255, 255, 0.55);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    border-radius: 14px;
+    padding: 14px 16px;
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.10);
+    margin: 10px;
+}
+
+.kpi-row {
+  display: flex;
+  gap: 16px;
+}
+
+.kpi-mini {
+  flex: 1;
+  background: #fff3e0;
+  border-radius: 12px;
+  padding: 12px;
+  text-align: center;
+}
+.card{
+margin: 10px;
+}
+.export-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.btn-outline {
+  border: 1px solid #8b5e3c;
+  padding: 8px 14px;
+  border-radius: 8px;
+  color: #8b5e3c;
+  background: transparent;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.btn-outline:hover {
+  background: #8b5e3c;
+  color: white;
+}

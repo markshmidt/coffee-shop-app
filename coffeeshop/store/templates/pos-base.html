@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="{% static 'css/orders.css' %}">
      <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
       <link rel="stylesheet" href="{% static 'css/customers-manage.css' %}">
-
+          <link rel="stylesheet" href="{% static 'css/dashboard-analytics.css' %}">
   {% block extra_css %}{% endblock %}
 </head>
 <body data-page="{% block page %}{% endblock %}">
@@ -17,20 +17,33 @@
       <div class="brand">
          <img src="{% static 'pics/coffee-island-logo.png' %}" class="coffee-photo" style="width: 400px;">
       </div>
+
       <div class="clock" id="clock">--:--</div>
 
       <div class="topbar-action">
-      <span class="btn">User: <span id="who">{{user}}</span></span> <!-- user logged in-->
+
+             <a href="{% url 'store:home' %}">
+          <button class="btn">Home</button>
+          </a>
+           <a href="{% url 'store:orders' %}">
+          <button class="btn">Orders</button>
+           </a>
+              <a href="{% url 'store:manage_customers' %}">
+            {% if perms.store.view_sales_reports %}
+          <button class="btn">Customers</button>
+        {% endif %}
+              </a>
+
+          <a href="{% url 'analytics_dashboard' %}">
+            {% if perms.store.view_sales_reports %}
+          <button class="btn">Dashboard</button>
+        {% endif %}
+          </a>
+<span class="btn">User: <span id="who">{{user}}</span></span> <!-- user logged in-->
       <a href="https://github.com/markshmidt/coffee-shop-app" target="_blank">
   <button class="btn">GitHub</button>
 </a>
-          <a href="{% url 'management_dashboard' %}">
-            {% if perms.store.view_sales_reports %}
-          <button class="btn">Manage</button>
-        {% endif %}
-          </a>
-
-        <form action="{% url 'logout' %}" method="post" style="display:inline">
+        <form action="{% url 'store:logout' %}" method="post" style="display:inline">
     {% csrf_token %}<button class="btn">Logout</button>
 
   </form>
