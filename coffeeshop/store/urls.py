@@ -8,7 +8,7 @@ from .views import customers as customers_views
 from .views import auth
 from .views import debug
 from .views import management as management_views
-
+app_name = "store"
 urlpatterns = [
     path("debug-cart/", debug.debug_cart, name="debug_cart"),
 
@@ -51,32 +51,10 @@ urlpatterns = [
         name="cart_assign_customer",
     ),
 
-    # Management dashboard pages
-    path(
-        "manage/",
-        manager_required(management_views.management_dashboard),
-        name="management_dashboard",
-    ),
-
     path(
         "manage/customers/",
         manager_required(management_views.customers_manage),
         name="manage_customers",
-    ),
-    path(
-        "manage/menu/",
-        manager_required(management_views.manage_menu),
-        name="manage_menu",
-    ),
-    path(
-        "manage/modifiers/",
-        manager_required(management_views.manage_modifiers),
-        name="manage_modifiers",
-    ),
-    path(
-        "manage/reports/",
-        manager_required(management_views.sales_reports),
-        name="sales_reports",
     ),
 
     # ============================

@@ -12,12 +12,3 @@ def management_dashboard(request):
 def customers_manage(request):
     perms = compute_order_permissions(request.user)
     return render(request, "customers.html", {"perms": perms})
-
-def manage_menu(request):
-    return render(request, "management/placeholder.html", {"title": "Menu Management"})
-
-def manage_modifiers(request):
-    return render(request, "management/placeholder.html", {"title": "Modifier Management"})
-
-def sales_reports(request):
-    return render(request, "management/placeholder.html", {"title": "Sales Reports"})
