@@ -184,7 +184,7 @@
     color: #0f8e63;
     border-color: rgba(16,185,129,.3);
 }
-.status-pill.status--void {
+.status-pill.status--refunded {
     background: rgba(239,68,68,.15);
     color: #b91c1c;
     border-color: rgba(239,68,68,.3);

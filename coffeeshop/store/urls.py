@@ -31,6 +31,8 @@ urlpatterns = [
     path("orders/<int:pk>/", orders_views.order_detail, name="order_detail"),
     path("orders/<int:pk>/note/", orders_views.order_note, name="order_note"),
     path("orders/<int:pk>/receipt/", orders_views.order_receipt, name="order_receipt"),
+path('orders/<int:pk>/refund/', orders_views.order_refund, name='order-refund'),
+
 
     # Customers (legacy/non-API endpoints still used in POS search etc.)
     path("customers/list/", customers_views.customers_list, name="customers_list"),
