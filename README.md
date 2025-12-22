@@ -16,18 +16,20 @@ It provides order management, item configuration, categories, variants, loyalty 
 - Detailed documentation (ERD, class diagrams, Postman collection, SRS-style docs)
 
 ## Features
-POS & Order Management: 
-- Add items with modifiers & options & variants to session-based cart;
-- Automatic pricing calculation in cart
-- Assigning existing customer to cart (saving in session) and to order (saving to db), as well as creating new one
-- Discounts & loyalty points applied
-- Creating & managing customer orders with opportunity to write order notes and print receipts
+POS & Order Management:
+- Add items with modifiers, options, and variants to a session-based cart
+- Automatic pricing calculation (modifiers, discounts, tax, rounding)
+- Assign existing customers to cart or create new customers on checkout
+- Loyalty points earning & redemption
+- Order creation with internal notes
+- Receipt rendering and printing
+- Refund functionality (manager-only) with accounting-safe behavior
 
-Admin:
-- CRUD for menu categories, items, variants
+Admin & Management:
+
+- CRUD for menu categories, items, variants, and modifiers
 - Customer management
-- Users/user groups and permissions management
-- Order history w/ search and filters
+- Order history with status tracking (Paid / Completed / Refunded)
 
 ## Technical Features and Stack
 
@@ -40,6 +42,8 @@ Admin:
 - GitHub Actions CI/CD pipeline
 - File logging & session support
 - Static and media file management
+
+## 
 
 ## System design
 See the [ERD & Class Diagram](docs/erd.md).
@@ -85,12 +89,10 @@ coffee-shop-app/
 
 ## Planned Improvements
 
-- Better UI change
-- Refund feature
 - Docker Compose with nginx + gunicorn for deployment
 - Replace SQLite with PostgreSQL
 - Automated tests (pytest + Django test suite)
-- Dedicated manager dashboard with data analytics, daily sales reports, etc. and CRUD for models
 - Send email receipts to customer
+- Jenkins for deployment
 
 
