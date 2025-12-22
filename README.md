@@ -1,7 +1,7 @@
 # Coffee Island POS — [https://mariia-shmidt-portfolio.com/coffeeshopapp/](https://mariia-shmidt-portfolio.com/coffeeshopapp/login/)
 
 A full-stack Point of Sale (POS) web application built with Django, designed for Coffee Island coffee shop, but suitable for all small similar businesses.
-It provides order management, item configuration, categories, variants, loyalty points, receipt handling, and more.
+It provides order management, item configuration, categories, variants, loyalty points, receipt handling, analytics dashboard and more.
 
 ### This project includes:
 
@@ -31,24 +31,71 @@ Admin & Management:
 - Customer management
 - Order history with status tracking (Paid / Completed / Refunded)
 
+## Analytics & Reporting
+
+The application includes a live analytics dashboard available at /analytics/
+
+Analytics are computed directly from the Order & OrderItem tables using Django ORM aggregation and Python data processing.
+
+### Implemented analytics include:
+- Global / All-Time Metrics
+- Total number of orders
+
+- Total revenue (excluding refunded orders)
+
+- Number of refunded orders
+
+- Refund rate (%)
+
+- Payment method split (Cash vs Card)
+
+- Daily revenue & order count by hour
+
+- Monthly revenue totals
+
+- Cumulative revenue for the current month
+
+- Average revenue per day
+
+- New customers per period
+
+- Top customer (by total spend)
+
+- Average order value
+
+- Orders per customer
+
+
+- Most popular items (by quantity sold)
+
+- Least popular items
+
+- Top 5 drinks (all time)
+
+- Bottom 5 drinks (all time)
+- Opportunity to export orders to CSV for accounting or Excel analysis
+- Ability to generate monthly analytics PDF reports containing KPIs and charts
+
 ## Technical Features and Stack
 
 - Django 5.x
 - Sqlite3
 - HTML + CSS + JavaScript for frontend
 - Gunicorn + nginx deployment
+- Pandas — data analysis & aggregation
+- NumPy — numerical processing
+- Matplotlib — static charts
+- Seaborn — statistical visualizations
+- Chart.js/Plotly.js — interactive frontend charts
 - Ruff for linting and static analysis
 - Fully Dockerized for easy deployment
 - GitHub Actions CI/CD pipeline
 - File logging & session support
 - Static and media file management
 
-## 
-
 ## System design
 See the [ERD & Class Diagram](docs/erd.md).
 
-## Project Structure
 ## Project Structure
 coffee-shop-app/    
 │   
