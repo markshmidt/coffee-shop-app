@@ -2,7 +2,7 @@
 
 A full-stack Point of Sale (POS) web application built with Django, designed for Coffee Island coffee shop, but suitable for all small similar businesses.
 It provides order management, item configuration, categories, variants, loyalty points, receipt handling, analytics dashboard and more.
-<img width="1918" height="1066" alt="image" src="https://github.com/user-attachments/assets/4aeb74d8-ee8e-4b8a-b3b8-9efa16b136c2" />
+<img width="1918" height="1066" alt="image" src="https://github.com/user-attachments/assets/4aeb74d8-ee8e-4b8a-b3b8-9efa16b136c2" /> 
 
 ### This project includes:
 
