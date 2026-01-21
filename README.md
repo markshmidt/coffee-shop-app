@@ -4,6 +4,16 @@ A full-stack Point of Sale (POS) web application built with Django, designed for
 It provides order management, item configuration, categories, variants, loyalty points, receipt handling, analytics dashboard and more.
 <img width="1918" height="1066" alt="image" src="https://github.com/user-attachments/assets/4aeb74d8-ee8e-4b8a-b3b8-9efa16b136c2" /> 
 
+### Login details:
+This web applications features role-based authentication. In order to see the difference between
+
+**Manager credentials**
+username: manager
+password: mngr_mngr
+**Barista credentials**
+username: barista
+password: brst_brst
+
 ### This project includes:
 
 - A fully functional Django backend
